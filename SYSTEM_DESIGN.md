@@ -199,6 +199,119 @@ memory.
 
 ---
 
+### D-012: Explicit numbered SQL migrations, no ORM auto-sync
+
+**Decision:** `packages/db/migrations/NNN_name.sql`, applied in filename order,
+each in its own transaction, recorded in `schema_migrations`, serialised by a
+Postgres advisory lock.
+**Alternatives considered:** Prisma/Drizzle schema push; an ORM's auto-sync.
+**Why:** The schema is the most consequential artefact in the system, and a
+reviewer must be able to read exactly what will run. Auto-sync produces a
+schema nobody reviewed and a migration nobody can roll back. The advisory lock
+matters because four API replicas boot simultaneously on deploy.
+**Cost accepted:** Writing SQL by hand; no generated types from the schema.
+**Revisit if:** The schema starts changing weekly.
+
+### D-013: One row per attempt, answers as a single JSONB column
+
+**Decision:** `attempts.answers` is one JSONB object, overwritten on every sync.
+**Alternatives considered:** One row per answer (`attempt_answers`).
+**Why:** 75 rows per student is 750,000 rows, and a submit would become a
+multi-row write on the hottest path of the event. A single column makes sync one
+UPDATE and submit one UPDATE. The history that would have justified per-answer
+rows is served instead by `sync_snapshots`, which stores lengths only.
+**Cost accepted:** No per-answer timestamps; a whole-row rewrite per sync
+(~10 KB, trivial at this volume).
+**Revisit if:** Per-answer audit timestamps become a requirement.
+
+### D-014: `revision` as the concurrency guard, not row locks or timestamps
+
+**Decision:** Every write carries `WHERE revision < $new`; a non-matching write
+is a no-op reported as success.
+**Alternatives considered:** `SELECT ... FOR UPDATE` around a read-modify-write;
+last-write-wins on `updated_at`.
+**Why:** The client is the only thing that knows the true order of its own
+edits, so a client-supplied monotonic counter is the correct ordering. Server
+timestamps would reorder a delayed packet ahead of a newer one. Row locks would
+serialise the hottest path in the system for no benefit, since there is nothing
+to merge — each sync carries full state. A student with two tabs open, or on a
+network that reorders packets, converges on the highest revision.
+**Cost accepted:** The client must persist its revision counter alongside its
+answers, or a reload could re-use a revision and have its first sync ignored.
+**Revisit if:** Answers ever stop being full-state.
+
+### D-015: A stale sync is 200, not 409
+
+**Decision:** A sync whose revision the server has already passed returns
+`{ ok: true, revision, stale: true }` with status 200.
+**Alternatives considered:** 409 Conflict.
+**Why:** Out-of-order delivery is normal on the networks these students are on;
+it is not an error and the client has nothing useful to do about it. A 4xx would
+be read by every HTTP client, retry wrapper and monitoring dashboard as failure,
+producing a retry storm at exactly the moment the network is worst. The response
+carries the server's revision so a genuinely confused client can resynchronise.
+**Cost accepted:** "Success" covers two outcomes, so the `stale` flag exists to
+tell them apart in logs.
+**Revisit if:** Clients ever need to block on a conflict.
+
+### D-016: Submit finalises even when the client's revision is behind
+
+**Decision:** If a submit arrives carrying a revision older than the server's,
+the server keeps its own newer answers and still marks the attempt submitted.
+**Alternatives considered:** Rejecting the submit; overwriting with the client's
+payload.
+**Why:** Both alternatives harm the student. Rejecting leaves the attempt open
+and relying on auto-submit when the student believes they have submitted;
+overwriting discards answers a second tab already synced. Keeping the newer
+state and closing the attempt is the only option that loses nothing.
+**Cost accepted:** The receipt may not correspond to the exact bytes the
+submitting tab held — it corresponds to the best state the server has.
+**Revisit if:** Students ever need per-device attempts.
+
+### D-017: One-shot jobs are rows in `job_runs`, not timers
+
+**Decision:** Auto-submit, MCQ scoring, enqueue-grading and flag computation are
+scheduled by inserting a row with a `run_after`, claimed with `FOR UPDATE SKIP
+LOCKED` and a `locked_until` lease.
+**Alternatives considered:** `setTimeout` in the worker; an external cron.
+**Why:** A timer in process memory dies with the process, and the single most
+important job in the system (auto-submit) runs exactly once, ten minutes after
+the window closes — precisely when a deploy or a crash would be most costly. As
+a row, a restarted worker simply finds the job still due and runs it. UNIQUE
+(job, test_id) means a double trigger cannot produce two runs.
+**Cost accepted:** Up to one poll interval (5 s) of scheduling latency.
+**Revisit if:** Sub-second job triggering is ever needed.
+
+### D-018: Sync snapshots carry the originating IP
+
+**Decision:** `sync_snapshots` has an `ip inet` column in addition to the
+lengths.
+**Alternatives considered:** A separate `attempt_ips` table; computing the
+IP-change flag inline during sync.
+**Why:** The IP-change signal needs history, not just the latest address.
+Carrying it on the snapshot row costs nothing because that insert already
+happens on every sync, whereas a separate table would add a second write to the
+hot path and computing it inline would add a read.
+**Cost accepted:** One more personal-data column; covered by the retention note
+in section 9.
+**Revisit if:** The IP signal is dropped as too weak to be worth storing.
+
+### D-019: Sync is permitted for a `registered` attempt, not only `in_progress`
+
+**Decision:** The sync guard accepts `registered` and `in_progress`, and
+promotes `registered` to `in_progress` on first write.
+**Alternatives considered:** Rejecting any sync before the key is issued, with a
+dedicated echo endpoint for the lobby check.
+**Why:** The lobby must verify that a real sync round-trip works while there is
+still time to fix a problem, and a check that exercises a different code path
+than the real thing is not a check. There is no exposure: the paper is encrypted
+and the key is not released until `starts_at`, so a student who syncs early can
+only store an empty answer set.
+**Cost accepted:** `in_progress` means "has written something", which is very
+slightly weaker than "has been handed the key". `key_issued_at` remains the
+precise signal and is what the reconciliation report counts.
+**Revisit if:** The lobby check is ever removed.
+
 ## 3. File map
 
 | Path | Responsibility | Notes |
@@ -210,17 +323,82 @@ memory.
 | `packages/shared/src/flags.ts` | Keystroke ratio, burst appearance, IP change | Pure. Returns evidence only; never a score or a penalty. |
 | `packages/shared/src/receipt.ts` | Receipt format and parser | `JEE-<testId>-<YYYYMMDD>-<6 digits>`; auto form generated in SQL. |
 
+| `packages/shared/src/paper-crypto.ts` | AES-256-GCM over the paper JSON | WebCrypto, so the Node builder and the browser client run the same code. |
+| `packages/db/migrations/001_auth.sql` | Better Auth tables + `admins` | Written out explicitly; verify against `@better-auth/cli generate` after upgrades. |
+| `packages/db/migrations/002_core.sql` | `tests`, `payments`, `attempts`, `sync_snapshots`, `grading_jobs` | The event schema. `tests.paper_key` and `tests.answer_key` are the two secret columns. |
+| `packages/db/migrations/003_ops.sql` | `job_runs`, `admin_audit` | One-shot job bookkeeping and the append-only override trail. |
+| `packages/db/src/pool.ts` | Pool construction and `withTransaction` | `PG_POOL_MAX` x replicas must stay under the connection limit. |
+| `packages/db/src/migrate.ts` | Migration runner | Advisory-locked, so concurrent replica boots do not race. |
+| `packages/db/src/query.ts` | `rows`/`one`/`count` and `pick` | `pick` is the response whitelist used by every handler. |
+| `packages/db/src/queries/tests.ts` | Test reads, with explicit column lists | The only two functions that read key material live here and are named to stand out. |
+| `packages/db/src/queries/attempts.ts` | **Sync and submit.** The hot path | `syncAttempt` runs 1.2M times/event; the `revision <` guard is here. |
+| `packages/db/src/queries/jobs.ts` | **Auto-submit** and job claiming | `autoSubmitAll` is the core safety net. Tested first. |
+| `packages/db/src/queries/grading.ts` | Grading queue: enqueue, claim, complete, roll up | `claimNextGradingJob` is the `SKIP LOCKED` claim. |
+| `packages/db/src/queries/payments.ts` | Orders, webhook idempotency, stuck-payment scan | `markPaid` is safe to run on every Razorpay retry. |
+| `packages/db/src/queries/admin.ts` | Review queue, audit log, live stats | `liveStats.staleOver4Minutes` is the during-test health number. |
+| `packages/db/src/testing.ts` | Per-file test database + fixtures | Real Postgres, because the behaviour under test is `revision <` and `SKIP LOCKED`. |
+| `packages/db/src/samplePaper.ts` | Deterministic 75-question dev paper | Not the real paper; feeds the seed and the load test. |
 <!-- Appended as files land. -->
 
 ---
 
 ## 4. Data flow walkthroughs
 
+### The sync loop
+
+1. The client writes every change to IndexedDB (debounced 300 ms) and bumps a
+   local `revision`.
+2. Every 90 s a timer fires. If `revision` has not advanced since the last
+   successful sync, the request is **skipped entirely** — this drops 30-40% of
+   traffic from students who are reading or working on paper.
+3. Otherwise the client POSTs `/attempt/sync` with full state: every answer,
+   every telemetry counter, and the current revision.
+4. The API validates with the shared zod schema, confirms the attempt belongs to
+   this user, and rejects the request if `now > tests.ends_at`.
+5. One guarded UPDATE: `SET answers = $1, ... WHERE id = $5 AND revision < $3
+   AND submitted_at IS NULL`. Zero rows matched means the request was stale or
+   the attempt is already finalised.
+6. A `sync_snapshots` row records **lengths only**, `ON CONFLICT DO NOTHING`.
+7. The response is always 200: `{ ok, revision, stale, serverTime }`.
+
+Worst case loss: 90 seconds, bounded by step 2's interval.
+
+### Submit and auto-submit
+
+The submit button is a convenience. Auto-submit is the mechanism.
+
+1. At the timer's zero, or on a manual click, the client picks a random delay in
+   `[0, 45s)` and shows `SUBMITTING`. The jitter is what flattens a 10,000-client
+   spike into roughly 220 req/s.
+2. `POST /attempt/submit` writes one row: answers, `submitted_at`, status,
+   receipt. It computes no score and calls no model.
+3. `WHERE submitted_at IS NULL` makes it idempotent. A second request — a
+   double-click, a retry, a racing auto-submit — reads back the same receipt and
+   returns 200.
+4. If every retry fails, the client shows "Your answers are saved. We're
+   completing your submission." This is *true*: the last sync is on the server.
+5. Ten minutes after `ends_at`, the worker claims the `auto_submit` job and runs
+   one UPDATE over every attempt still `in_progress` with `submitted_at IS NULL`,
+   finalising each from its last synced answers.
+6. A reconciliation report follows: registered, started, manually submitted,
+   auto-submitted, never-started, zero-answer, stale-at-close. An unusually high
+   auto-submit count means sync was failing, and that must be visible on the day
+   rather than six days later.
+
 <!-- Appended as flows land. -->
 
 ---
 
 ## 5. Failure modes
+
+| What fails | System response | Data loss |
+| --- | --- | --- |
+| Student loses connection mid-test | The client keeps writing to IndexedDB and keeps retrying the sync; the indicator quietly notes the last-saved time. On reconnect the next sync carries full state, so nothing needs replaying. | None beyond the last 90 s, and nothing at all if the connection returns before the window closes. |
+| Browser crashes / power cut | On reload the client restores answers from IndexedDB, re-reads `revision`, and continues. | At most the 300 ms IndexedDB debounce. |
+| Laptop dies and never returns | Auto-submit finalises the attempt from the last synced answers 10 minutes after `ends_at`. | At most 90 s. |
+| Submit fails repeatedly | Client retries 1/2/4/8/16 s, then shows "Your answers are saved. We're completing your submission." Auto-submit finalises the attempt. | None. |
+| Two tabs open | Both sync full state; the `revision <` guard means the higher revision wins and neither corrupts the other. | None. |
+| Out-of-order sync packets | The stale one matches no rows and returns 200 with the server's revision. | None. |
 
 <!-- Appended as the handling lands. -->
 
