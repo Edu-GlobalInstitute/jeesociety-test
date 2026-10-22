@@ -425,6 +425,60 @@ calls — and would hide a failing provider behind an apparently healthy queue.
 **Cost accepted:** Backoff is implemented here rather than inherited.
 **Revisit if:** Never, while job state lives in Postgres.
 
+### D-028: Local state wins over server state on resume
+
+**Decision:** On start, the client loads its IndexedDB state if present and uses
+it. It only adopts the server's copy when this device has none.
+**Alternatives considered:** Always adopting the server's state; merging the two.
+**Why:** The local copy is always at least as fresh as the server's — it is
+written on a 300 ms debounce and the server is 90 seconds behind by design.
+Adopting the server's copy on every load would throw away up to 90 seconds of
+work on a simple refresh. Merging has no safe rule: with full-state syncs there
+is no way to tell a deletion from a stale omission. The server copy is for the
+case it was built for — a student on a replacement machine.
+**Cost accepted:** A student who works on two machines sees whichever one they
+last used locally; the `revision` guard still prevents corruption.
+**Revisit if:** Multi-device sessions become a supported workflow.
+
+### D-029: No webfonts in the exam client
+
+**Decision:** System font stacks only. Serif (Charter/Georgia) for question
+text, system UI sans for chrome.
+**Alternatives considered:** Google Fonts; self-hosted woff2.
+**Why:** 10,000 students load this app inside a 30-minute window, many on poor
+connections. A webfont that fails or stalls produces invisible or re-flowing
+question text at the worst possible moment, and `font-display: swap` only
+narrows the window rather than closing it. Nothing about the typography is worth
+that risk, so the design takes its character from structure and colour instead.
+**Cost accepted:** Less typographic distinctiveness; rendering differs slightly
+across platforms.
+**Revisit if:** Fonts can be inlined into the bundle at a trivial size cost.
+
+### D-030: No red in the exam interface
+
+**Decision:** The palette contains no red. Amber is the strongest signal, used
+for the last ten minutes and for the "still saving" state.
+**Alternatives considered:** Conventional red for the timer's final minutes and
+for sync failures.
+**Why:** These students are already under as much pressure as they will ever be
+under, and a red interface adds to it for no informational gain — the student
+already knows time is short. The brief's rule that nothing may imply their work
+is at risk extends to colour, not just copy.
+**Cost accepted:** Slightly lower urgency signalling, which is the point.
+**Revisit if:** Testing shows students miss the end of the window.
+
+### D-031: Status in the navigator is encoded by shape, not colour alone
+
+**Decision:** Answered is a filled cell, seen-but-blank is a dot, marked for
+review is a folded corner.
+**Alternatives considered:** Colour-only status, as most exam interfaces use.
+**Why:** Roughly 1 in 12 male students has a colour vision deficiency, and at
+10,000 candidates that is hundreds of people reading the one control that tells
+them what they have left to do. Shape costs nothing and works in grayscale, on
+a bad projector and on a washed-out screen.
+**Cost accepted:** A slightly busier grid.
+**Revisit if:** Never.
+
 ## 3. File map
 
 | Path | Responsibility | Notes |

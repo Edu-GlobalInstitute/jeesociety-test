@@ -1,0 +1,629 @@
+/*
+ * Exam client styling.
+ *
+ * Design brief: a student sits with this for three hours under real pressure,
+ * often on a cheap laptop in a bright room. Three decisions follow from that:
+ *
+ *  1. No webfonts. A student on a bad connection must never see invisible
+ *     question text at minute zero, so everything uses system stacks that are
+ *     already on the machine. The design's character comes from structure and
+ *     colour instead.
+ *  2. No red, anywhere, ever — not for the timer, not for unanswered
+ *     questions. Students are already stressed; the interface does not add to
+ *     it. Amber is the strongest signal this palette contains.
+ *  3. Status is encoded by shape as well as colour, so the navigator is
+ *     readable to a colour-blind student and in grayscale.
+ *
+ * The navigator is the one place with visual weight: it is the OMR sheet, the
+ * object this whole exam tradition is built around. Everything else stays
+ * quiet.
+ */
+
+:root {
+  /* Cool paper rather than warm cream — less glare over three hours. */
+  --paper: #eef1f4;
+  --surface: #ffffff;
+  --surface-sunk: #e4e9ee;
+  --rule: #c9d2da;
+  --rule-strong: #9aa8b4;
+
+  /* Blue-black: the colour of the ink these papers have always been written in. */
+  --ink: #16202a;
+  --ink-soft: #4a5a68;
+  --ink-faint: #76858f;
+
+  --accent: #1f4e79;
+  --accent-soft: #dce7f1;
+  --answered: #2f6f4e;
+  --answered-soft: #d9e8df;
+  --review: #a2661c;
+  --review-soft: #f2e5d2;
+
+  --focus: #1f4e79;
+
+  --measure: 68ch;
+  --radius: 3px;
+  --gutter: 16px;
+
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Tabular figures everywhere a number changes, so digits never jitter. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------------------------------------------------------------- shell -- */
+
+.shell {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+}
+
+.topbar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 10px var(--gutter);
+  background: var(--surface);
+  border-bottom: 1px solid var(--rule);
+}
+
+.topbar__name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.topbar__meta {
+  display: flex;
+  align-items: baseline;
+  gap: 20px;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+/* The timer is the only large number on screen. It stays the same colour the
+   whole way down; the only thing that changes near the end is a thin rule. */
+.timer {
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  padding-bottom: 2px;
+  border-bottom: 2px solid transparent;
+}
+
+.timer--soon {
+  border-bottom-color: var(--review);
+}
+
+.timer__label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+}
+
+/* ------------------------------------------------------------- indicator -- */
+
+.save {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.save__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--answered);
+  flex: none;
+}
+
+.save--stale .save__dot,
+.save--never .save__dot {
+  background: var(--review);
+}
+
+.save--stale {
+  color: var(--review);
+}
+
+/* ---------------------------------------------------------------- layout -- */
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 268px;
+  min-height: 0;
+}
+
+.question-pane {
+  min-width: 0;
+  overflow-y: auto;
+  padding: 28px var(--gutter) 96px;
+}
+
+.question {
+  max-width: var(--measure);
+  margin: 0 auto;
+}
+
+.question__head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.question__number {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.question__kind {
+  font-size: 0.78rem;
+  color: var(--ink-faint);
+}
+
+.question__marks {
+  margin-left: auto;
+  font-size: 0.78rem;
+  color: var(--ink-faint);
+}
+
+/* Serif for the question itself: this is the part that is read closely, and a
+   serif at a comfortable measure is what a printed paper would give them. */
+.question__body {
+  font-family: Charter, 'Bitstream Charter', 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+  font-size: 1.1rem;
+  line-height: 1.62;
+  margin: 0 0 24px;
+}
+
+/* --------------------------------------------------------------- options -- */
+
+.options {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.option:hover {
+  border-color: var(--rule-strong);
+}
+
+.option--selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.option__key {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--rule-strong);
+  border-radius: 50%;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: var(--surface);
+}
+
+.option--selected .option__key {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.option__body {
+  font-family: Charter, 'Bitstream Charter', 'Iowan Old Style', Georgia, serif;
+  line-height: 1.5;
+}
+
+.option:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------- answer -- */
+
+.answer {
+  display: block;
+  width: 100%;
+  min-height: 320px;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  font-family: Charter, 'Bitstream Charter', 'Iowan Old Style', Georgia, serif;
+  font-size: 1.02rem;
+  line-height: 1.7;
+  color: var(--ink);
+  resize: vertical;
+}
+
+.answer:focus {
+  border-color: var(--accent);
+}
+
+.answer__meta {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 0.78rem;
+  color: var(--ink-faint);
+}
+
+/* ---------------------------------------------------------------- actions -- */
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--rule);
+}
+
+.btn {
+  font: inherit;
+  font-size: 0.88rem;
+  padding: 9px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--rule-strong);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--ink-soft);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.btn--review[aria-pressed='true'] {
+  background: var(--review-soft);
+  border-color: var(--review);
+  color: var(--review);
+}
+
+.btn--spacer {
+  margin-left: auto;
+}
+
+/* ------------------------------------------------------------- navigator -- */
+
+/* The OMR sheet. Dense, numbered, scannable at arm's length — the one element
+   in this interface allowed to carry visual weight. */
+.navigator {
+  border-left: 1px solid var(--rule);
+  background: var(--surface);
+  overflow-y: auto;
+  padding: 18px 14px 96px;
+}
+
+.navigator__section + .navigator__section {
+  margin-top: 22px;
+}
+
+.navigator__subject {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin-bottom: 9px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.navigator__count {
+  font-weight: 400;
+  color: var(--ink-faint);
+}
+
+.navigator__grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 5px;
+}
+
+.cell {
+  position: relative;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+}
+
+/* Answered: filled. Reads as "done" in grayscale and to a colour-blind eye. */
+.cell--answered {
+  background: var(--answered);
+  border-color: var(--answered);
+  color: #fff;
+}
+
+/* Seen but left blank: a dot, like a pencil mark in the margin. */
+.cell--seen::after {
+  content: '';
+  position: absolute;
+  bottom: 3px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+}
+
+/* Marked for review: a folded corner. Shape, not colour alone. */
+.cell--review::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  border-width: 0 8px 8px 0;
+  border-style: solid;
+  border-color: transparent var(--review) transparent transparent;
+  border-top-right-radius: var(--radius);
+}
+
+.cell--current {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.legend {
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+  display: grid;
+  gap: 7px;
+  font-size: 0.76rem;
+  color: var(--ink-soft);
+}
+
+.legend__row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.legend__swatch {
+  position: relative;
+  width: 17px;
+  height: 17px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  background: var(--surface);
+  flex: none;
+}
+
+/* ------------------------------------------------------------------ page -- */
+
+.page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 56px var(--gutter) 64px;
+}
+
+.page__title {
+  font-size: 1.6rem;
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 0 0 10px;
+}
+
+.page__lede {
+  color: var(--ink-soft);
+  margin: 0 0 32px;
+  max-width: 56ch;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+}
+
+.panel + .panel {
+  margin-top: 16px;
+}
+
+.panel__title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+
+.checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.check {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 11px;
+  align-items: start;
+  font-size: 0.92rem;
+}
+
+.check__mark {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--rule-strong);
+  display: grid;
+  place-items: center;
+  font-size: 0.7rem;
+  margin-top: 2px;
+}
+
+.check--ok .check__mark {
+  background: var(--answered);
+  border-color: var(--answered);
+  color: #fff;
+}
+
+.check--bad .check__mark {
+  background: var(--review);
+  border-color: var(--review);
+  color: #fff;
+}
+
+.check__detail {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 0.84rem;
+}
+
+.countdown-large {
+  font-size: 3rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.1;
+  margin: 4px 0 2px;
+}
+
+.receipt {
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 14px 16px;
+  background: var(--surface-sunk);
+  border-radius: var(--radius);
+  margin: 14px 0 0;
+}
+
+.notice {
+  padding: 13px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--review);
+  background: var(--review-soft);
+  color: var(--ink);
+  font-size: 0.9rem;
+  margin-bottom: 18px;
+}
+
+.muted {
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+}
+
+/* --------------------------------------------------------------- mobile -- */
+
+@media (max-width: 860px) {
+  .workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .navigator {
+    order: -1;
+    border-left: 0;
+    border-bottom: 1px solid var(--rule);
+    max-height: 38vh;
+    padding-bottom: 18px;
+  }
+
+  .navigator__grid {
+    grid-template-columns: repeat(10, 1fr);
+  }
+
+  .question-pane {
+    padding-top: 20px;
+  }
+
+  .timer {
+    font-size: 1.25rem;
+  }
+}
