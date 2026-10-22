@@ -41,7 +41,11 @@ export function getCurrentTest(db?: Queryable): Promise<TestRow | null> {
   return one<TestRow>(
     `SELECT ${PUBLIC_COLUMNS} FROM tests
       WHERE status <> 'draft'
-      ORDER BY (ends_at < now()), starts_at ASC
+      -- Soonest test that has not finished, falling back to the most recent
+      -- one so the results pages keep working afterwards. The id tiebreak
+      -- makes the choice deterministic when two rows share a window, which
+      -- happens when a dev environment is re-seeded.
+      ORDER BY (ends_at < now()), starts_at ASC, id DESC
       LIMIT 1`,
     [],
     db,
