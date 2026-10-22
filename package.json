@@ -1,0 +1,25 @@
+{
+  "name": "jee-portal",
+  "private": true,
+  "packageManager": "pnpm@9.15.4",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "pnpm -r --filter './packages/**' build && pnpm -r --filter './apps/**' build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "migrate": "pnpm --filter @jee/db migrate",
+    "seed": "pnpm --filter @jee/db seed",
+    "dev:api": "pnpm --filter @jee/api dev",
+    "dev:worker": "pnpm --filter @jee/worker dev",
+    "dev:exam": "pnpm --filter @jee/exam dev",
+    "dev:web": "pnpm --filter @jee/web dev"
+  },
+  "devDependencies": {
+    "typescript": "5.7.3",
+    "vitest": "2.1.8",
+    "@types/node": "22.10.5",
+    "tsx": "4.19.2"
+  }
+}
