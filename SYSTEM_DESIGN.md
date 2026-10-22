@@ -479,6 +479,51 @@ a bad projector and on a washed-out screen.
 **Cost accepted:** A slightly busier grid.
 **Revisit if:** Never.
 
+### D-032: The admin surface lives in the Next.js site, not a separate app
+
+**Decision:** `/admin`, `/admin/review` and `/admin/review/attempt` are routes in
+`apps/web`, behind the same `requireAdmin` check on every API call.
+**Alternatives considered:** A fourth app; an admin SPA alongside the exam
+client.
+**Why:** Admin traffic is a handful of people, so it has no scaling story to
+speak of and no reason to be a separate deployment. Authorisation lives on the
+API — it is checked against the `admins` table on every request, not carried in
+a session claim — so the page is a client of the same protected endpoints and
+adds no new trust boundary.
+**Cost accepted:** The public site's bundle carries admin routes; they are
+static shells with no privileged data in them.
+**Revisit if:** The admin surface grows enough to want its own release cadence.
+
+### D-033: Admin authorisation is checked per request, not carried in the session
+
+**Decision:** `requireAdmin` queries the `admins` table on every admin request.
+**Alternatives considered:** An `isAdmin` claim written into the session cookie
+at sign-in.
+**Why:** Sessions last 12 hours so that none expires mid-test (D-002's sibling
+constraint). A claim in the cookie would mean revoking someone's admin access
+takes up to 12 hours to have any effect — during a window where overrides change
+students' results. One indexed primary-key lookup per admin request is nothing;
+there are a handful of admins.
+**Cost accepted:** One extra query per admin request.
+**Revisit if:** Never, at this scale.
+
+### D-034: The growth curve is one series, with the flagged segment labelled
+
+**Decision:** The review chart plots answer length against sync revision as a
+single line, drawing the segment that exceeds the burst threshold in a second
+colour **and** stating the threshold in text beneath it.
+**Alternatives considered:** Colour-only highlighting; a bar chart of deltas.
+**Why:** The question the reviewer is answering is "was this written or
+pasted", and that is a shape question — gradual growth looks like writing, a
+near-vertical segment does not. A chart of deltas would show the jump but lose
+the shape that makes the rest of the answer look normal. The text label exists
+because status may never be carried by colour alone, and this chart is read by
+someone about to change a student's mark.
+**Cost accepted:** Two colours on a one-series chart, which needs the text to
+disambiguate.
+**Revisit if:** Reviewers ask for several questions on one chart — which would
+make it categorical and need a validated palette per series.
+
 ## 3. File map
 
 | Path | Responsibility | Notes |

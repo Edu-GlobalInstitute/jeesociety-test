@@ -134,6 +134,9 @@ importers:
       typescript:
         specifier: 5.7.3
         version: 5.7.3
+      vitest:
+        specifier: 2.1.8
+        version: 2.1.8(@types/node@22.10.5)(jsdom@25.0.1)
 
   apps/worker:
     dependencies:

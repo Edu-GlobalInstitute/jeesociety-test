@@ -65,7 +65,7 @@ in two minutes, which is the fastest way to walk the whole flow.
 pnpm db:up && pnpm test
 ```
 
-209 tests. The database-backed suites provision their own throwaway database per
+217 tests. The database-backed suites provision their own throwaway database per
 file, so they run in parallel and need only `DATABASE_URL` pointing at a
 Postgres they may create databases on.
 
@@ -80,6 +80,7 @@ They concentrate where correctness is load-bearing:
 | Grading | 20 lanes claiming each job exactly once, permanent failure after 3 attempts, cache-friendly ordering |
 | Flags | Burst detection from the growth curve, idempotent re-runs, and that no path touches a score |
 | Client | Revision monotonicity, IndexedDB round trip, sync skip/stale decisions, clock offset arithmetic |
+| Admin chart | Growth-curve geometry: marks inside the plot, the flagged segment in the flagged colour, the flag also stated in words |
 | Invariants | Source-level: no `SELECT *`, secret columns read in one place, no bare `res.json(row)`, no path from a flag to a score |
 
 The invariant tests scan the source tree rather than exercise it, so they hold
