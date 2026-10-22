@@ -18,6 +18,34 @@ import type { Env } from '../env.js';
  * whatever the platform decides.
  */
 
+/**
+ * `pg_dump` is not in a stock Node image. Checked once at boot so the gap is a
+ * line in the deploy log rather than a silent absence of backups discovered on
+ * the day someone needs one.
+ */
+export function checkPgDumpAvailable(): Promise<{ ok: boolean; detail: string }> {
+  return new Promise((resolve) => {
+    const probe = spawn('pg_dump', ['--version'], { stdio: ['ignore', 'pipe', 'pipe'] });
+    let out = '';
+    probe.stdout.on('data', (chunk: Buffer) => {
+      out += chunk.toString();
+    });
+    probe.on('error', () =>
+      resolve({
+        ok: false,
+        detail: 'pg_dump is not on PATH — install postgresql-client in the worker image',
+      }),
+    );
+    probe.on('close', (code) =>
+      resolve(
+        code === 0
+          ? { ok: true, detail: out.trim() }
+          : { ok: false, detail: `pg_dump exited ${code}` },
+      ),
+    );
+  });
+}
+
 export async function runBackup(
   env: Env,
   log: Logger,

@@ -585,6 +585,11 @@ make it categorical and need a validated palette per series.
 | `tools/loadtest/seed-students.ts` | Synthetic students with real Better Auth hashes | So the load test signs in through the real auth path. |
 | `deploy/railway.md` | Services, sizing, pool arithmetic, deploy rules | Includes the scale-down step everyone forgets. |
 | `deploy/cloudflare.md` | R2 bucket layout and Pages projects | The paper object is public by design; the key is the secret. |
+| `apps/web/app/admin/page.tsx` | During-test dashboard | Leads with stale-sync share, the number that answers "is sync working". |
+| `apps/web/app/admin/review/page.tsx` | Severity-ordered review queue | Expect 300-500 rows at 10,000 students. |
+| `apps/web/app/admin/review/attempt/page.tsx` | One attempt: answer, flags, growth curve, override | An override will not save without a written reason. |
+| `apps/web/components/GrowthChart.tsx` | Answer length across syncs | Flagged segment coloured **and** labelled; geometry covered by tests. |
+| `nixpacks.toml` | Railway build | Installs `postgresql` for `pg_dump`; without it backups silently never run. |
 <!-- Appended as files land. -->
 
 ---

@@ -5,7 +5,7 @@ import { ensureScheduled, runScheduler } from './scheduler.js';
 import { runGradingLanes } from './grading/loop.js';
 import { createGradingProvider } from './grading/provider.js';
 import { reconcilePayments } from './jobs/paymentReconcile.js';
-import { runBackup } from './jobs/backup.js';
+import { checkPgDumpAvailable, runBackup } from './jobs/backup.js';
 
 /**
  * A plain Node process with no HTTP server. Nothing sends it requests; it polls
@@ -81,6 +81,16 @@ if (env.WORKER_JOBS.has('payments')) {
 }
 
 if (env.WORKER_JOBS.has('backup')) {
+  // Checked once, loudly. A worker that cannot run pg_dump would otherwise
+  // take backups that silently never happen, which is discovered on the one
+  // day someone needs to restore.
+  const pgDump = await checkPgDumpAvailable();
+  if (pgDump.ok) {
+    log.info({ pgDump: pgDump.detail }, 'backups enabled');
+  } else {
+    log.error({ detail: pgDump.detail }, 'BACKUPS DISABLED — pg_dump is unavailable');
+  }
+
   loops.push(
     interval(env.BACKUP_INTERVAL_MINUTES * 60_000, async () => {
       await runBackup(env, log);

@@ -72,3 +72,21 @@ survivable but pointless.
 Rollback is Railway's "Redeploy" on the previous deployment. Migrations are
 forward-only: a rollback that needs a schema change needs a new migration, not
 an undo.
+
+## The worker image needs `pg_dump`
+
+The backup job shells out to `pg_dump`, which is **not** in a stock Node image.
+Without it the worker starts, logs `BACKUPS DISABLED — pg_dump is unavailable`
+at error level, and takes no backups — which is the kind of thing discovered on
+the one day someone needs to restore.
+
+Add a `nixpacks.toml` at the repo root, or set the Railway build to install it:
+
+```toml
+# nixpacks.toml
+[phases.setup]
+nixPkgs = ['nodejs_20', 'postgresql_16']
+```
+
+Verify after deploy: the worker's boot log should carry
+`"msg":"backups enabled"` with a `pg_dump` version string.
