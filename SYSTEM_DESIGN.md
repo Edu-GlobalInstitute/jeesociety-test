@@ -525,6 +525,21 @@ a bad projector and on a washed-out screen.
 | `apps/worker/src/grading/loop.ts` | Concurrent lanes over the Postgres queue | `SKIP LOCKED` + lease. Computes the score from observations. |
 | `apps/worker/src/grading/prompt.ts` | Rubric → cached prefix + answer | Asks for observations, never a score. |
 | `apps/worker/src/grading/provider.ts` | The model call | Cached rubric prefix, schema-enforced output, 429 → retryable. |
+| `apps/exam/src/App.tsx` | Session state machine: waiting → lobby → exam → submitted | Handles the start instant: key, decrypt, render. |
+| `apps/exam/src/lib/idb.ts` | IndexedDB layer | The student's protection against a refresh. Raw IndexedDB, small enough to read in full. |
+| `apps/exam/src/lib/store.ts` | Answer state; the only place `revision` advances | Debounced 300 ms. Persists `revision` so a reload's first sync is not ignored. |
+| `apps/exam/src/lib/sync.ts` | Sync decisions, submit backoff, jitter | Skips when `revision` has not moved; a stale response is success. |
+| `apps/exam/src/lib/clock.ts` | Server-offset clock | Three samples, fastest round trip wins. Nothing reads `Date.now()` directly. |
+| `apps/exam/src/lib/paper.ts` | Download, cache, decrypt | Re-downloads once if the cached blob fails to decrypt. |
+| `apps/exam/src/screens/Lobby.tsx` | Registration + four environment checks | The sync check is a real sync, not a ping. |
+| `apps/exam/src/screens/Submitting.tsx` | Submitting / submitted / pending | The most carefully worded file in the app. |
+| `apps/exam/src/components/Navigator.tsx` | The OMR sheet | Status by shape as well as colour. |
+| `apps/web/app/register/page.tsx` | Sign up, pay, check in | Polls payment status; the webhook grants access, not the callback. |
+| `tools/build-paper/src/cli.ts` | Validate → encrypt → verify round trip → upload → write DB | Refuses to publish if the ciphertext does not decrypt back to the input. |
+| `tools/loadtest/sync.js` | k6 at 2× expected load | Realistic ~10 KB payloads; models the 33% of intervals that skip. |
+| `tools/loadtest/seed-students.ts` | Synthetic students with real Better Auth hashes | So the load test signs in through the real auth path. |
+| `deploy/railway.md` | Services, sizing, pool arithmetic, deploy rules | Includes the scale-down step everyone forgets. |
+| `deploy/cloudflare.md` | R2 bucket layout and Pages projects | The paper object is public by design; the key is the secret. |
 <!-- Appended as files land. -->
 
 ---
@@ -572,6 +587,91 @@ The submit button is a convenience. Auto-submit is the mechanism.
    auto-submit count means sync was failing, and that must be visible on the day
    rather than six days later.
 
+### Registration and payment
+
+1. The student signs up on the public site (`apps/web`), which calls Better
+   Auth's `/auth/sign-up/email` on the API.
+2. `POST /payments/order` creates a Razorpay order and inserts a `payments` row
+   with status `created`.
+3. The student pays in Razorpay's checkout. **The callback grants nothing** —
+   that path is forgeable and also fails silently whenever a student closes the
+   tab on the success screen.
+4. Razorpay calls `POST /payments/webhook`. The route verifies an HMAC-SHA256
+   over the **raw** bytes with a timing-safe comparison, then marks the payment
+   paid. `razorpay_payment_id` is UNIQUE and the update is guarded on status, so
+   Razorpay's retries apply nothing and still get a 200.
+5. If the webhook never arrives, the reconciliation job finds the row stuck in
+   `created` after 15 minutes and asks Razorpay directly.
+
+### Lobby entry and key release
+
+1. The lobby opens 30 minutes before `starts_at`. This window exists to find
+   problems while they are still fixable, and to spread 10,000 arrivals across
+   half an hour rather than one instant.
+2. The client calls `POST /attempt/register`. **This is what admits the
+   student**, and it is the only cutoff: after `starts_at` it refuses.
+3. Four checks run: IndexedDB writable, localStorage available, a **real sync
+   round trip**, and the encrypted paper downloaded from the CDN into
+   IndexedDB. The sync check is a real sync against a real attempt, because a
+   check that exercises a different code path is not a check.
+4. A countdown runs on the server offset, not the machine clock.
+5. At `starts_at` the client calls `GET /attempt/key`. The route checks the
+   clock, checks the student registered, and reads `tests.paper_key` through the
+   one function allowed to touch it — which repeats the `starts_at` guard in
+   SQL, so a bug in the route cannot release the key early.
+6. The client decrypts the blob it already holds and renders. The origin served
+   ~200 bytes; the CDN served the 1.5 MB.
+
+A student who registered but whose key call is slow still gets in. The cutoff is
+on registration, never on the key.
+
+### MCQ scoring
+
+Runs as one pass after auto-submit, in the worker, never in a request.
+
+1. `tests.answer_key` is read server-side through `readAnswerKeyForScoring` —
+   one of two deliberately conspicuous functions that touch secret columns.
+2. Attempts are streamed in batches of 500, each batch committing as a unit.
+3. `scoreMcq` compares in code: +4 correct, −1 wrong, 0 unattempted. Blank and
+   whitespace-only answers count as unattempted, never wrong. Comparison is
+   case-insensitive and trimmed, so a student is not penalised for how their
+   client encoded a click.
+4. `attempts.mcq_score` and `total_score` are written.
+
+600,000 comparisons take about a second; the rest is row I/O. The job is
+deterministic, so a crashed pass is simply re-run.
+
+### Subjective grading
+
+1. An admin triggers `enqueue_grading`, which inserts one `grading_jobs` row per
+   subjective answer **ordered question-major**, so that ids group by question
+   and the cached rubric prefix actually hits.
+2. Lanes claim jobs with `FOR UPDATE SKIP LOCKED` and a 5-minute lease.
+3. For each: build a prompt whose cached prefix is the rubric and whose variable
+   part is the answer; call the model asking for **nine observations, never a
+   score**; validate the reply against the shared schema.
+4. `scoreRubric` computes the mark in code and applies `AWARD_CAP` with
+   `Math.min`. Both `raw_score` and `score` are stored, so the cap policy can
+   change later without re-grading 150,000 answers.
+5. `confidence: "low"` or `off_topic_or_blank` raises `needs_review` — it does
+   not change the mark.
+6. `rollUpScores` sums completed jobs onto the attempt, tolerating a partially
+   graded attempt, so results stay current as the queue drains.
+
+### Flag and review
+
+1. `compute_flags` runs over every attempt that was issued a key.
+2. Three signals: keystroke ratio (client-reported), burst appearance
+   (server-derived from `sync_snapshots`, and the strong one because it depends
+   on no client-side JavaScript), and IP change (weak alone).
+3. Flags are merged by `(code, questionId)`, so re-running the job is
+   idempotent, and written to `attempts.flags` with `needs_review = true`.
+   **No score column is touched by this path, anywhere.**
+4. `/admin/review-queue` sorts by severity. `/admin/attempt/:id` shows the
+   answer, the flags with their evidence, and the growth curve.
+5. A reviewer may override a score. The override writes `admin_audit` with the
+   admin's identity and a mandatory reason before the response goes out.
+
 <!-- Appended as flows land. -->
 
 ---
@@ -587,11 +687,126 @@ The submit button is a convenience. Auto-submit is the mechanism.
 | Two tabs open | Both sync full state; the `revision <` guard means the higher revision wins and neither corrupts the other. | None. |
 | Out-of-order sync packets | The stale one matches no rows and returns 200 with the server's revision. | None. |
 
+| A worker dies mid-job | `locked_until` lapses after 5 minutes and another lane claims the job. `attempts_made` has already been incremented, so a job that kills workers repeatedly is marked `failed` after 3 tries rather than cycling forever. | None. |
+| The LLM provider rate-limits | The 429 is translated to a retryable error; the lane backs off with jitter (honouring `Retry-After` when present) and the job returns to `pending`. Other lanes hit the same wall and back off in turn, so throughput self-limits. | None; grading takes longer. |
+| The LLM returns a malformed reply | Parsing throws, the job retries, and after 3 attempts it is `failed` and listed in `/admin/grading-status`. It is **never** recorded as a zero. | None. |
+| A webhook never arrives | The reconciliation job finds `payments` rows stuck in `created` older than 15 minutes and asks Razorpay directly, then marks them paid through the same code path the webhook uses. | None, within one 5-minute cycle. |
+| A webhook arrives twice | `razorpay_payment_id` is UNIQUE and `markPaid` guards on status: the second delivery applies nothing and still returns 200, so Razorpay stops retrying. | None. |
+| The DB hits its connection limit | New connections are refused; the API returns 500 and clients retry on their own schedule with their work still held locally. **Prevention is the actual answer**: `replicas × PG_POOL_MAX` is checked before every deploy and logged at boot. | None, if clients reconnect before `ends_at`; otherwise auto-submit covers it. |
+| The API is down for a period | Clients keep writing to IndexedDB and keep retrying. When it returns, the next sync carries full state — there is no queue of missed deltas to replay, because there are no deltas. | None, provided it returns before `ends_at` + 10 min. |
+| The paper CDN object is missing or corrupt | The lobby's fourth check fails *before* the test starts, while there is still time to fix it. GCM is authenticated, so a truncated download fails to decrypt rather than rendering a mangled paper; the client re-downloads once before giving up. | None if caught in the lobby. |
+| A student's clock is wrong | Every timer runs on a server offset sampled three times at boot, keeping the fastest round trip, and re-sampled every 5 minutes. The key release is checked against the database clock, so an early request is simply refused. | None. |
+| Two students share an account | `UNIQUE (user_id, test_id)` means one attempt. Both tabs sync against the same row and the `revision` guard keeps the highest. The IP-change flag raises it for review. | None, but the attempt is flagged. |
+
 <!-- Appended as the handling lands. -->
 
 ---
 
 ## 6. Operational runbook
+
+Deployment specifics are in `deploy/railway.md` and `deploy/cloudflare.md`. This
+section is the sequence to follow on the day.
+
+### Pre-test checklist
+
+Run through this the **day before**, not on the morning.
+
+**The paper**
+- [ ] `build-paper --dry-run` passes: 60 MCQ, 15 subjective, every subjective
+      question has a rubric with at least two worked examples, every MCQ has an
+      answer in the key.
+- [ ] `build-paper --upload` run, and the round-trip verification passed.
+- [ ] `curl -I` the paper URL twice: 200, and `cf-cache-status: HIT` the second
+      time.
+- [ ] `select paper_url, paper_key is not null, answer_key is not null from
+      tests where id = N;` — all true.
+- [ ] **Fetch the paper URL in a private window and confirm it is ciphertext.**
+      It should be, and it is worth seeing with your own eyes once.
+
+**The database**
+- [ ] Migrations applied: `select name from schema_migrations order by name;`
+- [ ] `tests` row has the right `starts_at`, `ends_at`, `lobby_opens_at` —
+      in UTC, checked against a second clock.
+- [ ] `select count(*) from payments where status = 'paid';` matches the number
+      of students you expect.
+- [ ] Reconciliation has run recently and recovered nothing outstanding.
+
+**The services**
+- [ ] `api` at 4 replicas; boot log shows `poolMax: 15`. 4 × 15 = 60 < 100.
+- [ ] `worker` at 1 replica, `WORKER_JOBS` includes `autosubmit` and `backup`.
+- [ ] `GET /ready` returns 200 on every replica.
+- [ ] `select * from job_runs where job = 'auto_submit';` exists, `pending`,
+      with `run_after` = `ends_at` + 10 minutes.
+- [ ] A backup has been written to R2 in the last 15 minutes.
+- [ ] Load test run at 2× and its findings fixed.
+
+**Dry run**
+- [ ] One real account: register, enter the lobby, pass all four checks, start,
+      answer, sync, submit, see a receipt.
+
+### During the test
+
+Watch `GET /admin/dashboard`. The number that matters is **`staleOver4Minutes`**
+— it answers "is sync working across the whole cohort" with a count rather than
+a guess.
+
+| What you see | What it means | What to do |
+| --- | --- | --- |
+| `staleOver4Minutes` climbing past ~1% of `inProgress` | Sync is failing for part of the cohort | Check API error rate and DB connections **before** touching anything |
+| `syncsLastMinute` far below `inProgress`/1.5 | Clients are not syncing at all | Check CORS, check the API is reachable from outside |
+| Connection errors in the API log | `replicas × PG_POOL_MAX` exceeded | Reduce replicas rather than raising `max_connections` mid-event |
+| `registered` far below paid count | Students cannot get into the lobby | Check payments: run the reconciliation job by hand |
+
+**Do not deploy during the window.** If something must change, change the
+worker, not the API.
+
+**Do not restart Postgres.** Every client holds its answers locally and will
+re-sync; an API blip costs nothing, but a database restart during the event is
+the one thing with no recovery path.
+
+### Post-test sequence
+
+Run these in order, reading the output of each before starting the next.
+
+1. **Wait for auto-submit** (fires 10 minutes after `ends_at`, on its own).
+   Read the reconciliation report in the worker log.
+   - `autoSubmitted` above ~10% of `started` means sync was failing. Investigate
+     before publishing anything.
+   - `zeroAnswer` above a handful means the paper did not render for some
+     students. Investigate before publishing anything.
+2. **MCQ scoring** — `POST /admin/run-job {"job":"mcq_score"}`. Deterministic,
+   so it is safe to re-run.
+3. **Flags** — `POST /admin/run-job {"job":"compute_flags"}`. Expect 300-500
+   flagged attempts at 10,000 students. An order of magnitude more means a
+   threshold is wrong, not that the cohort cheated.
+4. **Publish objective results** (next morning).
+5. **Enqueue grading** — `POST /admin/run-job {"job":"enqueue_grading"}`. Then
+   scale `worker` to 2-3 replicas and watch `/admin/grading-status`.
+   - Start `GRADING_CONCURRENCY` at 10. Raise it only after watching for 429s.
+6. **Work the review queue** — `/admin/review-queue`, severity order.
+7. **Roll up and publish ranks** — `POST /admin/run-job {"job":"finalise_scores"}`.
+8. **Scale down.** `worker` to 0, `api` to 1 replica, `postgres` to the smallest
+   tier. This is the most commonly forgotten step and it silently repeats the
+   bill every month.
+
+### Rolling back a deploy
+
+Railway's "Redeploy" on the previous deployment. Migrations are forward-only: a
+rollback needing a schema change needs a new migration, not an undo. Never roll
+back the API during the test window — draining replicas mid-event costs students
+their in-flight syncs for no gain.
+
+### Restoring from backup
+
+Backups are `pg_dump` every 15 minutes, gzipped, in R2 under `backups/`.
+
+```bash
+aws s3 cp s3://jee-papers/backups/jee-<timestamp>.sql.gz . --endpoint-url https://<acct>.r2.cloudflarestorage.com
+gunzip -c jee-<timestamp>.sql.gz | psql "$DATABASE_URL"
+```
+
+Worst case this costs 15 minutes of answers, against "everything" if the
+platform's own backups turn out not to be what you assumed.
 
 <!-- Appended as deployment lands. -->
 
@@ -618,5 +833,38 @@ Sessions are configured to outlast the test window comfortably (see
 test plus a lobby plus a student who logged in the previous evening. **Needs a
 human decision:** whether a student should be able to stay logged in across the
 results window too, or be forced to re-authenticate to view results.
+
+### Q-003: `temperature: 0` is no longer accepted by the Messages API
+
+The brief specifies `temperature: 0` for grading. As of 2026-10-21 the Messages
+API returns a 400 for `temperature` on every model, so following the brief
+literally would make every grading call fail. **Assumption made:** the intent
+was a stable, parseable reply, so that is obtained instead from a server-enforced
+JSON Schema (D-024), validated again on our side. **Needs a human decision:**
+whether to measure run-to-run agreement on a sample before grading 150,000
+answers — recommended, and cheap.
+
+### Q-004: Rate limiting is per replica, not per user
+
+The in-memory limiter (D-020) means a user can reach roughly `replicas ×` the
+configured rate. **Assumption made:** acceptable, because the limiter exists to
+stop a runaway client rather than to meter precisely. **Needs a human
+decision:** none unless abuse appears that an approximate limit does not stop.
+
+### Q-005: Gemini Flash-Lite was not implemented
+
+The brief offers "Claude Haiku 5.5 **or** Gemini Flash-Lite". Only the Anthropic
+provider is implemented (D-023), behind a `GradingProvider` interface with a
+`stub` implementation for tests. **Needs a human decision:** whether a second
+provider is wanted as a live fallback for the grading window, which would be a
+new class implementing one method rather than a change to the lane.
+
+### Q-006: Results pages show status, not marks
+
+`apps/web/app/results` reports submission status and explains the schedule, but
+does not yet render marks or an all-India rank — ranking needs a published
+policy for ties and for attempts still in review. **Needs a human decision:**
+the tie-break rule and whether a flagged attempt's provisional score is shown
+before a reviewer has read it.
 
      silently chosen. -->
