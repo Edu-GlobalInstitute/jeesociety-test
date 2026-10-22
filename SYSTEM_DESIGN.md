@@ -312,6 +312,119 @@ slightly weaker than "has been handed the key". `key_issued_at` remains the
 precise signal and is what the reconciliation report counts.
 **Revisit if:** The lobby check is ever removed.
 
+### D-020: In-memory rate limiting, not Postgres-backed
+
+**Decision:** A fixed-window counter in process memory, per replica.
+**Alternatives considered:** A Postgres-backed limiter; Redis.
+**Why:** A counter write on `/attempt/sync` would add 1.2M writes to the hottest
+path of the event to defend against a problem that does not exist at this scale.
+Redis is a second datastore for a counter (see D-008). The cost of keeping it in
+memory is that the limit is per replica, so at 4 replicas a user can reach ~4x
+the configured rate — which is fine, because the job is to stop a runaway client
+from looping, not to meter anyone precisely.
+**Cost accepted:** Imprecise limits; counters reset on deploy.
+**Revisit if:** Abuse appears that an approximate limit does not stop.
+
+### D-021: Trust proxy is a hop count, never `true`
+
+**Decision:** `app.set('trust proxy', TRUST_PROXY_HOPS)` with a small integer.
+**Alternatives considered:** `trust proxy: true`.
+**Why:** `true` makes Express believe the left-most `X-Forwarded-For` entry,
+which any client can set. That would let one client appear as thousands of
+addresses — defeating the rate limiter — and would poison the IP-change signal
+with addresses the student never used. A hop count reads the address the
+*proxy* appended, which a client cannot forge.
+**Cost accepted:** The number must be updated if the number of proxies changes.
+**Revisit if:** The deployment gains or loses a proxy layer.
+
+### D-022: Submit is accepted for 5 minutes after `ends_at`
+
+**Decision:** `/attempt/submit` accepts requests until `ends_at + 5 minutes`;
+`/attempt/sync` stops exactly at `ends_at`.
+**Alternatives considered:** A hard cutoff at `ends_at` for both.
+**Why:** The client deliberately spreads submission across 45 seconds of jitter
+and then retries with backoff for a further ~31 seconds. A hard cutoff at
+`ends_at` would reject precisely the submissions the jitter exists to spread out,
+and would do so for the unluckiest students. The grace is comfortably inside the
+10-minute auto-submit delay, so nothing can slip between the two.
+**Cost accepted:** A student can submit up to 5 minutes late — but they cannot
+*change* anything in that window, because sync is already closed.
+**Revisit if:** The jitter window changes.
+
+### D-023: Claude Haiku 5.5 for grading, over Gemini Flash-Lite
+
+**Decision:** `claude-haiku-5-5` via the official Anthropic SDK, behind a
+`GradingProvider` interface.
+**Alternatives considered:** Gemini Flash-Lite (the other candidate); a
+frontier-tier model.
+**Why:** The task is reading one short answer against an explicit rubric with
+worked examples and reporting nine observations — it is bounded and well
+specified, not reasoning-heavy, so a frontier model would be paying for headroom
+the task cannot use. Haiku-tier at ~150,000 calls is roughly $32. The provider
+interface means switching is a new class, not a rewrite, and a `stub` provider
+lets the whole lane be tested without spending money.
+**Cost accepted:** A provider dependency; a second implementation needed if the
+choice is revisited.
+**Revisit if:** Agreement with human reviewers on the flagged sample is poor.
+
+### D-024: Determinism comes from a structured-output schema, not `temperature: 0`
+
+**Decision:** The grading call passes a JSON Schema in
+`output_config.format` and sends no sampling parameters.
+**Alternatives considered:** `temperature: 0` with JSON requested in the prompt,
+as originally specified.
+**Why:** **This is a deliberate deviation from the brief, forced by the API.**
+As of 2026-10-21 the Messages API returns a 400 for `temperature`, `top_p` or
+`top_k` on every model, so the originally specified `temperature: 0` would make
+every grading call fail. The goal behind it — a stable, parseable reply — is met
+better by a schema the API enforces server-side: the reply is schema-valid by
+construction rather than by instruction. The reply is validated again on our
+side with the same zod schema, so the scorer's types are guaranteed.
+**Cost accepted:** Sampling is no longer pinned, so two runs over the same
+answer may differ in wording; the observations are booleans and an enum, which
+is what the score is computed from.
+**Revisit if:** Agreement between repeat runs on the same answer is poor —
+measure before changing anything.
+
+### D-025: Never ask the model for a score
+
+**Decision:** The prompt requests nine observations. `scoreRubric()` computes
+the mark from them, and `AWARD_CAP` is applied in code.
+**Alternatives considered:** Asking the model for a 0-3 mark directly.
+**Why:** Models are poorly calibrated on absolute numbers and drift across
+150,000 calls, so a model-supplied mark would be inconsistent in a way that is
+invisible until students compare results. Observations are individually
+checkable by a human reviewer, which also makes a contested score explainable.
+Enforcing the cap in code is the only way to guarantee it holds on every single
+call; a prompt instruction holds *most* of the time, which over 150,000 answers
+is not good enough.
+**Cost accepted:** The rubric must be expressible as four binary marks.
+**Revisit if:** A question needs partial credit finer than one mark.
+
+### D-026: Grading jobs are enqueued question-major
+
+**Decision:** `enqueueGradingJobs` inserts `ORDER BY question_id, attempt_id`.
+**Alternatives considered:** The natural attempt-major order.
+**Why:** The rubric is a cached prompt prefix, identical for all 10,000 answers
+to one question. Lanes claim in `id` order, so attempt-major insertion would
+make consecutive jobs cycle through all 15 rubrics and miss the cache on almost
+every call. Question-major insertion keeps every lane on the same cached prefix
+at the same time.
+**Cost accepted:** Results arrive question by question rather than student by
+student, so partial results are not per-student complete until the end.
+**Revisit if:** Grading ever needs to finish one student at a time.
+
+### D-027: The SDK's own retries are disabled
+
+**Decision:** `maxRetries: 0` on the Anthropic client; the lane owns retries.
+**Alternatives considered:** Leaving the SDK default of 2.
+**Why:** Retry state belongs on the job row, where `attempts_made` is visible to
+the admin view and survives a worker restart. SDK-level retries would multiply
+the real attempt count invisibly — three lane attempts would become nine model
+calls — and would hide a failing provider behind an apparently healthy queue.
+**Cost accepted:** Backoff is implemented here rather than inherited.
+**Revisit if:** Never, while job state lives in Postgres.
+
 ## 3. File map
 
 | Path | Responsibility | Notes |
@@ -338,6 +451,26 @@ precise signal and is what the reconciliation report counts.
 | `packages/db/src/queries/admin.ts` | Review queue, audit log, live stats | `liveStats.staleOver4Minutes` is the during-test health number. |
 | `packages/db/src/testing.ts` | Per-file test database + fixtures | Real Postgres, because the behaviour under test is `revision <` and `SKIP LOCKED`. |
 | `packages/db/src/samplePaper.ts` | Deterministic 75-question dev paper | Not the real paper; feeds the seed and the load test. |
+| `apps/api/src/app.ts` | Express app factory; middleware order | The webhook's `express.raw()` and Better Auth both mount *before* `express.json()`. |
+| `apps/api/src/server.ts` | Process entry, graceful shutdown | Logs pool size at boot — the only way to notice a bad replica/pool calculation. |
+| `apps/api/src/env.ts` | Validated configuration | Refuses to boot in production without CORS origins or a webhook secret. |
+| `apps/api/src/auth.ts` | Better Auth setup | 12-hour sessions, so none expires mid-test. |
+| `apps/api/src/routes/attempt.ts` | **register / key / sync / submit** | The hot path. Sync runs 1.2M times/event; a stale revision returns 200. |
+| `apps/api/src/routes/status.ts` | `/test/status`, `/test/time` | Drives every client clock. `/time` needs no session so a refresh never jumps the timer. |
+| `apps/api/src/routes/payments.ts` | Razorpay order + webhook | Raw-body HMAC, timing-safe, idempotent on `razorpay_payment_id`. |
+| `apps/api/src/routes/admin.ts` | Dashboard, review queue, overrides, job triggers | Overrides write `admin_audit` before responding. |
+| `apps/api/src/middleware/rateLimit.ts` | In-memory fixed-window limiter | Per replica by design (D-020). |
+| `apps/api/src/lib/razorpay.ts` | REST client + signature verification | `verifyWebhookSignature` compares in constant time. |
+| `apps/worker/src/worker.ts` | Worker entry; loop selection via `WORKER_JOBS` | No HTTP server. SIGTERM stops claiming; in-flight jobs finish. |
+| `apps/worker/src/scheduler.ts` | Claims `job_runs` and dispatches | Auto-submit is scheduled on boot, not at the end of the test. |
+| `apps/worker/src/jobs/autoSubmit.ts` | **Finalises unsubmitted attempts** | The core safety net. Tested first. Emits the reconciliation report. |
+| `apps/worker/src/jobs/mcqScore.ts` | One-pass objective scoring | Reads the answer key; batched and deterministic, so a crashed pass re-runs. |
+| `apps/worker/src/jobs/computeFlags.ts` | The three behavioural signals | Writes flags only. No path from here to a score. |
+| `apps/worker/src/jobs/paymentReconcile.ts` | Recovers captured payments with no webhook | Runs every 5 minutes before the test. |
+| `apps/worker/src/jobs/backup.ts` | `pg_dump` → gzip → R2 | Never takes the worker down on failure. |
+| `apps/worker/src/grading/loop.ts` | Concurrent lanes over the Postgres queue | `SKIP LOCKED` + lease. Computes the score from observations. |
+| `apps/worker/src/grading/prompt.ts` | Rubric → cached prefix + answer | Asks for observations, never a score. |
+| `apps/worker/src/grading/provider.ts` | The model call | Cached rubric prefix, schema-enforced output, 429 → retryable. |
 <!-- Appended as files land. -->
 
 ---

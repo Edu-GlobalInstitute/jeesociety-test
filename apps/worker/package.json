@@ -1,0 +1,26 @@
+{
+  "name": "@jee/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsx watch src/worker.ts",
+    "start": "node dist/worker.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@jee/db": "workspace:*",
+    "@jee/shared": "workspace:*",
+    "pino": "9.6.0",
+    "zod": "^3.25.0",
+    "@anthropic-ai/sdk": "1.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.5",
+    "tsx": "4.19.2",
+    "typescript": "5.7.3",
+    "vitest": "2.1.8"
+  }
+}

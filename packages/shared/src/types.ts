@@ -1,4 +1,6 @@
 import type { FlagCode } from './config.js';
+export type { RubricObservation } from './grading.js';
+import type { RubricObservation } from './grading.js';
 
 export type AttemptStatus =
   | 'registered'
@@ -85,23 +87,6 @@ export interface EncryptedPaper {
 /* -------------------------------------------------------------------------- */
 /* Grading                                                                     */
 /* -------------------------------------------------------------------------- */
-
-/**
- * What we ask the model for. Observations, never a score — models are poorly
- * calibrated on absolute numbers and drift across 150,000 calls. The number is
- * computed from these booleans in scoring.ts.
- */
-export interface RubricObservation {
-  approach_correct: boolean;
-  approach_reason: string;
-  setup_correct: boolean;
-  calculation_correct: boolean;
-  calculation_error: string | null;
-  final_answer_correct: boolean;
-  units_present: boolean;
-  confidence: 'high' | 'medium' | 'low';
-  off_topic_or_blank: boolean;
-}
 
 export interface Rubric {
   questionId: QuestionId;

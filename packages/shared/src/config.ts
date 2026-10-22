@@ -56,6 +56,14 @@ export const SERVER_TIMING = {
   gradingMaxAttempts: 3,
   /** Payments stuck in `created` older than this are reconciled against Razorpay. */
   paymentReconcileAfterMs: 15 * 60_000,
+  /**
+   * How long after ends_at a submit is still accepted. The client jitters its
+   * submission across 45 s and then retries for another ~31 s, so a hard cutoff
+   * at ends_at would reject exactly the submissions the jitter was designed to
+   * spread out. Comfortably inside autoSubmitDelayMs, which finalises whatever
+   * is left.
+   */
+  submitGraceMs: 5 * 60_000,
 } as const;
 
 export const LIMITS = {

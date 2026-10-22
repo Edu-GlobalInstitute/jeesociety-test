@@ -21,6 +21,12 @@ const JOB_COLUMNS = `
   raw_score, score, rubric_output, feedback, confidence, error
 `;
 
+/** The same list, qualified — required wherever the query joins `attempts`. */
+const JOB_COLUMNS_Q = `
+  g.id, g.attempt_id, g.question_id, g.status, g.attempts_made, g.locked_until,
+  g.raw_score, g.score, g.rubric_output, g.feedback, g.confidence, g.error
+`;
+
 /**
  * Enqueue is admin-triggered and inserts one row per subjective answer. It never
  * grades inside the request: it writes rows and returns.
@@ -28,6 +34,9 @@ const JOB_COLUMNS = `
  * ON CONFLICT DO NOTHING on (attempt_id, question_id) makes re-running it after
  * a partial failure safe — already-enqueued work is left exactly as it is,
  * including work already graded.
+ *
+ * Rows are inserted question-major so that id order groups by question, which
+ * is what makes the cached rubric prefix actually hit.
  */
 export async function enqueueGradingJobs(
   testId: number,
@@ -41,6 +50,11 @@ export async function enqueueGradingJobs(
        CROSS JOIN unnest($2::text[]) AS q(question_id)
       WHERE a.test_id = $1
         AND a.submitted_at IS NOT NULL
+      -- Ordered by question first so that consecutive ids share a question.
+      -- Lanes claim in id order, so this keeps every lane working on the same
+      -- cached rubric prefix at the same time instead of cycling through all
+      -- 15 rubrics per attempt and missing the cache on every call.
+      ORDER BY q.question_id, a.id
      ON CONFLICT (attempt_id, question_id) DO NOTHING
        RETURNING id`,
     [testId, subjectiveQuestionIds],
@@ -185,7 +199,7 @@ export function listFailedGradingJobs(
   db?: Queryable,
 ): Promise<GradingJobRow[]> {
   return rows<GradingJobRow>(
-    `SELECT ${JOB_COLUMNS}
+    `SELECT ${JOB_COLUMNS_Q}
        FROM grading_jobs g
        JOIN attempts a ON a.id = g.attempt_id
       WHERE a.test_id = $1 AND g.status = 'failed'

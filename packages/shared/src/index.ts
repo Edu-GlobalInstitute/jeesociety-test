@@ -1,4 +1,5 @@
 export * from './config.js';
+export * from './grading.js';
 export * from './types.js';
 export * from './contract.js';
 export * from './scoring.js';

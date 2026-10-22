@@ -1,0 +1,31 @@
+{
+  "name": "@jee/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@jee/db": "workspace:*",
+    "@jee/shared": "workspace:*",
+    "better-auth": "1.1.14",
+    "express": "5.0.1",
+    "pino": "9.6.0",
+    "pino-http": "10.4.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.0",
+    "@types/node": "22.10.5",
+    "@types/supertest": "6.0.2",
+    "supertest": "7.0.0",
+    "tsx": "4.19.2",
+    "typescript": "5.7.3",
+    "vitest": "2.1.8"
+  }
+}
