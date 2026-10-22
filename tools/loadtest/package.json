@@ -1,0 +1,15 @@
+{
+  "name": "@jee/loadtest",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seed-students": "tsx seed-students.ts",
+    "run": "k6 run sync.js"
+  },
+  "dependencies": {
+    "@jee/db": "workspace:*",
+    "better-auth": "1.1.14"
+  },
+  "devDependencies": { "tsx": "4.19.2", "typescript": "5.7.3" }
+}

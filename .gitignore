@@ -8,3 +8,7 @@ dist/
 .DS_Store
 coverage/
 tools/build-paper/out/
+apps/web/.next/
+apps/web/out/
+apps/exam/dist/
+apps/web/next-env.d.ts

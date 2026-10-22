@@ -1,0 +1,177 @@
+/*
+ * Public site. Shares the exam client's palette and type choices so that a
+ * student who registers here recognises the interface they will sit in — but
+ * this side carries the warmth and the exam side stays plain.
+ */
+
+:root {
+  --paper: #eef1f4;
+  --surface: #ffffff;
+  --rule: #c9d2da;
+  --rule-strong: #9aa8b4;
+  --ink: #16202a;
+  --ink-soft: #4a5a68;
+  --ink-faint: #76858f;
+  --accent: #1f4e79;
+  --accent-soft: #dce7f1;
+  --answered: #2f6f4e;
+  --review: #a2661c;
+  --radius: 3px;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  line-height: 1.55;
+}
+
+a { color: var(--accent); }
+
+.tnum { font-variant-numeric: tabular-nums; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.wrap { max-width: 880px; margin: 0 auto; padding: 0 16px; }
+
+.masthead {
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface);
+}
+
+.masthead__inner {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+}
+
+.masthead__name { font-weight: 600; letter-spacing: 0.01em; }
+
+.masthead__nav { display: flex; gap: 18px; font-size: 0.9rem; }
+
+/* The hero is the exam paper itself: the thing the student is buying. */
+.hero { padding: 64px 0 48px; }
+
+.hero__title {
+  font-family: Charter, 'Bitstream Charter', 'Iowan Old Style', Georgia, serif;
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1.12;
+  margin: 0 0 16px;
+  max-width: 18ch;
+}
+
+.hero__lede {
+  font-size: 1.1rem;
+  color: var(--ink-soft);
+  max-width: 58ch;
+  margin: 0 0 28px;
+}
+
+/* A paper-shaped summary rather than a row of stat cards. */
+.spec {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.spec__cell { padding: 16px 18px; border-right: 1px solid var(--rule); }
+.spec__cell:last-child { border-right: 0; }
+.spec__value { font-size: 1.4rem; font-weight: 600; display: block; }
+.spec__label { font-size: 0.82rem; color: var(--ink-faint); }
+
+.section { padding: 40px 0; border-top: 1px solid var(--rule); }
+.section__title { font-size: 1.25rem; margin: 0 0 16px; }
+
+.prose { max-width: 62ch; color: var(--ink-soft); }
+.prose p { margin: 0 0 14px; }
+.prose strong { color: var(--ink); }
+
+.btn {
+  display: inline-block;
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 11px 20px;
+  border-radius: var(--radius);
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn--ghost { background: var(--surface); color: var(--ink); border-color: var(--rule-strong); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+}
+
+.panel + .panel { margin-top: 14px; }
+
+.field { display: grid; gap: 6px; margin-bottom: 14px; }
+.field label { font-size: 0.85rem; color: var(--ink-soft); }
+
+.field input {
+  font: inherit;
+  padding: 10px 12px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.notice {
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--review);
+  background: #f2e5d2;
+  font-size: 0.9rem;
+  margin-bottom: 16px;
+}
+
+.notice--ok { border-color: var(--answered); background: #d9e8df; }
+
+.steps { list-style: none; margin: 0; padding: 0; counter-reset: step; }
+
+/* Numbered because registration genuinely is a sequence. */
+.steps li {
+  counter-increment: step;
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.steps li:last-child { border-bottom: 0; }
+
+.steps li::before {
+  content: counter(step);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-faint);
+  font-size: 0.9rem;
+  padding-top: 1px;
+}
+
+.foot {
+  border-top: 1px solid var(--rule);
+  padding: 28px 0 40px;
+  font-size: 0.85rem;
+  color: var(--ink-faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
