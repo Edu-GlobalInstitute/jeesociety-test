@@ -1,11 +1,11 @@
-import { AWARD_CAP, MCQ_MARKS, RUBRIC_MAX_RAW } from './config.js';
-import type { AnswerKey, AnswerMap, RubricObservation } from './types.js';
+import { MCQ_MARKS } from './config.js';
+import type { AnswerKey, AnswerMap } from './types.js';
 
 /**
  * Pure scoring. No database, no network, no model. Everything here is a function
- * of its arguments so the whole scoring surface is unit-testable without a test
- * event, and so the same code can be re-run against stored observations if a
- * policy constant ever changes.
+ * of its arguments, so the whole scoring surface is unit-testable without a test
+ * event and the same code can be re-run against stored answers if a policy
+ * constant ever changes.
  */
 
 export interface McqResult {
@@ -22,14 +22,44 @@ function attempted(value: string | undefined): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+/** A finite number, or null for anything else — including "" and "1e5000". */
+function asNumber(value: string): number | null {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return null;
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * Whether a student's answer matches the key.
+ *
+ * One rule covers both question types, which is why scoring needs no access to
+ * the paper — only to the key:
+ *
+ *  - When the key is a number, the comparison is numeric. That is the integer
+ *    questions: "12", "12.0", "+12" and " 12 " are one answer, and a student is
+ *    not marked wrong for how their keyboard produced it.
+ *  - Otherwise it is a trimmed, case-insensitive string comparison. That is the
+ *    single-correct questions: an option recorded as "b" by one client and "B"
+ *    by another is the same choice.
+ */
+export function answerMatches(expected: string, given: string): boolean {
+  const expectedNumber = asNumber(expected);
+  if (expectedNumber !== null) {
+    const givenNumber = asNumber(given);
+    return givenNumber !== null && givenNumber === expectedNumber;
+  }
+  return given.trim().toUpperCase() === expected.trim().toUpperCase();
+}
+
 /**
  * Compares a student's answers against the key. The key is read server-side from
  * tests.answer_key and must never appear in any response — this function is the
  * only place the two meet.
  *
- * Comparison is case-insensitive and whitespace-trimmed: an option recorded as
- * "b" by one client and "B" by another is the same choice, and a student is not
- * penalised for the encoding of their click.
+ * The key has an entry for all 75 questions, so iterating it covers the whole
+ * paper: a question the student never opened is counted as unattempted rather
+ * than skipped.
  */
 export function scoreMcq(answerKey: AnswerKey, answers: AnswerMap): McqResult {
   let score = 0;
@@ -46,7 +76,7 @@ export function scoreMcq(answerKey: AnswerKey, answers: AnswerMap): McqResult {
       breakdown[questionId] = 'unattempted';
       continue;
     }
-    if (given.trim().toUpperCase() === String(expected).trim().toUpperCase()) {
+    if (answerMatches(String(expected), given)) {
       correct += 1;
       score += MCQ_MARKS.correct;
       breakdown[questionId] = 'correct';
@@ -58,64 +88,4 @@ export function scoreMcq(answerKey: AnswerKey, answers: AnswerMap): McqResult {
   }
 
   return { score, correct, wrong, unattempted, breakdown };
-}
-
-export interface RubricScore {
-  /** 0..RUBRIC_MAX_RAW, straight from the observations. */
-  raw: number;
-  /** raw after the cap. This is what counts toward the total. */
-  score: number;
-  /** True when a human should look at this answer before it stands. */
-  needsReview: boolean;
-  reviewReasons: string[];
-}
-
-/**
- * Reduces the model's structured observations to a number.
- *
- * The cap is applied here, in code, because that is the only way to guarantee it
- * holds across every one of 150,000 calls — a prompt instruction holds only most
- * of the time. raw is returned alongside so the cap policy can change later
- * without re-grading anything.
- */
-export function scoreRubric(observation: RubricObservation): RubricScore {
-  let raw = 0;
-
-  if (observation.off_topic_or_blank) {
-    // Nothing to award against the rubric, but a human decides whether the
-    // model simply failed to read the answer. The score is not final here.
-    return {
-      raw: 0,
-      score: 0,
-      needsReview: true,
-      reviewReasons: ['off_topic_or_blank'],
-    };
-  }
-
-  if (observation.approach_correct) raw += 1;
-  if (observation.setup_correct) raw += 1;
-  if (observation.calculation_correct) raw += 1;
-  if (observation.final_answer_correct && observation.units_present) raw += 1;
-
-  const reviewReasons: string[] = [];
-  if (observation.confidence === 'low') reviewReasons.push('grader_low_confidence');
-
-  return {
-    raw: Math.min(raw, RUBRIC_MAX_RAW),
-    score: Math.min(raw, AWARD_CAP),
-    needsReview: reviewReasons.length > 0,
-    reviewReasons,
-  };
-}
-
-/**
- * Totals an attempt. Subjective scores arrive over days, so this is called again
- * each time grading advances; it tolerates a partially graded attempt.
- */
-export function totalScore(mcqScore: number, subjectiveScores: number[]): {
-  subjective: number;
-  total: number;
-} {
-  const subjective = subjectiveScores.reduce((sum, s) => sum + s, 0);
-  return { subjective, total: mcqScore + subjective };
 }

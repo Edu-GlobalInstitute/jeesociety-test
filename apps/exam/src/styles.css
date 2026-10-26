@@ -291,30 +291,41 @@ body {
   outline-offset: 2px;
 }
 
-/* ---------------------------------------------------------------- answer -- */
+/* -------------------------------------------------------- integer answer -- */
 
-.answer {
-  display: block;
+/*
+ * Deliberately small. An integer answer is at most a handful of characters, and
+ * a field the width of the page invites a student to wonder whether more was
+ * expected of them.
+ */
+.integer {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.integer__input {
   width: 100%;
-  min-height: 320px;
-  padding: 16px 18px;
+  max-width: 260px;
+  padding: 14px 18px;
   background: var(--surface);
   border: 1px solid var(--rule);
   border-radius: var(--radius);
-  font-family: Charter, 'Bitstream Charter', 'Iowan Old Style', Georgia, serif;
-  font-size: 1.02rem;
-  line-height: 1.7;
+  font-size: 1.5rem;
+  letter-spacing: 0.04em;
   color: var(--ink);
-  resize: vertical;
 }
 
-.answer:focus {
+.integer__input:focus {
   border-color: var(--accent);
 }
 
-.answer__meta {
-  display: flex;
-  justify-content: space-between;
+.integer__unit {
+  font-size: 1.05rem;
+  color: var(--ink-soft, var(--ink-faint));
+}
+
+.integer__meta {
   margin-top: 8px;
   font-size: 0.78rem;
   color: var(--ink-faint);
@@ -366,6 +377,16 @@ body {
 
 .btn--spacer {
   margin-left: auto;
+}
+
+/*
+ * The two links out of this app — sign in, and register — are the same control
+ * as a button and should read as one. An <a> is inline and underlined by
+ * default, so it needs these two lines.
+ */
+a.btn {
+  display: inline-block;
+  text-decoration: none;
 }
 
 /* ------------------------------------------------------------- navigator -- */
@@ -489,6 +510,19 @@ body {
   max-width: 640px;
   margin: 0 auto;
   padding: 56px var(--gutter) 64px;
+}
+
+/*
+ * The company logo, on the lobby only. It is a red square, and rule 2 above
+ * forbids red in this client — but that rule is about red as a *signal*, on
+ * timers and on unanswered questions, where it adds to a student's stress
+ * mid-paper. A mark on the arrival screen signals nothing and is gone the
+ * moment the paper opens. The exam screen itself stays unbranded.
+ */
+.page__logo {
+  display: block;
+  border-radius: var(--radius);
+  margin: 0 0 20px;
 }
 
 .page__title {

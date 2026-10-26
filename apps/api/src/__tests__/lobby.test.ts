@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   createTest,
   createTestApi,
@@ -260,5 +260,87 @@ describe('GET /attempt/state', () => {
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({ revision: 7, answers: { q1: 'A' } });
     expect(JSON.stringify(response.body)).not.toContain(paperKey);
+  });
+});
+
+/**
+ * The lock. While a test is on sale and the inside is not finished, its row
+ * sits at `scheduled` and none of the three routes that open the paper may
+ * work — a client-side coming-soon screen would be cosmetic on its own.
+ */
+describe('the lock on tests.status', () => {
+  const lock = () =>
+    api.db.pool.query(`UPDATE tests SET status = 'scheduled' WHERE id = $1`, [testId]);
+  const unlock = () =>
+    api.db.pool.query(`UPDATE tests SET status = 'live' WHERE id = $1`, [testId]);
+
+  afterEach(unlock);
+
+  it('refuses registration while the test is locked', async () => {
+    await setWindow(10);
+    await lock();
+    const response = await register();
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe('not_open');
+  });
+
+  it('refuses the paper key while the test is locked, and leaks nothing', async () => {
+    await setWindow(10);
+    await register();
+    await setWindow(-1);
+    await lock();
+
+    const response = await getKey();
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe('not_open');
+    expect(JSON.stringify(response.body)).not.toContain(paperKey);
+  });
+
+  it('refuses a sync while the test is locked', async () => {
+    await setWindow(10);
+    const registered = await register();
+    await setWindow(-10);
+    await lock();
+
+    const response = await request(api.app)
+      .post('/attempt/sync')
+      .set('Cookie', student.cookie)
+      .send({ attemptId: registered.body.attemptId, revision: 2, answers: { q1: 'A' } });
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe('not_open');
+  });
+
+  it('still lets a closed test submit and resume, so a receipt survives the event', async () => {
+    // auto_submit moves the row to `closed` ten minutes after the window
+    // shuts. A student fetching their receipt after that must not be told the
+    // test is shut.
+    await setWindow(10);
+    const registered = await register();
+    await setWindow(-10);
+    await api.db.pool.query(`UPDATE tests SET status = 'closed' WHERE id = $1`, [testId]);
+
+    const submitted = await request(api.app)
+      .post('/attempt/submit')
+      .set('Cookie', student.cookie)
+      .send({ attemptId: registered.body.attemptId, revision: 3, answers: { q1: 'A' } });
+    expect(submitted.status).toBe(200);
+
+    const state = await request(api.app).get('/attempt/state').set('Cookie', student.cookie);
+    expect(state.status).toBe(200);
+  });
+
+  it('tells the status endpoint, so the client shows coming soon not a 403', async () => {
+    await setWindow(10);
+    await lock();
+    const locked = await request(api.app).get('/test/status').set('Cookie', student.cookie);
+    expect(locked.status).toBe(200);
+    expect(locked.body.examOpen).toBe(false);
+    // Paid is independent of the lock: the student has paid, they just cannot
+    // get in yet, and the register page reads both to choose its copy.
+    expect(locked.body.paid).toBe(true);
+
+    await unlock();
+    const open = await request(api.app).get('/test/status').set('Cookie', student.cookie);
+    expect(open.body.examOpen).toBe(true);
   });
 });

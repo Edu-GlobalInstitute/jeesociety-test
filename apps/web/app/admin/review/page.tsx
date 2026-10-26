@@ -4,8 +4,12 @@ import { useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
 
 /**
- * The review queue, severity-ordered. Expect 300-500 rows at 10,000 students;
- * read in this order, that is reviewable inside the grading window.
+ * The review queue.
+ *
+ * On an all-objective paper the only signal left is a change of IP address
+ * mid-attempt, which mobile networks produce constantly, so this is a list to
+ * glance down beside the submission times rather than a ranked evidence pile.
+ * It can be long and still mean nothing.
  */
 
 interface QueueRow {
@@ -20,11 +24,7 @@ interface QueueRow {
 }
 
 const FLAG_LABEL: Record<string, string> = {
-  burst_appearance: 'appeared in one sync',
-  low_keystroke_ratio: 'few keystrokes for its length',
-  ip_change: 'address changed',
-  grader_low_confidence: 'grader unsure',
-  off_topic_or_blank: 'off topic or blank',
+  ip_change: 'address changed mid-attempt',
 };
 
 export default function ReviewQueue() {
@@ -49,8 +49,8 @@ export default function ReviewQueue() {
     <main className="wrap" style={{ paddingTop: 40, paddingBottom: 64 }}>
       <h1 style={{ fontSize: '1.5rem', margin: '0 0 4px' }}>Review queue</h1>
       <p className="muted" style={{ marginTop: 0 }}>
-        Strongest evidence first. A flag is a reason to look, never a finding —{' '}
-        <a href="/admin">back to the dashboard</a>
+        A flag is a reason to look, never a finding. A changed address on a mobile network is
+        ordinary — <a href="/admin">back to the dashboard</a>
       </p>
 
       {rows && rows.length === 0 ? (

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { isExamOpen } from '@jee/shared';
 import { attempts, payments, tests, type Pool } from '@jee/db';
 import type { Auth } from '../auth.js';
 import { currentUser, requireUser } from '../middleware/session.js';
@@ -9,6 +10,10 @@ import { notFound } from '../middleware/errors.js';
  * computed from `serverTime` rather than from the student's own clock, which is
  * routinely minutes off — getting this wrong would give some students 2h50m and
  * others 3h10m.
+ *
+ * It also carries `examOpen`, which is what lets the exam app render a
+ * coming-soon screen rather than probing an endpoint and showing the student a
+ * 403 — but the lock itself is enforced in attempt.ts, not here.
  *
  * Note what this does not return: no paper key, no answer key. The columns are
  * named explicitly in queries/tests.ts for exactly this reason.
@@ -35,6 +40,7 @@ export function statusRoutes({ pool, auth }: { pool: Pool; auth: Auth }): Router
       serverTime: Date.now(),
       paperUrl: test.paper_url,
       paid,
+      examOpen: isExamOpen(test.status),
       attempt: attempt
         ? {
             id: attempt.id,

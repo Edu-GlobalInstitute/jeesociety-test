@@ -22,17 +22,21 @@ export interface ReviewQueueRow {
   flag_count: number;
   severity: number;
   mcq_score: number | null;
-  subjective_score: number | null;
   total_score: number | null;
 }
 
 /**
  * The review queue, sorted by severity then flag count so the strongest evidence
- * is read first. Expect 300-500 rows at 10,000 students.
+ * is read first.
  *
  * Severity is computed in SQL from the same weights as
  * packages/shared/src/config.ts FLAG_SEVERITY; the two are asserted equal by a
  * test rather than kept in sync by hand.
+ *
+ * On an all-objective paper `ip_change` is the only flag there is, so this queue
+ * is a list of attempts worth a glance rather than the ranked evidence pile it
+ * was when answers were prose. Read it next to the submission times; an address
+ * change on a mobile network is ordinary.
  */
 export function reviewQueue(
   testId: number,
@@ -44,15 +48,11 @@ export function reviewQueue(
             a.flags, jsonb_array_length(a.flags) AS flag_count,
             COALESCE((
               SELECT sum(CASE f ->> 'code'
-                           WHEN 'burst_appearance'     THEN 3
-                           WHEN 'low_keystroke_ratio'  THEN 2
-                           WHEN 'off_topic_or_blank'   THEN 2
-                           WHEN 'grader_low_confidence' THEN 1
-                           WHEN 'ip_change'            THEN 1
+                           WHEN 'ip_change' THEN 1
                            ELSE 0 END)
                 FROM jsonb_array_elements(a.flags) AS f
             ), 0) AS severity,
-            a.mcq_score, a.subjective_score, a.total_score
+            a.mcq_score, a.total_score
        FROM attempts a
        JOIN "user" u ON u."id" = a.user_id
       WHERE a.test_id = $1 AND a.needs_review
@@ -94,26 +94,6 @@ export async function logAdminAction(
     ],
     db,
   );
-}
-
-/**
- * A reviewer's decision on one subjective answer. The override lands on the
- * grading job, and the attempt total is recomputed from the jobs, so an override
- * and a normal grade are the same kind of number downstream.
- */
-export async function overrideQuestionScore(
-  params: { attemptId: string; questionId: string; score: number },
-  db?: Queryable,
-): Promise<{ before: number | null } | null> {
-  const row = await one<{ score: number | null }>(
-    `UPDATE grading_jobs
-        SET score = $3, status = 'done', completed_at = now()
-      WHERE attempt_id = $1 AND question_id = $2
-      RETURNING (SELECT score FROM grading_jobs WHERE attempt_id = $1 AND question_id = $2) AS score`,
-    [params.attemptId, params.questionId, params.score],
-    db,
-  );
-  return row ? { before: row.score } : null;
 }
 
 /** Clears the review flag once a human has looked. Flags stay for the record. */

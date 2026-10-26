@@ -4,9 +4,13 @@ import type { Logger } from 'pino';
 
 /**
  * One pass over the cohort, after auto-submit. Pure comparison in code — no
- * model, no network. 600,000 comparisons take about a second; the time is spent
+ * model, no network. 750,000 comparisons take about a second; the time is spent
  * reading and writing rows, which is why it streams in batches rather than
  * loading 10,000 attempts into memory at once.
+ *
+ * This job is now the whole of scoring. Every one of the 75 questions is marked
+ * here, so when it finishes the cohort has final totals and a rank list can be
+ * published the same morning — there is no second pass arriving over days.
  *
  * The answer key is read here and nowhere else in this process, through the
  * deliberately conspicuous reader in queries/tests.ts.
@@ -27,6 +31,7 @@ export async function runMcqScoring(
   let lastId = '00000000-0000-0000-0000-000000000000';
   let totalCorrect = 0;
   let totalWrong = 0;
+  let totalUnattempted = 0;
 
   for (;;) {
     const batch = await pool.query<{ id: string; answers: AnswerMap }>(
@@ -47,11 +52,9 @@ export async function runMcqScoring(
         const result = scoreMcq(answerKey, row.answers ?? {});
         totalCorrect += result.correct;
         totalWrong += result.wrong;
+        totalUnattempted += result.unattempted;
         await client.query(
-          `UPDATE attempts
-              SET mcq_score = $2,
-                  total_score = $2 + COALESCE(subjective_score, 0)
-            WHERE id = $1`,
+          `UPDATE attempts SET mcq_score = $2, total_score = $2 WHERE id = $1`,
           [row.id, result.score],
         );
         scored += 1;
@@ -66,9 +69,10 @@ export async function runMcqScoring(
     scored,
     totalCorrect,
     totalWrong,
+    totalUnattempted,
     marking: MCQ_MARKS,
     durationMs: Date.now() - started,
   };
-  log.info(summary, 'mcq scoring complete');
+  log.info(summary, 'scoring complete');
   return summary;
 }

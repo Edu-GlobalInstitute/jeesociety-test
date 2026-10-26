@@ -8,7 +8,6 @@ import {
   generatePaperKey,
   decryptPaper,
   type Paper,
-  type RubricMap,
   type AnswerKey,
 } from '@jee/shared';
 import { closePool, getPool, one } from '@jee/db';
@@ -21,22 +20,21 @@ import { putObject, type R2Config } from './r2.js';
  *     --input paper.json --test 1 [--upload] [--dry-run]
  *
  * What it does, in order:
- *   1. validates the paper (75 questions, every subjective one has a rubric,
- *      every MCQ has an answer in the key)
+ *   1. validates the paper: 75 questions in the 20-single-correct-plus-5-integer
+ *      shape per subject, every one of them with an answer in the key
  *   2. encrypts it with a fresh AES-256-GCM key
  *   3. verifies the ciphertext decrypts back to the exact input — the one
  *      check that makes a bad upload impossible to miss
  *   4. uploads the blob to R2 behind the CDN
- *   5. writes paper_url, paper_key, answer_key and rubrics to the tests row
+ *   5. writes paper_url, paper_key and answer_key to the tests row
  *
- * The answer key and the rubrics go into the database and never near the blob.
- * The blob is public by design: the secret is the key, not the ciphertext.
+ * The answer key goes into the database and never near the blob. The blob is
+ * public by design: the secret is the key, not the ciphertext.
  */
 
 interface InputFile {
   paper: Paper;
   answerKey: AnswerKey;
-  rubrics: RubricMap;
 }
 
 const args = process.argv.slice(2);
@@ -67,35 +65,74 @@ const input = JSON.parse(await readFile(resolve(inputPath), 'utf8')) as InputFil
 const problems: string[] = [];
 const ids = new Set<string>();
 
+const bySubject = new Map<string, { scq: number; integer: number }>();
+
 for (const question of input.paper.questions) {
   if (ids.has(question.id)) problems.push(`duplicate question id ${question.id}`);
   ids.add(question.id);
   if (!question.body?.trim()) problems.push(`${question.id} has no body`);
-  if (question.kind === 'mcq') {
+
+  // Every question is machine-marked, so every question needs a key entry.
+  // A missing one is 10,000 students scoring zero on a question they answered.
+  const expected = input.answerKey[question.id];
+  if (expected === undefined || String(expected).trim() === '') {
+    problems.push(`${question.id} has no answer in the key`);
+  }
+
+  const counts = bySubject.get(question.subject) ?? { scq: 0, integer: 0 };
+  if (question.kind === 'scq') {
+    counts.scq += 1;
     if (!question.options?.length) problems.push(`${question.id} has no options`);
-    if (!input.answerKey[question.id]) problems.push(`${question.id} has no answer in the key`);
-  } else if (!input.rubrics[question.id]) {
-    // Without a rubric a subjective question cannot be graded consistently, so
-    // enqueueing it would only produce 10,000 jobs that fail.
-    problems.push(`${question.id} is subjective but has no rubric`);
+    else if (expected !== undefined && !question.options.some((o) => o.key === expected)) {
+      // The key must name one of this question's own options, or the question
+      // is unanswerable and every student gets −1 for trying.
+      problems.push(`${question.id}: key "${expected}" is not one of its options`);
+    }
+  } else {
+    counts.integer += 1;
+    // Scoring compares integer answers numerically (scoring.ts), so a key that
+    // is not a number can never be matched by anything a student can type.
+    if (expected !== undefined && !Number.isFinite(Number(String(expected).trim()))) {
+      problems.push(`${question.id} is an integer question but its key "${expected}" is not a number`);
+    }
+  }
+  bySubject.set(question.subject, counts);
+}
+
+const scqCount = input.paper.questions.filter((q) => q.kind === 'scq').length;
+const integerCount = input.paper.questions.filter((q) => q.kind === 'integer').length;
+if (scqCount !== PAPER.scqCount) {
+  problems.push(`expected ${PAPER.scqCount} single-correct, found ${scqCount}`);
+}
+if (integerCount !== PAPER.integerCount) {
+  problems.push(`expected ${PAPER.integerCount} integer, found ${integerCount}`);
+}
+
+// Per subject as well as in total: 75 questions that are all physics would
+// pass a total-only check and be the wrong paper.
+for (const subject of PAPER.subjects) {
+  const counts = bySubject.get(subject);
+  if (!counts) {
+    problems.push(`no questions for subject ${subject}`);
+    continue;
+  }
+  if (counts.scq !== PAPER.scqPerSubject) {
+    problems.push(
+      `${subject}: expected ${PAPER.scqPerSubject} single-correct, found ${counts.scq}`,
+    );
+  }
+  if (counts.integer !== PAPER.integerPerSubject) {
+    problems.push(
+      `${subject}: expected ${PAPER.integerPerSubject} integer, found ${counts.integer}`,
+    );
+  }
+}
+for (const subject of bySubject.keys()) {
+  if (!(PAPER.subjects as readonly string[]).includes(subject)) {
+    problems.push(`unknown subject ${subject}`);
   }
 }
 
-const mcqCount = input.paper.questions.filter((q) => q.kind === 'mcq').length;
-const subjectiveCount = input.paper.questions.filter((q) => q.kind === 'subjective').length;
-if (mcqCount !== PAPER.mcqCount) problems.push(`expected ${PAPER.mcqCount} MCQ, found ${mcqCount}`);
-if (subjectiveCount !== PAPER.subjectiveCount) {
-  problems.push(`expected ${PAPER.subjectiveCount} subjective, found ${subjectiveCount}`);
-}
-
-for (const [questionId, rubric] of Object.entries(input.rubrics)) {
-  if (!ids.has(questionId)) problems.push(`rubric for unknown question ${questionId}`);
-  if ((rubric.examples?.length ?? 0) < 2) {
-    // Few-shot anchors do more for consistency across 150,000 calls than any
-    // instruction about strictness.
-    problems.push(`rubric ${questionId} has fewer than 2 worked examples`);
-  }
-}
 for (const questionId of Object.keys(input.answerKey)) {
   if (!ids.has(questionId)) problems.push(`answer key entry for unknown question ${questionId}`);
 }
@@ -133,7 +170,8 @@ await writeFile(localPath, body);
 console.log(
   [
     '',
-    `questions      ${paper.questions.length} (${mcqCount} mcq, ${subjectiveCount} subjective)`,
+    `questions      ${paper.questions.length} (${scqCount} single-correct, ${integerCount} integer)`,
+    `marks          ${PAPER.maxMarks}`,
     `blob           ${(body.length / 1024).toFixed(1)} KB`,
     `sha256         ${digest}`,
     `local copy     ${localPath}`,
@@ -173,10 +211,10 @@ if (upload) {
 const pool = getPool();
 const updated = await one<{ id: number }>(
   `UPDATE tests
-      SET paper_url = $2, paper_key = $3, answer_key = $4, rubrics = $5
+      SET paper_url = $2, paper_key = $3, answer_key = $4
     WHERE id = $1
     RETURNING id`,
-  [testId, paperUrl, paperKey, JSON.stringify(input.answerKey), JSON.stringify(input.rubrics)],
+  [testId, paperUrl, paperKey, JSON.stringify(input.answerKey)],
 );
 await closePool();
 

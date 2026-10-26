@@ -1,4 +1,4 @@
-import type { AnswerMap, EncryptedPaper, TelemetryMap } from '@jee/shared';
+import type { AnswerMap, EncryptedPaper } from '@jee/shared';
 
 /**
  * The student's local safety net.
@@ -21,7 +21,6 @@ const PAPER_STORE = 'paper';
 export interface LocalState {
   attemptId: string;
   answers: AnswerMap;
-  telemetry: TelemetryMap;
   /** Monotonic. Bumped on every change, carried on every sync. */
   revision: number;
   /** Highest revision the server has acknowledged. */
@@ -38,7 +37,6 @@ export function emptyState(attemptId: string): LocalState {
   return {
     attemptId,
     answers: {},
-    telemetry: {},
     revision: 0,
     syncedRevision: 0,
     lastSavedAt: 0,

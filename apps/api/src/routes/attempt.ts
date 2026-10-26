@@ -6,8 +6,10 @@ import {
   SyncSchema,
   answerLengths,
   generateReceipt,
+  hasExamOpened,
+  isExamOpen,
   type AnswerMap,
-  type TelemetryMap,
+  type TestStatus,
 } from '@jee/shared';
 import { attempts, payments, pick, tests, type Pool } from '@jee/db';
 import type { Auth } from '../auth.js';
@@ -23,6 +25,11 @@ import type { Logger } from '../logger.js';
  * Every one whitelists its response. There is no res.json(row) in this file —
  * a `tests` row carries `paper_key` and `answer_key`, and one careless
  * serialisation of it would invalidate the entire event.
+ *
+ * All four are behind `tests.status`. While the test is on sale but the inside
+ * is not finished the row sits at `scheduled`, and these routes answer 403
+ * `not_open` — the coming-soon screen in the exam app is the polite face of
+ * this check, not the check itself. Promoting the row to `live` opens them.
  */
 
 export interface AttemptRouteDeps {
@@ -34,6 +41,28 @@ export interface AttemptRouteDeps {
 /** The client's real address, honest only because trust proxy is a hop count. */
 function clientIp(req: Request): string | null {
   return req.ip ?? null;
+}
+
+/**
+ * The lock, in one place so all four routes read identically.
+ *
+ * `allowPast` is for the two routes a student may legitimately reach after the
+ * event — submit inside its grace window, and state for a receipt or a resume.
+ * Those accept `closed` and `graded` as well, because auto-submit moves the row
+ * to `closed` and a student asking for their receipt afterwards must not be
+ * told the test is shut. The three routes that open the paper accept `live`
+ * only.
+ */
+function requireExamOpen(
+  test: { status: TestStatus; starts_at: Date },
+  options: { allowPast?: boolean } = {},
+): void {
+  const open = options.allowPast ? hasExamOpened(test.status) : isExamOpen(test.status);
+  if (open) return;
+  throw forbidden(
+    'not_open',
+    'The test is not open yet. You are registered — we will email you before it opens.',
+  );
 }
 
 export function attemptRoutes({ pool, auth, log }: AttemptRouteDeps): Router {
@@ -55,6 +84,7 @@ export function attemptRoutes({ pool, auth, log }: AttemptRouteDeps): Router {
     const me = currentUser(req);
     const test = await tests.getCurrentTest(pool);
     if (!test) throw notFound('no_test', 'There is no scheduled test.');
+    requireExamOpen(test);
 
     const now = Date.now();
     if (now < test.lobby_opens_at.getTime()) {
@@ -91,6 +121,7 @@ export function attemptRoutes({ pool, auth, log }: AttemptRouteDeps): Router {
     const me = currentUser(req);
     const test = await tests.getCurrentTest(pool);
     if (!test) throw notFound('no_test', 'There is no scheduled test.');
+    requireExamOpen(test);
 
     const now = Date.now();
     if (now < test.starts_at.getTime()) {
@@ -136,12 +167,12 @@ export function attemptRoutes({ pool, auth, log }: AttemptRouteDeps): Router {
 
     const test = await tests.getCurrentTest(pool);
     if (!test) throw notFound('no_test', 'There is no scheduled test.');
+    requireExamOpen(test);
     if (Date.now() > test.ends_at.getTime()) {
       throw forbidden('window_closed', 'The test window has closed.');
     }
 
     const answers: AnswerMap = body.answers;
-    const telemetry: TelemetryMap = body.telemetry ?? {};
     const ip = clientIp(req);
 
     const result = await attempts.syncAttempt(
@@ -150,7 +181,6 @@ export function attemptRoutes({ pool, auth, log }: AttemptRouteDeps): Router {
         userId: me.id,
         revision: body.revision,
         answers,
-        telemetry,
         ip,
       },
       pool,
@@ -178,7 +208,7 @@ export function attemptRoutes({ pool, auth, log }: AttemptRouteDeps): Router {
   });
 
   /* ---------------------------------------------------------------------- */
-  /* POST /attempt/submit — idempotent finalise. One row, no score, no LLM.  */
+  /* POST /attempt/submit — idempotent finalise. One row, and no score.     */
   /* ---------------------------------------------------------------------- */
   router.post('/submit', user, async (req, res) => {
     const me = currentUser(req);
@@ -186,6 +216,7 @@ export function attemptRoutes({ pool, auth, log }: AttemptRouteDeps): Router {
 
     const test = await tests.getCurrentTest(pool);
     if (!test) throw notFound('no_test', 'There is no scheduled test.');
+    requireExamOpen(test, { allowPast: true });
 
     // The client spreads its submission across 45 s of jitter and then retries
     // with backoff, so the window here is deliberately wider than the test's.
@@ -202,7 +233,6 @@ export function attemptRoutes({ pool, auth, log }: AttemptRouteDeps): Router {
         userId: me.id,
         revision: body.revision,
         answers: body.answers,
-        telemetry: body.telemetry ?? {},
         receipt: generateReceipt(test.id),
       },
       pool,
@@ -233,6 +263,7 @@ export function attemptRoutes({ pool, auth, log }: AttemptRouteDeps): Router {
     const me = currentUser(req);
     const test = await tests.getCurrentTest(pool);
     if (!test) throw notFound('no_test', 'There is no scheduled test.');
+    requireExamOpen(test, { allowPast: true });
 
     const attempt = await attempts.getAttemptForUser(me.id, test.id, pool);
     if (!attempt) throw notFound('no_attempt', 'No attempt for this test.');
@@ -240,7 +271,7 @@ export function attemptRoutes({ pool, auth, log }: AttemptRouteDeps): Router {
     // A student on a replacement machine has no IndexedDB. This hands back the
     // last synced state so they resume where the server last heard from them.
     res.json({
-      ...pick(attempt, ['id', 'revision', 'status', 'answers', 'telemetry']),
+      ...pick(attempt, ['id', 'revision', 'status', 'answers']),
       submittedAt: attempt.submitted_at?.toISOString() ?? null,
       receipt: attempt.receipt,
       serverTime: Date.now(),

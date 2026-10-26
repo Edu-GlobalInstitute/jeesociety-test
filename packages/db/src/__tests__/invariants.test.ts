@@ -124,6 +124,68 @@ describe('nothing auto-penalises a student', () => {
   });
 });
 
+describe('the paper is machine-marked, with no model in the loop', () => {
+  it('has no AI provider or model call anywhere in the source tree', async () => {
+    const files = await sourceFiles(
+      'packages/db/src',
+      'packages/shared/src',
+      'apps/api/src',
+      'apps/worker/src',
+      'apps/exam/src',
+      'apps/web/app',
+      'apps/web/components',
+      'apps/web/lib',
+      'tools/build-paper/src',
+    );
+    const offenders: string[] = [];
+
+    // Comments are stripped first, so prose explaining why there is no model
+    // here — of which there is a fair amount — does not trip this.
+    for (const file of files) {
+      const code = stripComments(await readFile(file, 'utf8'));
+      if (/@anthropic-ai|anthropic\.com|generativelanguage|openai|\bRubricObservation\b/i.test(code)) {
+        offenders.push(relative(repoRoot, file));
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('declares no AI SDK as a dependency', async () => {
+    for (const manifest of [
+      'apps/worker/package.json',
+      'apps/api/package.json',
+      'packages/shared/package.json',
+      'packages/db/package.json',
+    ]) {
+      const source = await readFile(join(repoRoot, manifest), 'utf8');
+      const pkg = JSON.parse(source) as {
+        dependencies?: Record<string, string>;
+        devDependencies?: Record<string, string>;
+      };
+      const names = [
+        ...Object.keys(pkg.dependencies ?? {}),
+        ...Object.keys(pkg.devDependencies ?? {}),
+      ];
+      expect(names.filter((name) => /anthropic|openai|google-ai|generative/i.test(name))).toEqual(
+        [],
+      );
+    }
+  });
+
+  it('scores every question from the answer key, with no second source of marks', async () => {
+    const scoring = await readFile(
+      join(repoRoot, 'packages/shared/src/scoring.ts'),
+      'utf8',
+    );
+    // scoreMcq iterating the key is what makes the key the only thing that
+    // decides a mark. A score that came from anywhere else would have to be
+    // added here first.
+    expect(scoring).toMatch(/Object\.entries\(answerKey\)/);
+    expect(stripComments(scoring)).not.toMatch(/subjective|rubric|confidence/i);
+  });
+});
+
 describe('answers never reach the logs', () => {
   it('redacts answer content in both services', async () => {
     for (const path of ['apps/api/src/logger.ts', 'apps/worker/src/worker.ts']) {

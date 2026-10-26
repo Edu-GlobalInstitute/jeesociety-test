@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { pino } from 'pino';
-import { MCQ_MARKS } from '@jee/shared';
+import { MCQ_MARKS, PAPER } from '@jee/shared';
 import { attempts, jobs } from '@jee/db';
 import { createTestDatabase, seedFixture, seedStudent, type TestDb } from '@jee/db/testing';
 import { runMcqScoring } from '../jobs/mcqScore.js';
@@ -39,6 +39,59 @@ describe('runMcqScoring', () => {
 
     const attempt = await attempts.getAttempt(fixture.attemptId, db.pool);
     expect(attempt!.mcq_score).toBe(10 * MCQ_MARKS.correct + 5 * MCQ_MARKS.wrong);
+  });
+
+  it('marks integer answers numerically and totals the whole paper', async () => {
+    const fixture = await seedFixture(db.pool);
+    // The integer questions' keys are numbers; a student types them with the
+    // formatting their keyboard produced.
+    const answers: Record<string, string> = {};
+    const [first, second, third] = fixture.integerIds;
+    answers[first!] = ` ${fixture.answerKey[first!]}.0 `;
+    answers[second!] = `+${fixture.answerKey[second!]}`;
+    answers[third!] = '999';
+
+    await db.pool.query(
+      `UPDATE attempts SET answers = $2, submitted_at = now(), status = 'submitted'
+        WHERE id = $1`,
+      [fixture.attemptId, JSON.stringify(answers)],
+    );
+
+    const result = await runMcqScoring(fixture.testId, db.pool, log);
+    expect(result).toMatchObject({ totalCorrect: 2, totalWrong: 1 });
+
+    const attempt = await attempts.getAttempt(fixture.attemptId, db.pool);
+    const expected = 2 * MCQ_MARKS.correct + MCQ_MARKS.wrong;
+    expect(attempt!.mcq_score).toBe(expected);
+    // Scoring is now the whole of grading, so the total is final here rather
+    // than waiting on a second pass.
+    expect(attempt!.total_score).toBe(expected);
+  });
+
+  it('awards the full paper to a perfect attempt', async () => {
+    const fixture = await seedFixture(db.pool);
+    await db.pool.query(
+      `UPDATE attempts SET answers = $2, submitted_at = now(), status = 'submitted'
+        WHERE id = $1`,
+      [fixture.attemptId, JSON.stringify(fixture.answerKey)],
+    );
+
+    const result = await runMcqScoring(fixture.testId, db.pool, log);
+    expect(result).toMatchObject({ totalCorrect: PAPER.totalCount, totalWrong: 0 });
+    const attempt = await attempts.getAttempt(fixture.attemptId, db.pool);
+    expect(attempt!.total_score).toBe(PAPER.maxMarks);
+  });
+
+  it('leaves an untouched paper at zero rather than negative', async () => {
+    const fixture = await seedFixture(db.pool);
+    await db.pool.query(
+      `UPDATE attempts SET submitted_at = now(), status = 'submitted' WHERE id = $1`,
+      [fixture.attemptId],
+    );
+
+    const result = await runMcqScoring(fixture.testId, db.pool, log);
+    expect(result).toMatchObject({ totalUnattempted: PAPER.totalCount, totalWrong: 0 });
+    expect((await attempts.getAttempt(fixture.attemptId, db.pool))!.total_score).toBe(0);
   });
 
   it('skips attempts that were never submitted', async () => {
@@ -102,38 +155,42 @@ describe('runAutoSubmit', () => {
 });
 
 describe('runComputeFlags', () => {
-  it('flags a burst from the growth curve, with readable evidence', async () => {
+  it('flags an address change, with evidence a human can read back', async () => {
     const fixture = await seedFixture(db.pool);
-    await attempts.recordSnapshot(fixture.attemptId, 1, { q61: 0 }, '203.0.113.1', db.pool);
-    await attempts.recordSnapshot(fixture.attemptId, 2, { q61: 800 }, '203.0.113.1', db.pool);
+    await attempts.recordSnapshot(fixture.attemptId, 1, { q1: 1 }, '203.0.113.1', db.pool);
+    await attempts.recordSnapshot(fixture.attemptId, 2, { q1: 1, q2: 1 }, '198.51.100.7', db.pool);
 
     const result = await runComputeFlags(fixture.testId, db.pool, log);
     expect(result.flagged).toBe(1);
 
     const attempt = await attempts.getAttempt(fixture.attemptId, db.pool);
     expect(attempt!.needs_review).toBe(true);
-    const burst = attempt!.flags.find((f) => f.code === 'burst_appearance');
-    expect(burst!.evidence).toMatchObject({ from: 0, to: 800 });
-    expect(burst!.evidence).toHaveProperty('fromAt');
+    const flag = attempt!.flags.find((f) => f.code === 'ip_change');
+    expect(flag!.evidence).toMatchObject({ distinctIps: 2 });
+    expect(flag!.evidence.ips).toEqual(['203.0.113.1', '198.51.100.7']);
   });
 
-  it('leaves a steadily written answer alone', async () => {
+  it('leaves an attempt on one address alone', async () => {
     const fixture = await seedFixture(db.pool);
-    for (const [revision, length] of [[1, 0], [2, 120], [3, 310], [4, 480]] as const) {
-      await attempts.recordSnapshot(fixture.attemptId, revision, { q61: length }, null, db.pool);
+    for (const [revision, answered] of [[1, 4], [2, 19], [3, 42], [4, 71]] as const) {
+      const lengths = Object.fromEntries(
+        Array.from({ length: answered }, (_, i) => [`q${i + 1}`, 1]),
+      );
+      await attempts.recordSnapshot(fixture.attemptId, revision, lengths, '203.0.113.1', db.pool);
     }
-    await db.pool.query(
-      `UPDATE attempts SET answers = $2, telemetry = $3 WHERE id = $1`,
-      [
-        fixture.attemptId,
-        JSON.stringify({ q61: 'x'.repeat(480) }),
-        JSON.stringify({ q61: { keystrokes: 520, pastes: 0, pastedChars: 0 } }),
-      ],
-    );
 
     const result = await runComputeFlags(fixture.testId, db.pool, log);
     expect(result.flagged).toBe(0);
     expect((await attempts.getAttempt(fixture.attemptId, db.pool))!.needs_review).toBe(false);
+  });
+
+  it('does not flag an attempt whose syncs carried no address', async () => {
+    const fixture = await seedFixture(db.pool);
+    await attempts.recordSnapshot(fixture.attemptId, 1, { q1: 1 }, null, db.pool);
+    await attempts.recordSnapshot(fixture.attemptId, 2, { q1: 1 }, null, db.pool);
+
+    const result = await runComputeFlags(fixture.testId, db.pool, log);
+    expect(result.flagged).toBe(0);
   });
 
   it('never changes a score', async () => {
@@ -142,8 +199,8 @@ describe('runComputeFlags', () => {
       `UPDATE attempts SET mcq_score = 120, total_score = 120 WHERE id = $1`,
       [fixture.attemptId],
     );
-    await attempts.recordSnapshot(fixture.attemptId, 1, { q61: 0 }, null, db.pool);
-    await attempts.recordSnapshot(fixture.attemptId, 2, { q61: 900 }, null, db.pool);
+    await attempts.recordSnapshot(fixture.attemptId, 1, { q1: 1 }, '203.0.113.1', db.pool);
+    await attempts.recordSnapshot(fixture.attemptId, 2, { q1: 1 }, '198.51.100.7', db.pool);
 
     await runComputeFlags(fixture.testId, db.pool, log);
 
@@ -156,8 +213,8 @@ describe('runComputeFlags', () => {
 
   it('is idempotent across re-runs', async () => {
     const fixture = await seedFixture(db.pool);
-    await attempts.recordSnapshot(fixture.attemptId, 1, { q61: 0 }, null, db.pool);
-    await attempts.recordSnapshot(fixture.attemptId, 2, { q61: 900 }, null, db.pool);
+    await attempts.recordSnapshot(fixture.attemptId, 1, { q1: 1 }, '203.0.113.1', db.pool);
+    await attempts.recordSnapshot(fixture.attemptId, 2, { q1: 1 }, '198.51.100.7', db.pool);
 
     await runComputeFlags(fixture.testId, db.pool, log);
     const after1 = (await attempts.getAttempt(fixture.attemptId, db.pool))!.flags.length;

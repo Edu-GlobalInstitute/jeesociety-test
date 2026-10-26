@@ -130,8 +130,6 @@ export function Exam({ paper, store, clock, endsAt, onTimeUp, onSubmit }: ExamPr
             value={state.answers[question.id] ?? ''}
             marked={state.markedForReview.includes(question.id)}
             onChange={(value) => store.setAnswer(question.id, value)}
-            onKeystroke={() => store.recordKeystrokes(question.id)}
-            onPaste={(chars) => store.recordPaste(question.id, chars)}
             onToggleReview={() => store.toggleReview(question.id)}
             onClear={() => store.clearAnswer(question.id)}
             onPrev={() => goTo(paper.questions[index - 1]!.id)}

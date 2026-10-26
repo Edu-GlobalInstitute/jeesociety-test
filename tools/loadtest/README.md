@@ -12,12 +12,18 @@ DATABASE_URL=... pnpm --filter @jee/loadtest seed-students -- --count 2000 --tes
 API_URL=https://api.example.org k6 run tools/loadtest/sync.js
 ```
 
+Point the deployment under test at a **Neon branch**, never at the branch the
+event will run on — this seeds thousands of synthetic students. The run against
+Railway Postgres no longer tells you anything (SYSTEM_DESIGN.md D-006), so the
+number that matters is p99 on `/attempt/sync` compared against the Railway
+baseline already recorded: that is where the extra network hop would show up.
+
 ## What to watch
 
 | Signal | Where | What is wrong if it moves |
 | --- | --- | --- |
 | p99 latency on `/attempt/sync` | k6 summary | Over ~800 ms means the pool or the database is saturated |
-| `db_connection_errors` | API logs | `replicas x PG_POOL_MAX` has exceeded the Postgres limit |
+| `db_connection_errors` | API logs | Neon's pooler or compute is at its limit — read the connection graph in the Neon console |
 | RSS of the API process | Railway metrics | Growth across the run means a leak; a 3-hour event will find it |
 | `http_req_failed` | k6 summary | Anything above ~0.1% at steady load needs explaining before the day |
 

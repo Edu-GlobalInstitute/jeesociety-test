@@ -1,10 +1,4 @@
-import type {
-  AnswerMap,
-  AttemptFlag,
-  AttemptStatus,
-  LengthMap,
-  TelemetryMap,
-} from '@jee/shared';
+import type { AnswerMap, AttemptFlag, AttemptStatus, LengthMap } from '@jee/shared';
 import { one, rows, type Queryable } from '../query.js';
 
 /**
@@ -22,7 +16,6 @@ export interface AttemptRow {
   test_id: number;
   answers: AnswerMap;
   revision: number;
-  telemetry: TelemetryMap;
   status: AttemptStatus;
   registered_at: Date | null;
   key_issued_at: Date | null;
@@ -30,7 +23,6 @@ export interface AttemptRow {
   submitted_at: Date | null;
   receipt: string | null;
   mcq_score: number | null;
-  subjective_score: number | null;
   total_score: number | null;
   needs_review: boolean;
   flags: AttemptFlag[];
@@ -38,9 +30,9 @@ export interface AttemptRow {
 }
 
 const ATTEMPT_COLUMNS = `
-  id, user_id, test_id, answers, revision, telemetry, status,
+  id, user_id, test_id, answers, revision, status,
   registered_at, key_issued_at, last_sync_at, submitted_at, receipt,
-  mcq_score, subjective_score, total_score, needs_review, flags, last_ip
+  mcq_score, total_score, needs_review, flags, last_ip
 `;
 
 export function getAttempt(attemptId: string, db?: Queryable): Promise<AttemptRow | null> {
@@ -124,7 +116,6 @@ export async function syncAttempt(
     userId: string;
     revision: number;
     answers: AnswerMap;
-    telemetry: TelemetryMap;
     ip: string | null;
   },
   db?: Queryable,
@@ -133,15 +124,14 @@ export async function syncAttempt(
     `WITH guarded AS (
        UPDATE attempts
           SET answers      = $3,
-              telemetry    = $4,
-              revision     = $5,
+              revision     = $4,
               last_sync_at = now(),
-              last_ip      = $6,
+              last_ip      = $5,
               status       = CASE WHEN status = 'registered' THEN 'in_progress'
                                   ELSE status END
         WHERE id = $1
           AND user_id = $2
-          AND revision < $5
+          AND revision < $4
           AND submitted_at IS NULL
         RETURNING revision
      )
@@ -153,7 +143,6 @@ export async function syncAttempt(
       params.attemptId,
       params.userId,
       JSON.stringify(params.answers),
-      JSON.stringify(params.telemetry),
       params.revision,
       params.ip,
     ],
@@ -229,7 +218,6 @@ export async function submitAttempt(
     userId: string;
     revision: number;
     answers: AnswerMap;
-    telemetry: TelemetryMap;
     receipt: string;
   },
   db?: Queryable,
@@ -237,21 +225,19 @@ export async function submitAttempt(
   const updated = await one<{ receipt: string; submitted_at: Date }>(
     `UPDATE attempts
         SET answers      = $3,
-            telemetry    = $4,
-            revision     = GREATEST(revision, $5),
+            revision     = GREATEST(revision, $4),
             submitted_at = now(),
             status       = 'submitted',
-            receipt      = $6
+            receipt      = $5
       WHERE id = $1
         AND user_id = $2
         AND submitted_at IS NULL
-        AND revision <= $5
+        AND revision <= $4
       RETURNING receipt, submitted_at`,
     [
       params.attemptId,
       params.userId,
       JSON.stringify(params.answers),
-      JSON.stringify(params.telemetry),
       params.revision,
       params.receipt,
     ],

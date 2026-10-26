@@ -8,8 +8,14 @@ import { SharedArray } from 'k6/data';
  *
  * Each virtual user signs in once, registers, then syncs full state on a loop,
  * and finally submits. The payload is built to match the real one: 75 answers,
- * the subjective ones long enough to be realistic, which is what makes the
- * ~10 KB gzipped figure in SYSTEM_DESIGN.md meaningful rather than a guess.
+ * each an option key or a short number, which is what makes the payload figure
+ * in SYSTEM_DESIGN.md meaningful rather than a guess.
+ *
+ * That payload is now about a twentieth of what it was when a third of the
+ * paper was typed prose, so the sync thresholds below are comfortable rather
+ * than tight. They are deliberately left where they were: the request count is
+ * unchanged, and it was always the count rather than the body size that decided
+ * whether the event holds.
  */
 
 const API = __ENV.API_URL || 'http://localhost:3000';
@@ -39,18 +45,22 @@ export const options = {
   },
 };
 
-/** A realistic payload: 60 single letters and 15 paragraphs. */
+/**
+ * A realistic payload. The paper runs 20 single-correct then 5 integer per
+ * subject, so questions 21-25, 46-50 and 71-75 take a typed number and the rest
+ * take an option key — the same layout samplePaper.ts seeds.
+ *
+ * `progress` fills the paper in question order, the way a student does.
+ */
+function isInteger(i) {
+  return i % 25 > 20 || i % 25 === 0;
+}
+
 function buildAnswers(progress) {
   const answers = {};
-  for (let i = 1; i <= 60; i += 1) {
-    if (i / 60 <= progress) answers[`q${i}`] = 'ABCD'[i % 4];
-  }
-  for (let i = 61; i <= 75; i += 1) {
-    if ((i - 60) / 15 <= progress) {
-      // ~700 characters, which is what a worked derivation actually looks like.
-      answers[`q${i}`] =
-        'Resolving along the incline, the net force is mg sin(theta). '.repeat(11);
-    }
+  for (let i = 1; i <= 75; i += 1) {
+    if (i / 75 > progress) continue;
+    answers[`q${i}`] = isInteger(i) ? String(10 + (i % 90)) : 'ABCD'[i % 4];
   }
   return answers;
 }
@@ -101,7 +111,6 @@ export default function () {
         attemptId,
         revision,
         answers: buildAnswers(progress),
-        telemetry: { q61: { keystrokes: 700 * progress, pastes: 0, pastedChars: 0 } },
       }),
       {
         headers: { 'content-type': 'application/json' },

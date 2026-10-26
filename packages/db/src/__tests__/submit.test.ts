@@ -29,7 +29,6 @@ const submit = (over: Partial<Parameters<typeof submitAttempt>[0]> = {}) =>
       userId: fixture.userId,
       revision: 10,
       answers: { q1: 'A', q61: 'final answer' },
-      telemetry: {},
       receipt: generateReceipt(fixture.testId),
       ...over,
     },
@@ -43,7 +42,6 @@ const sync = (revision: number, answers: Record<string, string>) =>
       userId: fixture.userId,
       revision,
       answers,
-      telemetry: {},
       ip: null,
     },
     db.pool,
@@ -126,17 +124,21 @@ describe('submitAttempt', () => {
   });
 
   it('computes no score', async () => {
+    // Submit writes one row and returns. Scoring is a worker pass after the
+    // window closes, so a slow score can never delay a student's submission.
     await submit();
     const attempt = await getAttempt(fixture.attemptId, db.pool);
     expect(attempt!.mcq_score).toBeNull();
-    expect(attempt!.subjective_score).toBeNull();
     expect(attempt!.total_score).toBeNull();
   });
 
-  it('writes no grading jobs — grading is enqueued separately', async () => {
-    await submit();
-    const jobs = await db.pool.query(`SELECT count(*) AS n FROM grading_jobs`);
-    expect(Number(jobs.rows[0]!.n)).toBe(0);
+  it('has no grading queue to write to — the paper is machine-marked', async () => {
+    // Asserts migration 004 actually ran: grading_jobs was the LLM queue, and
+    // an all-objective paper needs no per-answer bookkeeping to resume.
+    const table = await db.pool.query(
+      `SELECT to_regclass('public.grading_jobs') AS t`,
+    );
+    expect(table.rows[0]!.t).toBeNull();
   });
 
   it('keeps receipts unique across the cohort', async () => {
@@ -148,7 +150,6 @@ describe('submitAttempt', () => {
         userId: other.userId,
         revision: 1,
         answers: {},
-        telemetry: {},
         receipt: generateReceipt(other.testId),
       },
       db.pool,

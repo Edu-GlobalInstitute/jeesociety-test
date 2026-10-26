@@ -15,16 +15,6 @@ export const SyncSchema = z.object({
   revision: z.number().int().positive(),
   /** Full state, every time. Never a diff — see SYSTEM_DESIGN.md D-007. */
   answers: z.record(questionId, z.string().max(LIMITS.maxAnswerChars)),
-  telemetry: z
-    .record(
-      questionId,
-      z.object({
-        keystrokes: z.number().int().nonnegative(),
-        pastes: z.number().int().nonnegative(),
-        pastedChars: z.number().int().nonnegative(),
-      }),
-    )
-    .optional(),
 });
 export type SyncRequest = z.infer<typeof SyncSchema>;
 
@@ -42,7 +32,6 @@ export const SubmitSchema = z.object({
   attemptId: z.string().uuid(),
   revision: z.number().int().positive(),
   answers: z.record(questionId, z.string().max(LIMITS.maxAnswerChars)),
-  telemetry: SyncSchema.shape.telemetry,
 });
 export type SubmitRequest = z.infer<typeof SubmitSchema>;
 
@@ -65,6 +54,12 @@ export const TestStatusResponseSchema = z.object({
   paperUrl: z.string().nullable(),
   /** Whether this user has paid and may enter the lobby. */
   paid: z.boolean(),
+  /**
+   * Whether the exam surface is open at all. False while the test is on sale
+   * but the inside is not finished — the exam app shows a coming-soon screen
+   * and the API refuses register, key and sync. See isExamOpen().
+   */
+  examOpen: z.boolean(),
   attempt: z
     .object({
       id: z.string().uuid(),

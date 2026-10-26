@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { TEST_FEE_PAISE } from '@jee/shared/config';
 import { ApiError, api, openCheckout, type RazorpayOrder } from '../../lib/api';
+import { TEST_WHEN } from '../../lib/testDate';
 
 /**
  * Register, pay, and check in.
@@ -17,8 +19,12 @@ interface Status {
   startsAt: number;
   lobbyOpensAt: number;
   paid: boolean;
+  /** False while the test is on sale but the exam surface is not open yet. */
+  examOpen: boolean;
   attempt: { id: string; status: string } | null;
 }
+
+const RUPEES = TEST_FEE_PAISE / 100;
 
 export default function Register() {
   const [email, setEmail] = useState('');
@@ -115,7 +121,7 @@ export default function Register() {
       <p className="prose" style={{ marginBottom: 28 }}>
         {status
           ? `${status.name} — starts ${new Date(status.startsAt).toLocaleString()}.`
-          : 'Create an account, pay the entry fee, and you are in.'}
+          : `Create an account, pay ₹${RUPEES}, and you are in.`}
       </p>
 
       {message ? <div className="notice">{message}</div> : null}
@@ -174,6 +180,24 @@ export default function Register() {
             </button>
           </form>
         </section>
+      ) : status.paid && !status.examOpen ? (
+        /* Paid, but the inside is not open yet. The receipt comes first: a
+           student who has just paid and is not handed a test needs to be told
+           their money registered something before they are told to wait. */
+        <section className="panel">
+          <div className="notice notice--ok">
+            Your payment is recorded and your place is held.
+          </div>
+          <p className="prose">
+            The paper opens on <strong>{TEST_WHEN}</strong>. The waiting room opens thirty
+            minutes before that, and we will email you the day before with the link and what to
+            have ready — there is nothing for you to do until then.
+          </p>
+          <p className="prose" style={{ marginTop: 14 }}>
+            Keep the email address you signed up with working. It is how we reach you if
+            anything about the day changes.
+          </p>
+        </section>
       ) : status.paid ? (
         <section className="panel">
           <div className="notice notice--ok">You are registered for this test.</div>
@@ -190,13 +214,13 @@ export default function Register() {
         </section>
       ) : (
         <section className="panel">
-          <h2 style={{ fontSize: '1rem', marginTop: 0 }}>Pay the entry fee</h2>
+          <h2 style={{ fontSize: '1rem', marginTop: 0 }}>Pay ₹{RUPEES} and take your place</h2>
           <p className="prose">
             Registration closes the moment the test begins. Pay now so a payment problem on the
             day cannot keep you out.
           </p>
           <button className="btn" onClick={pay} disabled={busy}>
-            {busy ? 'Working…' : 'Pay and register'}
+            {busy ? 'Working…' : `Pay ₹${RUPEES} and register`}
           </button>
         </section>
       )}

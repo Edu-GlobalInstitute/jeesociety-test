@@ -1,131 +1,66 @@
-import { PAPER, type AnswerKey, type Paper, type Rubric, type RubricMap } from '@jee/shared';
+import { PAPER, type AnswerKey, type Paper, type Question } from '@jee/shared';
 
 /**
  * A deterministic 75-question paper for local development, tests and the load
  * test. Deterministic so that a failing load test can be reproduced exactly, and
  * so that seeding twice produces the same answer key.
  *
+ * It is laid out the way the real paper is: each subject contributes 20
+ * single-correct questions and then 5 integer-answer ones, in that order, so
+ * that the navigator's three sections look on a dev machine exactly as they
+ * will on the day.
+ *
  * This is not the real paper. The real one is authored elsewhere and passed to
  * tools/build-paper as JSON.
  */
 
-const SUBJECTS = ['physics', 'chemistry', 'maths'] as const;
 const OPTION_KEYS = ['A', 'B', 'C', 'D'] as const;
 
-export function samplePaper(testId: number): { paper: Paper; answerKey: AnswerKey; rubrics: RubricMap } {
-  const questions: Paper['questions'] = [];
+export function samplePaper(testId: number): { paper: Paper; answerKey: AnswerKey } {
+  const questions: Question[] = [];
   const answerKey: AnswerKey = {};
-  const rubrics: RubricMap = {};
 
-  for (let i = 0; i < PAPER.mcqCount; i += 1) {
-    const id = `q${i + 1}`;
-    const subject = SUBJECTS[i % SUBJECTS.length]!;
-    questions.push({
-      id,
-      kind: 'mcq',
-      subject,
-      body: `[${subject}] Sample objective question ${i + 1}. Which of the following is correct?`,
-      options: OPTION_KEYS.map((key, index) => ({
-        key,
-        body: `Option ${key} for question ${i + 1} (${index})`,
-      })),
-    });
-    answerKey[id] = OPTION_KEYS[i % OPTION_KEYS.length]!;
-  }
+  // Question numbers run 1..75 across the whole paper, subject by subject, so
+  // "question 47" means the same thing to a student and in a support email.
+  let number = 0;
+  const nextId = () => `q${(number += 1)}`;
 
-  for (let i = 0; i < PAPER.subjectiveCount; i += 1) {
-    const number = PAPER.mcqCount + i + 1;
-    const id = `q${number}`;
-    const subject = SUBJECTS[i % SUBJECTS.length]!;
-    questions.push({
-      id,
-      kind: 'subjective',
-      subject,
-      body:
-        `[${subject}] Sample subjective question ${number}. A block of mass m slides down a ` +
-        `frictionless incline of angle θ. Derive its acceleration and state the units.`,
+  for (const [subjectIndex, subject] of PAPER.subjects.entries()) {
+    for (let i = 0; i < PAPER.scqPerSubject; i += 1) {
+      const id = nextId();
+      questions.push({
+        id,
+        kind: 'scq',
+        subject,
+        body: `[${subject}] Sample single-correct question ${number}. Which of the following is correct?`,
+        options: OPTION_KEYS.map((key, index) => ({
+          key,
+          body: `Option ${key} for question ${number} (${index})`,
+        })),
       });
-    rubrics[id] = sampleRubric(id);
+      answerKey[id] = OPTION_KEYS[(subjectIndex + i) % OPTION_KEYS.length]!;
+    }
+
+    for (let i = 0; i < PAPER.integerPerSubject; i += 1) {
+      const id = nextId();
+      questions.push({
+        id,
+        kind: 'integer',
+        subject,
+        body:
+          `[${subject}] Sample integer-answer question ${number}. A block of mass ${i + 2} kg ` +
+          'slides down a frictionless incline. Give the magnitude of its acceleration, ' +
+          'rounded to the nearest integer.',
+        unit: 'm/s²',
+      });
+      // Spread across two digits so a numeric comparison is actually exercised
+      // rather than every answer being a single character.
+      answerKey[id] = String(10 + subjectIndex * PAPER.integerPerSubject + i);
+    }
   }
 
   return {
     paper: { testId, name: `Sample Paper ${testId}`, durationMinutes: 180, questions },
     answerKey,
-    rubrics,
   };
-}
-
-/**
- * The shape a real rubric must take. Note the worked examples: few-shot anchors
- * do more for consistency across 150,000 calls than any instruction about
- * strictness, and each one shows what earns a particular mark.
- */
-function sampleRubric(questionId: string): Rubric {
-  return {
-    questionId,
-    statement:
-      'A full-credit answer resolves the weight into components along and normal to ' +
-      'the incline, applies Newton\'s second law along the incline, and reports ' +
-      'a = g·sin(θ) with units of m/s².',
-    marks: {
-      approach: 'Recognises that the net force along a frictionless incline is mg·sin(θ).',
-      setup: 'Resolves weight into components correctly and writes ΣF = ma along the incline.',
-      calculation: 'Cancels m correctly and simplifies without algebraic error.',
-      final_answer: 'States a = g·sin(θ) with units (m/s²).',
-    },
-    examples: [
-      {
-        answer:
-          'Along the incline the only force is the component of gravity, mg sin θ. ' +
-          'So ma = mg sin θ, giving a = g sin θ = 9.8 sin θ m/s².',
-        observation: {
-          approach_correct: true,
-          approach_reason: 'Identifies mg·sin(θ) as the net force along the incline.',
-          setup_correct: true,
-          calculation_correct: true,
-          calculation_error: null,
-          final_answer_correct: true,
-          units_present: true,
-          confidence: 'high',
-          off_topic_or_blank: false,
-        },
-        note: 'Earns all four marks; capped to 3.',
-      },
-      {
-        answer:
-          'The force on the block is mg sin θ so the acceleration is g sin θ.',
-        observation: {
-          approach_correct: true,
-          approach_reason: 'Correct net force, but no explicit resolution of components.',
-          setup_correct: false,
-          calculation_correct: true,
-          calculation_error: null,
-          final_answer_correct: true,
-          units_present: false,
-          confidence: 'high',
-          off_topic_or_blank: false,
-        },
-        note: 'No setup shown and no units: approach and calculation only.',
-      },
-      {
-        answer: 'a = g because gravity pulls it down.',
-        observation: {
-          approach_correct: false,
-          approach_reason: 'Ignores the incline; uses free-fall acceleration.',
-          setup_correct: false,
-          calculation_correct: false,
-          calculation_error: 'No resolution of the weight along the incline.',
-          final_answer_correct: false,
-          units_present: false,
-          confidence: 'high',
-          off_topic_or_blank: false,
-        },
-        note: 'Zero. The physics is wrong, not merely incomplete.',
-      },
-    ],
-  };
-}
-
-export function subjectiveQuestionIds(paper: Paper): string[] {
-  return paper.questions.filter((q) => q.kind === 'subjective').map((q) => q.id);
 }

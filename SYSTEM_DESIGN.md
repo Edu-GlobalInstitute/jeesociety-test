@@ -8,11 +8,17 @@ file in the same commit.
 ## 1. System overview
 
 An all-India online JEE test portal for a single test event. Up to 10,000
-students sit simultaneously for 3 hours and answer 75 questions: 60 MCQ, scored
-by comparison against a server-held key, and 15 subjective, graded by an LLM
-against a per-question rubric. Students register and pay beforehand, enter a
-lobby 30 minutes before the start, take the test, and receive objective results
-the next day and final ranks within 6 days.
+students sit simultaneously for 3 hours and answer 75 questions for 300 marks,
+on the JEE Main pattern: physics, chemistry and mathematics, each with 20
+single-correct questions and 5 integer-answer ones. Every question is scored by
+comparison against a server-held key. Students register and pay beforehand,
+enter a lobby 30 minutes before the start, take the test, and receive marks the
+next day and final ranks the same week.
+
+Until 2026-10-26 a third of the paper was subjective, graded by an LLM against
+per-question rubrics. That half of the product is gone — see **D-038**, which
+is the entry to read before trying to understand why several decisions below
+are marked superseded.
 
 ### Load profile
 
@@ -21,11 +27,15 @@ the next day and final ranks within 6 days.
 | Lobby (30 min before start) | ~10 req/s | Registration + environment checks, spread across 30 minutes |
 | Paper download | 0 req/s at origin | ~1.5 MB x 10,000 served by Cloudflare CDN from R2, not by the API |
 | Start instant | ~500 req/s peak | `GET /attempt/key` — a ~200 byte response |
-| Steady (3 hours) | ~110 req/s | 10,000 students / 90 s sync interval, minus the 30-40% skipped by the no-change check |
+| Steady (3 hours) | ~110 req/s | 10,000 students / 90 s sync interval, minus the large share skipped by the no-change check |
 | Submit | ~500 req/s peak | Jittered across 45 s, so in practice closer to 220/s |
-| Grading (days after) | ~0 req/s | Worker polls Postgres; no inbound traffic |
+| Scoring (the next morning) | ~0 req/s | One worker pass over the cohort; no inbound traffic |
 
-Total event traffic is roughly 1.2M sync requests and ~12 GB of ingress. **This
+Total event traffic is roughly 1.2M sync requests. Ingress is now a fraction of
+the ~12 GB this document used to quote: a full answer map is 75 option keys and
+short numbers rather than 15 paragraphs of prose, so a sync body is on the order
+of 1 KB instead of ~10 KB. The request *count* is unchanged, and it was always
+the count rather than the body size that decided whether the event holds. **This
 is a small system.** It is not hard to scale; it is hard to make safe. Every
 decision below optimises for correctness and recoverability over throughput.
 
@@ -36,7 +46,9 @@ decision below optimises for correctness and recoverability over throughput.
 2. **The answer key never reaches the client.** Not in the bundle, not in an API
    response, not in a source map.
 3. **Nothing auto-penalises a student.** Cheating signals produce flags for human
-   review. The system never auto-zeroes, auto-terminates or auto-deducts.
+   review. The system never auto-zeroes, auto-terminates or auto-deducts. On an
+   all-objective paper this constraint costs almost nothing to keep, because
+   there is almost nothing left to signal on (D-038).
 4. **Everything is resumable.** Any process can be killed at any point without
    data loss or duplicated work. State lives in Postgres, never in process memory.
 5. **The test event cannot be retried.** The boring, proven option wins everywhere.
@@ -110,22 +122,51 @@ HTTP server.
 jobs inside the API.
 **Why:** Nothing sends the worker requests — it claims work from the database.
 An HTTP surface would be an attack surface and an availability requirement for
-no gain. Keeping grading out of the API process also means a grading backlog can
-never slow down a student's sync.
+no gain. Keeping the post-test jobs out of the API process also means that
+scoring 10,000 attempts can never slow down a student's sync.
 **Cost accepted:** Admin-triggered jobs go through a database flag rather than a
 direct call, adding up to one poll interval of latency.
 **Revisit if:** Operators need sub-second job triggering.
 
-### D-006: Postgres on Railway in the same project, not Neon
+### D-006: Postgres on Neon, not Railway
 
-**Decision:** Managed Postgres in the same Railway project and region as the API.
-**Alternatives considered:** Neon serverless Postgres.
-**Why:** Same-project private networking gives ~1 ms query latency and free
-internal egress, and the sync endpoint runs 1.2M times. Neon's scale-to-zero is
-worth nothing here because the database is continuously busy for the whole event
-and then continuously busy for six days of grading.
-**Cost accepted:** No branching workflow; idle RAM is billed between events.
-**Revisit if:** The portal becomes multi-event with long idle periods.
+**Decision:** Managed Postgres on Neon (`ap-southeast-1`), reached over TLS from
+the `api` and `worker` services in Railway's Singapore region. Routine traffic
+uses the pooled endpoint; migrations and `pg_dump` use the direct one.
+**Alternatives considered:** Railway's managed Postgres in the same project and
+region, which is what this ran on until 2026-10-26.
+**Why:** The three operational chores Railway leaves with us are this system's
+most fragile surfaces, and Neon deletes all three: the
+`replicas x PG_POOL_MAX < max_connections` budget (PgBouncer multiplexes onto
+the compute instead, so a replica-count change no longer risks connection
+refusals mid-event), instance sizing and the scale-down after the event, and the
+durability gap that the homegrown `pg_dump` job exists to cover — Neon's PITR
+restores to any second in the retention window rather than to the last
+15-minute dump. Branching also makes the load test and the dry run runnable
+against a copy of the real schema and data volume.
+**Cost accepted:** The query hop is no longer ~1 ms of private networking but a
+TLS'd internet hop inside the same metro — single-digit milliseconds, paid
+1.2M times by the sync endpoint. Session-scoped state no longer works on the
+default endpoint, which is a real footgun: `migrate.ts` now takes a
+transaction-scoped advisory lock and re-checks `schema_migrations` under it,
+and `pg_dump` is pointed at the direct endpoint explicitly. Two connection
+strings must be configured instead of one, and getting them the wrong way round
+fails quietly rather than loudly.
+**Reversal, 2026-10-26, four weeks before the event.** This entry argued on
+2026-10-23 that Neon likely wins on merit and lost only on runway: a migration
+landing three weeks out trades two known chores for an unrehearsed datastore.
+That reasoning was not wrong and the risk it names is now the live risk. It was
+overruled deliberately, so the mitigation is scheduling, not argument: **the
+load test at 2x and the full dry run must both be re-run against Neon, and the
+restore rehearsal repeated, before the stack is frozen.** A load test against
+the old stack now proves nothing. The thing to watch in it is p99 on
+`POST /attempt/sync`, compared against the Railway numbers already recorded —
+if the extra hop shows up anywhere it shows up there. Freeze no later than one
+week out; if those rehearsals have not happened by then, the honest call is to
+go back to Railway Postgres, which is why the old service is kept (stopped, not
+deleted) until the event is over.
+**Revisit if:** p99 on sync regresses measurably against the recorded Railway
+baseline, or the dry run finds anything the pooled endpoint cannot carry.
 
 ### D-007: Full state on every sync, not diffs
 
@@ -139,16 +180,21 @@ self-heals on the next one.
 
 ### D-008: Postgres queue via `FOR UPDATE SKIP LOCKED`, not Redis
 
-**Decision:** `grading_jobs` is the queue; lanes claim rows with `FOR UPDATE SKIP
+**Decision:** Postgres is the queue; claimants take rows with `FOR UPDATE SKIP
 LOCKED` and a `locked_until` lease.
 **Alternatives considered:** Redis + BullMQ.
-**Why:** 15,000 jobs over six days does not justify a second datastore with its
-own failure modes, backup story and connection budget. The decisive property is
+**Why:** The job volume does not justify a second datastore with its own failure
+modes, backup story and connection budget. The decisive property is
 transactional: a job's state and its result commit together, so a crash between
-"grade succeeded" and "job marked done" is impossible rather than merely
+"work succeeded" and "job marked done" is impossible rather than merely
 unlikely.
-**Cost accepted:** Polling costs one cheap indexed query per lane per idle
-second; throughput ceiling is far above what the LLM provider will allow anyway.
+**Amended, 2026-10-26 (D-038).** This entry was written for `grading_jobs`,
+which held 15,000 model calls over six days and is dropped by migration 004.
+The pattern it describes still runs the system — `job_runs` is claimed exactly
+this way — and the transactional argument is the reason the one-shot jobs were
+never timers (D-017).
+**Cost accepted:** Polling costs one cheap indexed query per claimant per idle
+second.
 **Revisit if:** Job volume exceeds ~1M per event.
 
 ### D-009: Cloudflare R2 + CDN for the paper blob, not S3
@@ -163,18 +209,20 @@ origin spike on the one service that must stay responsive.
 (paper blob and backups).
 **Revisit if:** Egress ever becomes cheaper at the primary host than at R2.
 
-### D-010: Railway Singapore for all three services, not Fly.io Mumbai
+### D-010: Railway Singapore for the services, not Fly.io Mumbai
 
-**Decision:** `api`, `worker` and `postgres` all run in Railway's Singapore
-region.
+**Decision:** `api` and `worker` run in Railway's Singapore region; Postgres is
+a Neon branch in `ap-southeast-1`, the same metro (D-006).
 **Alternatives considered:** Fly.io, which has a Mumbai region physically closer
 to the students.
 **Why:** The latency-sensitive payload is the question paper, and that is served
 from Cloudflare's Indian edge regardless of where the origin sits. What remains
 is a ~10 KB sync every 90 seconds, where an extra 40 ms of RTT is invisible.
 Operator familiarity with Railway is worth more than that margin on an event
-that cannot be retried. All three services share a region so private networking
-holds — a mismatched region silently costs latency on every query.
+that cannot be retried. The services and the Neon branch share a metro, which is
+what keeps the database hop to single-digit milliseconds — a Neon region that
+does not match the Railway one silently costs latency on every query, and there
+are several queries per request.
 **Cost accepted:** ~40 ms additional RTT per API call for Indian students; data
 residency outside India (see Open questions).
 **Revisit if:** The event grows an interactive, latency-sensitive feature, or
@@ -182,14 +230,14 @@ data residency becomes a legal requirement.
 
 ### D-011: Scoring, flag computation and the wire contract live in `packages/shared`
 
-**Decision:** `scoreMcq`, `scoreRubric` and the flag functions are pure
+**Decision:** `scoreMcq`, `answerMatches` and the flag functions are pure
 functions in the shared package, not methods on a service class or SQL.
 **Alternatives considered:** Scoring in SQL; scoring inside the worker only.
 **Why:** These four paths — sync, submit, auto-submit, scoring — carry
 correctness for the whole event, and pure functions are the only version of them
 that can be tested exhaustively without a test event. Keeping them in `shared`
-also means a disputed score can be recomputed from stored observations by any
-process, including a one-off script six months later.
+also means a disputed score can be recomputed from the stored answers and key by
+any process, including a one-off script six months later.
 **Cost accepted:** Scoring reads all answers into the worker process rather than
 staying in the database. At 10,000 x 75 answers this is seconds of work.
 **Revisit if:** Scoring ever needs to run over more rows than fit comfortably in
@@ -270,9 +318,9 @@ submitting tab held — it corresponds to the best state the server has.
 
 ### D-017: One-shot jobs are rows in `job_runs`, not timers
 
-**Decision:** Auto-submit, MCQ scoring, enqueue-grading and flag computation are
-scheduled by inserting a row with a `run_after`, claimed with `FOR UPDATE SKIP
-LOCKED` and a `locked_until` lease.
+**Decision:** Auto-submit, scoring and flag computation are scheduled by
+inserting a row with a `run_after`, claimed with `FOR UPDATE SKIP LOCKED` and a
+`locked_until` lease.
 **Alternatives considered:** `setTimeout` in the worker; an external cron.
 **Why:** A timer in process memory dies with the process, and the single most
 important job in the system (auto-submit) runs exactly once, ten minutes after
@@ -365,7 +413,12 @@ interface means switching is a new class, not a rewrite, and a `stub` provider
 lets the whole lane be tested without spending money.
 **Cost accepted:** A provider dependency; a second implementation needed if the
 choice is revisited.
-**Revisit if:** Agreement with human reviewers on the flagged sample is poor.
+**Superseded, 2026-10-26 by D-038.** There is no grading model. The provider interface, both
+implementations and the `@anthropic-ai/sdk` dependency are deleted; an
+invariant test now fails if any of them comes back. The reasoning above still
+holds for the task it described, and is kept because it is the argument to
+re-read if a written paper is ever reintroduced.
+**Revisit if:** A written section returns to the product.
 
 ### D-024: Determinism comes from a structured-output schema, not `temperature: 0`
 
@@ -383,8 +436,10 @@ side with the same zod schema, so the scorer's types are guaranteed.
 **Cost accepted:** Sampling is no longer pinned, so two runs over the same
 answer may differ in wording; the observations are booleans and an enum, which
 is what the score is computed from.
-**Revisit if:** Agreement between repeat runs on the same answer is poor —
-measure before changing anything.
+**Superseded, 2026-10-26 by D-038.** Kept for one reason worth carrying forward: the API rejects
+sampling parameters, so any future model call cannot obtain determinism that
+way. Reach for a server-enforced schema instead.
+**Revisit if:** A written section returns to the product.
 
 ### D-025: Never ask the model for a score
 
@@ -399,7 +454,12 @@ Enforcing the cap in code is the only way to guarantee it holds on every single
 call; a prompt instruction holds *most* of the time, which over 150,000 answers
 is not good enough.
 **Cost accepted:** The rubric must be expressible as four binary marks.
-**Revisit if:** A question needs partial credit finer than one mark.
+**Superseded, 2026-10-26 by D-038.** The principle outlived the model. Nothing outside
+`tests.answer_key` may decide a mark, and `scoreMcq()` iterating that key is
+now the single place a mark is computed — see D-038. The invariant test that
+used to check there was no path from a flag to a score also checks that
+`scoring.ts` mentions no second source of marks.
+**Revisit if:** A written section returns to the product.
 
 ### D-026: Grading jobs are enqueued question-major
 
@@ -412,7 +472,10 @@ every call. Question-major insertion keeps every lane on the same cached prefix
 at the same time.
 **Cost accepted:** Results arrive question by question rather than student by
 student, so partial results are not per-student complete until the end.
-**Revisit if:** Grading ever needs to finish one student at a time.
+**Superseded, 2026-10-26 by D-038.** `grading_jobs` is dropped by migration 004. Scoring needs no
+queue: it is one streaming pass of in-code comparisons, and re-running it is
+free because it is deterministic.
+**Revisit if:** A written section returns to the product.
 
 ### D-027: The SDK's own retries are disabled
 
@@ -423,7 +486,9 @@ the admin view and survives a worker restart. SDK-level retries would multiply
 the real attempt count invisibly — three lane attempts would become nine model
 calls — and would hide a failing provider behind an apparently healthy queue.
 **Cost accepted:** Backoff is implemented here rather than inherited.
-**Revisit if:** Never, while job state lives in Postgres.
+**Superseded, 2026-10-26 by D-038.** There is no SDK. The principle — retry state belongs on the job
+row where it is visible and survives a restart — still governs `job_runs`.
+**Revisit if:** A written section returns to the product.
 
 ### D-028: Local state wins over server state on resume
 
@@ -507,89 +572,247 @@ there are a handful of admins.
 **Cost accepted:** One extra query per admin request.
 **Revisit if:** Never, at this scale.
 
-### D-034: The growth curve is one series, with the flagged segment labelled
+### D-034: The review chart is one series, with the flagged segment labelled
 
-**Decision:** The review chart plots answer length against sync revision as a
-single line, drawing the segment that exceeds the burst threshold in a second
-colour **and** stating the threshold in text beneath it.
+**Decision:** The review chart plots progress against sync revision as a single
+line, drawing the segment that exceeds the jump threshold in a second colour
+**and** stating the threshold in text beneath it.
 **Alternatives considered:** Colour-only highlighting; a bar chart of deltas.
-**Why:** The question the reviewer is answering is "was this written or
-pasted", and that is a shape question — gradual growth looks like writing, a
-near-vertical segment does not. A chart of deltas would show the jump but lose
-the shape that makes the rest of the answer look normal. The text label exists
-because status may never be carried by colour alone, and this chart is read by
-someone about to change a student's mark.
+**Why:** The question the reviewer is answering is a shape question, and a chart
+of deltas would show a jump but lose the shape that makes the rest of the
+attempt look normal. The text label exists because status may never be carried
+by colour alone, and this chart is read by someone deciding whether an attempt
+stands.
+**Amended, 2026-10-26 (D-038).** The series changed and the geometry did not.
+It plotted *answer length for one question*, which read whether prose was
+written or pasted; with one-character answers that series is flat and
+meaningless. It now plots *how many of the 75 answers the server held* at each
+sync, which still answers "did someone actually sit this paper" — a student
+working through a paper produces a staircase over three hours. The y-axis is the
+whole paper rather than the data's own maximum, so two attempts can be compared
+by glancing at their shapes. `GrowthChart` is now `ProgressChart`, and its
+geometry tests carried over unchanged.
 **Cost accepted:** Two colours on a one-series chart, which needs the text to
-disambiguate.
-**Revisit if:** Reviewers ask for several questions on one chart — which would
+disambiguate. The new series is weaker evidence than the old one, because
+transcribing 70 answers from paper in the last ten minutes is a thing an honest
+student does.
+**Revisit if:** Reviewers ask for several attempts on one chart — which would
 make it categorical and need a validated palette per series.
+
+### D-035: The public site is a night that becomes a morning
+
+**Decision:** `apps/web` is built on the Penultimate JEE Program's Sunrise
+palette — deep navy base, warm orange and golden yellow accents, soft cream for
+breathing space, teal used sparingly — and the landing page is sequenced as a
+sunrise: a navy hero with a star field and a rising sun, sections that brighten
+from cream to white-cream, the reward ladder back in the navy so the gold on it
+is the brightest thing on the page, and a closing band that is the sunrise
+itself with navy type on it.
+**Alternatives considered:** The previous all-bright poster treatment; an
+all-light page with warm accents.
+**Why:** The palette guide's own argument, and it holds: an all-bright page
+reads as a sale, not as hope, and the warm accents only mean anything against
+something dark. Rationing them is the whole mechanism — gold and orange appear
+on the price, the register button, the top percentile band and the sun, and
+nowhere else, so a student reads those four things as one promise.
+The hero carries the argument as a picture as well as a headline: a student
+climbs the three-band ladder, stalls below the next rung, and a hand from JEE
+Society lifts them from the bottom rung to the top, where the prize is
+(`components/RescueLadder.tsx`). It is four stacked SVG layers whose
+**layers** are what CSS animates, never their contents, so percentage
+translates resolve against the stage and the student's feet land on the rungs
+at every width.
+**Cost accepted:** Two stylesheets instead of one (`app/globals.css` for the
+chrome and the quiet pages, `app/landing.css` imported by the landing page), so
+that register, results and admin do not download the poster.
+**Revisit if:** The brand palette changes, or a second test product needs a
+landing page of its own, at which point the landing styles want to move into a
+component rather than a page-level import.
+
+### D-036: The landing page gives away five real questions
+
+**Decision:** Before paying, a visitor can answer five questions from a public
+past paper (JEE Main 2024, 27 January, Shift 1) inside the page, marked live
+with `MCQ_MARKS` — the same constant the server scores an attempt with — and
+told the working either way.
+**Alternatives considered:** Sample questions from our own paper; a screenshot
+of the exam client; nothing at all.
+**Why:** "JEE level" is a claim, and a claim about difficulty is the one thing a
+student cannot check from a landing page. A past paper can be shown honestly,
+costs nothing, and lets them feel the level in forty seconds. Our own questions
+could not be used: the paper is unseen, and its key never leaves the server
+(hard constraint 2). Marking the taster from the shared constant means the +4 /
+−1 a student sees here cannot drift from what an answer is actually worth.
+**Cost accepted:** Two of the five were integer-answer questions originally, so
+their options are ours; the page says so rather than implying the options were
+in the paper.
+**Revisit if:** The reward policy changes what an objective answer is worth, in
+which case the taster follows automatically — or a student-facing question bank
+exists, at which point the taster can be drawn from it.
+
+### D-037: The inside is gated on `tests.status`, not on a build flag
+
+**Decision:** The public funnel — landing page, email-and-password sign-up,
+Razorpay payment — ships and runs on its own, weeks before the paper exists. A
+test on sale sits at `tests.status = 'scheduled'`; `/attempt/register`, `/key`
+and `/sync` answer 403 `not_open` in that state, `/test/status` carries
+`examOpen: false`, and the exam client renders a coming-soon screen instead of a
+lobby. One admin action — `POST /admin/test-status` with `{status: 'live'}` —
+opens the inside.
+**Alternatives considered:** An environment flag on the API; a build-time flag
+in the exam client; not deploying the exam client at all until the paper is
+ready; a new `tests.exam_open` column.
+**Why:** Selling before the product is finished is the normal shape of a
+one-shot event — registrations have to accumulate for weeks — so the lock is a
+permanent part of the system, not a temporary hack, and it belongs in the place
+the rest of the event's lifecycle already lives. `tests.status` exists, already
+carries `draft`/`scheduled`/`live`/`closed`/`graded`, is already constrained in
+SQL, and until now nothing read it; giving it the meaning its own values imply
+is cheaper and clearer than a fourth place to look. The decisive property is
+that it is per-test data rather than per-deployment config: flipping it is one
+audited UPDATE with no restart, no redeploy and no risk of the exam client and
+the API disagreeing about whether the test is open — which an env flag on one
+service and a build flag on the other both allow. Not deploying the exam client
+at all was rejected because the client is what students will be told to
+bookmark, and a dead URL during the weeks they are paying is worse than a page
+that tells them when to come back.
+**Cost accepted:** `status` now means two things at once — where the event is in
+its lifecycle, and whether students can get in. Submit and resume therefore
+accept `closed` and `graded` as well as `live` (`hasExamOpened`), because
+auto-submit moves the row to `closed` ten minutes after the window shuts and a
+student fetching their receipt after that must not be told the test is shut.
+The admin route accepts only `scheduled` and `live` for the same reason: letting
+an operator hand-write `closed` would shut sync on a live cohort, which is
+exactly what hard constraint 1 forbids.
+**Revisit if:** A second test is ever on sale while a first is live, at which
+point "which test is being sold" and "which test is open" stop being the same
+question and the column has to split.
+
+### D-038: An all-objective paper, and no model anywhere
+
+**Decision, 2026-10-26, four weeks before the event.** The paper is 75
+machine-marked questions for 300 marks: three subjects, each with 20
+single-correct and 5 integer-answer questions, every one marked +4 / −1 / 0
+against `tests.answer_key`. The subjective section, the LLM grading pipeline and
+everything that existed to serve them are deleted, not disabled.
+**Alternatives considered:** Keeping the written section with a smaller
+question count; keeping the grading code behind a feature flag.
+**Why:** This is a product decision, not an engineering one, and it was taken
+above this document. What the engineering judgement adds is that a flag would
+have been the wrong way to carry it. Dormant code on a one-shot event is a
+liability: the schema keeps columns nothing writes, the worker keeps a loop
+nothing runs, the dashboard keeps a panel that always reads zero, and the
+operator checklist keeps steps whose purpose no one remembers on the morning.
+Deleting it makes the system smaller in the way that matters — the number of
+things that can be wrong on the day.
+
+Three consequences are worth stating because they are easy to discover late:
+
+- **Marks are final the morning after**, not spread over days. `mcq_score` is
+  one streaming pass of in-code comparisons over the cohort, so the "results
+  the next day, ranks within six days" split collapses into a single step. The
+  post-test runbook and the public copy both changed accordingly, and the worker
+  no longer needs extra replicas afterwards.
+- **Integer answers are compared numerically**, not as strings: `12`, `12.0`,
+  `+12` and ` 12 ` are one answer. A student must never lose four marks for the
+  formatting their keyboard produced. The same reasoning drives the client
+  filtering the field as it is typed rather than rejecting it at submit, and the
+  two are tested as a pair — a filter that tidied an answer into something that
+  no longer scores would be worse than no filter.
+- **There is no per-student score override any more.** Overriding meant
+  correcting one model-graded answer. On an objective paper a disputed mark is a
+  wrong entry in the answer key, which is the same wrong entry for all 10,000
+  students; the fix is to correct the key and re-run `mcq_score`, which is
+  idempotent. Fixing it per student would leave 9,999 others wrong, so the
+  endpoint is gone rather than repurposed.
+
+**Cost accepted:** The product can no longer test or reward working-out, which
+was its differentiator against every other multiple-choice mock — that cost sits
+with the product decision, not here. Technically, the real loss is anti-cheat:
+the two behavioural signals that carried the review queue read the growth curve
+of typed prose, and a one-character answer has no growth curve. They are
+deleted, leaving only the IP-change signal, which mobile networks trip
+constantly. **The review queue is now a list to glance down, not ranked
+evidence, and it will be long and mean little.** Nothing has replaced those
+signals because nothing honest can: there is no way to distinguish a student who
+chose (C) themselves from one who was told to, and a detector that guessed would
+wrongly accuse hundreds of this cohort — which hard constraint 3 forbids in
+spirit as well as in code. If invigilation matters more than it did, it has to
+come from outside this system.
+**Revisit if:** A written section returns to the product, in which case D-023
+through D-027 are the arguments to re-read rather than reinvent — they are kept
+in place, marked superseded, for exactly that reason.
 
 ## 3. File map
 
 | Path | Responsibility | Notes |
 | --- | --- | --- |
-| `packages/shared/src/config.ts` | Every tunable constant in the system | `AWARD_CAP`, MCQ marks, timings, flag thresholds. Nothing here may be set from a request body or a prompt. |
-| `packages/shared/src/types.ts` | Domain types: attempts, paper, telemetry, rubric | `AnswerKey` is typed here but only ever held server-side. |
+| `packages/shared/src/config.ts` | Every tunable constant in the system | `PAPER` shape, MCQ marks, timings, flag weights. Nothing here may be set from a request body. |
+| `packages/shared/src/types.ts` | Domain types: attempts, paper, questions | `ScqQuestion` / `IntegerQuestion`. `AnswerKey` is typed here but only ever held server-side. |
 | `packages/shared/src/contract.ts` | The wire contract — zod schemas for sync/submit/status/key | Imported by both the exam client and the API. A mismatch is a compile error. |
-| `packages/shared/src/scoring.ts` | `scoreMcq`, `scoreRubric`, `totalScore` | Pure. The `AWARD_CAP` is applied here in code, never asked of the model. |
-| `packages/shared/src/flags.ts` | Keystroke ratio, burst appearance, IP change | Pure. Returns evidence only; never a score or a penalty. |
+| `packages/shared/src/scoring.ts` | `scoreMcq`, `answerMatches` | Pure, and the only place a mark is computed. Integer answers compare numerically. |
+| `packages/shared/src/flags.ts` | IP change, and the lengths recorded per sync | Pure. Returns evidence only; never a score or a penalty (D-038). |
 | `packages/shared/src/receipt.ts` | Receipt format and parser | `JEE-<testId>-<YYYYMMDD>-<6 digits>`; auto form generated in SQL. |
 
 | `packages/shared/src/paper-crypto.ts` | AES-256-GCM over the paper JSON | WebCrypto, so the Node builder and the browser client run the same code. |
 | `packages/db/migrations/001_auth.sql` | Better Auth tables + `admins` | Written out explicitly; verify against `@better-auth/cli generate` after upgrades. |
-| `packages/db/migrations/002_core.sql` | `tests`, `payments`, `attempts`, `sync_snapshots`, `grading_jobs` | The event schema. `tests.paper_key` and `tests.answer_key` are the two secret columns. |
+| `packages/db/migrations/002_core.sql` | `tests`, `payments`, `attempts`, `sync_snapshots` | The event schema. `tests.paper_key` and `tests.answer_key` are the two secret columns. |
+| `packages/db/migrations/004_mcq_only.sql` | Drops `grading_jobs`, `tests.rubrics`, `attempts.subjective_score` and `attempts.telemetry` | The schema half of D-038. Forward-only, so an already-migrated database reaches the new shape without a reset. |
 | `packages/db/migrations/003_ops.sql` | `job_runs`, `admin_audit` | One-shot job bookkeeping and the append-only override trail. |
-| `packages/db/src/pool.ts` | Pool construction and `withTransaction` | `PG_POOL_MAX` x replicas must stay under the connection limit. |
-| `packages/db/src/migrate.ts` | Migration runner | Advisory-locked, so concurrent replica boots do not race. |
+| `packages/db/src/pool.ts` | Pool construction, TLS, `withTransaction`, and the pooled/direct split | `directConnectionString()` is what session-scoped work must call. `PG_POOL_MAX` is a throughput knob now, not a fuse. |
+| `packages/db/src/migrate.ts` | Migration runner | Transaction-scoped advisory lock plus a re-check, so it is correct on either Neon endpoint. |
 | `packages/db/src/query.ts` | `rows`/`one`/`count` and `pick` | `pick` is the response whitelist used by every handler. |
 | `packages/db/src/queries/tests.ts` | Test reads, with explicit column lists | The only two functions that read key material live here and are named to stand out. |
 | `packages/db/src/queries/attempts.ts` | **Sync and submit.** The hot path | `syncAttempt` runs 1.2M times/event; the `revision <` guard is here. |
 | `packages/db/src/queries/jobs.ts` | **Auto-submit** and job claiming | `autoSubmitAll` is the core safety net. Tested first. |
-| `packages/db/src/queries/grading.ts` | Grading queue: enqueue, claim, complete, roll up | `claimNextGradingJob` is the `SKIP LOCKED` claim. |
 | `packages/db/src/queries/payments.ts` | Orders, webhook idempotency, stuck-payment scan | `markPaid` is safe to run on every Razorpay retry. |
-| `packages/db/src/queries/admin.ts` | Review queue, audit log, live stats | `liveStats.staleOver4Minutes` is the during-test health number. |
+| `packages/db/src/queries/admin.ts` | Review queue, audit log, live stats | `liveStats.staleOver4Minutes` is the during-test health number. No score override — see D-038. |
 | `packages/db/src/testing.ts` | Per-file test database + fixtures | Real Postgres, because the behaviour under test is `revision <` and `SKIP LOCKED`. |
-| `packages/db/src/samplePaper.ts` | Deterministic 75-question dev paper | Not the real paper; feeds the seed and the load test. |
+| `packages/db/src/samplePaper.ts` | Deterministic 75-question dev paper | Laid out 20 scq + 5 integer per subject, as the real one is. Feeds the seed and the load test. |
 | `apps/api/src/app.ts` | Express app factory; middleware order | The webhook's `express.raw()` and Better Auth both mount *before* `express.json()`. |
 | `apps/api/src/server.ts` | Process entry, graceful shutdown | Logs pool size at boot — the only way to notice a bad replica/pool calculation. |
 | `apps/api/src/env.ts` | Validated configuration | Refuses to boot in production without CORS origins or a webhook secret. |
 | `apps/api/src/auth.ts` | Better Auth setup | 12-hour sessions, so none expires mid-test. |
-| `apps/api/src/routes/attempt.ts` | **register / key / sync / submit** | The hot path. Sync runs 1.2M times/event; a stale revision returns 200. |
+| `apps/api/src/routes/attempt.ts` | **register / key / sync / submit** | The hot path. Sync runs 1.2M times/event; a stale revision returns 200. `requireExamOpen` gates all five on `tests.status` (D-037). |
 | `apps/api/src/routes/status.ts` | `/test/status`, `/test/time` | Drives every client clock. `/time` needs no session so a refresh never jumps the timer. |
 | `apps/api/src/routes/payments.ts` | Razorpay order + webhook | Raw-body HMAC, timing-safe, idempotent on `razorpay_payment_id`. |
-| `apps/api/src/routes/admin.ts` | Dashboard, review queue, overrides, job triggers | Overrides write `admin_audit` before responding. |
+| `apps/api/src/routes/admin.ts` | Dashboard, review queue, job triggers, the go-live switch | `test-status` and every job trigger write `admin_audit` before responding. |
 | `apps/api/src/middleware/rateLimit.ts` | In-memory fixed-window limiter | Per replica by design (D-020). |
 | `apps/api/src/lib/razorpay.ts` | REST client + signature verification | `verifyWebhookSignature` compares in constant time. |
 | `apps/worker/src/worker.ts` | Worker entry; loop selection via `WORKER_JOBS` | No HTTP server. SIGTERM stops claiming; in-flight jobs finish. |
 | `apps/worker/src/scheduler.ts` | Claims `job_runs` and dispatches | Auto-submit is scheduled on boot, not at the end of the test. |
 | `apps/worker/src/jobs/autoSubmit.ts` | **Finalises unsubmitted attempts** | The core safety net. Tested first. Emits the reconciliation report. |
-| `apps/worker/src/jobs/mcqScore.ts` | One-pass objective scoring | Reads the answer key; batched and deterministic, so a crashed pass re-runs. |
-| `apps/worker/src/jobs/computeFlags.ts` | The three behavioural signals | Writes flags only. No path from here to a score. |
+| `apps/worker/src/jobs/mcqScore.ts` | **The whole of scoring**, in one pass | Reads the answer key; batched and deterministic, so a crashed pass simply re-runs. Marks are final when it finishes. |
+| `apps/worker/src/jobs/computeFlags.ts` | The one remaining signal: IP change | Writes flags only. No path from here to a score. Expect it to flag a large share of the cohort (D-038). |
 | `apps/worker/src/jobs/paymentReconcile.ts` | Recovers captured payments with no webhook | Runs every 5 minutes before the test. |
 | `apps/worker/src/jobs/backup.ts` | `pg_dump` → gzip → R2 | Never takes the worker down on failure. |
-| `apps/worker/src/grading/loop.ts` | Concurrent lanes over the Postgres queue | `SKIP LOCKED` + lease. Computes the score from observations. |
-| `apps/worker/src/grading/prompt.ts` | Rubric → cached prefix + answer | Asks for observations, never a score. |
-| `apps/worker/src/grading/provider.ts` | The model call | Cached rubric prefix, schema-enforced output, 429 → retryable. |
 | `apps/exam/src/App.tsx` | Session state machine: waiting → lobby → exam → submitted | Handles the start instant: key, decrypt, render. |
 | `apps/exam/src/lib/idb.ts` | IndexedDB layer | The student's protection against a refresh. Raw IndexedDB, small enough to read in full. |
 | `apps/exam/src/lib/store.ts` | Answer state; the only place `revision` advances | Debounced 300 ms. Persists `revision` so a reload's first sync is not ignored. |
 | `apps/exam/src/lib/sync.ts` | Sync decisions, submit backoff, jitter | Skips when `revision` has not moved; a stale response is success. |
 | `apps/exam/src/lib/clock.ts` | Server-offset clock | Three samples, fastest round trip wins. Nothing reads `Date.now()` directly. |
 | `apps/exam/src/lib/paper.ts` | Download, cache, decrypt | Re-downloads once if the cached blob fails to decrypt. |
+| `apps/exam/src/screens/ComingSoon.tsx` | What a paid student sees before the test opens | Shown while `examOpen` is false. Reassures first, then says when to come back (D-037). |
 | `apps/exam/src/screens/Lobby.tsx` | Registration + four environment checks | The sync check is a real sync, not a ping. |
 | `apps/exam/src/screens/Submitting.tsx` | Submitting / submitted / pending | The most carefully worded file in the app. |
 | `apps/exam/src/components/Navigator.tsx` | The OMR sheet | Status by shape as well as colour. |
+| `apps/web/app/page.tsx` | The landing page: hero, taster, reward ladder, paper, safety net, steps | Every number on it is read from `@jee/shared/config`; the date from `lib/testDate`. |
+| `apps/web/app/landing.css` | Landing-only styles: the sunrise, the bands, the taster | Imported by the page, not by the layout, so the quiet pages stay light. |
+| `apps/web/components/RescueLadder.tsx` | The hero's looping picture: climb, stall, a hand up, the prize | Four SVG layers; only the layers are transformed, and one 13s clock keeps them in step. |
+| `apps/web/components/TryQuestions.tsx` | Five past-paper questions, marked live | `tally` applies `MCQ_MARKS`; the copy never scolds a low score. Covered by tests. |
+| `apps/web/lib/tasterQuestions.ts` | The taster's questions, keys and one-line solutions | Public past paper, never our own. Keys pinned by tests. |
+| `apps/web/lib/testDate.ts` | `TEST_STARTS_AT` as words | Parsed by hand, so a static build cannot bake in the build machine's locale. |
 | `apps/web/app/register/page.tsx` | Sign up, pay, check in | Polls payment status; the webhook grants access, not the callback. |
 | `tools/build-paper/src/cli.ts` | Validate → encrypt → verify round trip → upload → write DB | Refuses to publish if the ciphertext does not decrypt back to the input. |
-| `tools/loadtest/sync.js` | k6 at 2× expected load | Realistic ~10 KB payloads; models the 33% of intervals that skip. |
+| `tools/loadtest/sync.js` | k6 at 2× expected load | Payloads are now ~1 KB of option keys and numbers; still models the intervals that skip. |
 | `tools/loadtest/seed-students.ts` | Synthetic students with real Better Auth hashes | So the load test signs in through the real auth path. |
 | `deploy/railway.md` | Services, sizing, pool arithmetic, deploy rules | Includes the scale-down step everyone forgets. |
 | `deploy/cloudflare.md` | R2 bucket layout and Pages projects | The paper object is public by design; the key is the secret. |
 | `apps/web/app/admin/page.tsx` | During-test dashboard | Leads with stale-sync share, the number that answers "is sync working". |
-| `apps/web/app/admin/review/page.tsx` | Severity-ordered review queue | Expect 300-500 rows at 10,000 students. |
-| `apps/web/app/admin/review/attempt/page.tsx` | One attempt: answer, flags, growth curve, override | An override will not save without a written reason. |
-| `apps/web/components/GrowthChart.tsx` | Answer length across syncs | Flagged segment coloured **and** labelled; geometry covered by tests. |
-| `nixpacks.toml` | Railway build | Installs `postgresql` for `pg_dump`; without it backups silently never run. |
+| `apps/web/app/admin/review/page.tsx` | The review queue | A list to glance down rather than ranked evidence (D-038). |
+| `apps/web/app/admin/review/attempt/page.tsx` | One attempt: flags, the sync trail, the answers | Closing a review will not save without a written reason. |
+| `apps/web/components/ProgressChart.tsx` | Answers recorded across syncs | Flagged segment coloured **and** labelled; geometry covered by tests (D-034). |
+| `nixpacks.toml` | Railway build | Installs `postgresql_17` for `pg_dump`; without it, or with an older major than Neon's, backups silently never run. |
 <!-- Appended as files land. -->
 
 ---
@@ -675,52 +898,49 @@ The submit button is a convenience. Auto-submit is the mechanism.
 A student who registered but whose key call is slow still gets in. The cutoff is
 on registration, never on the key.
 
-### MCQ scoring
+### Scoring
 
-Runs as one pass after auto-submit, in the worker, never in a request.
+One pass after auto-submit, in the worker, never in a request. This is the whole
+of grading: when it finishes, the cohort has final totals and a rank list can be
+published (D-038).
 
 1. `tests.answer_key` is read server-side through `readAnswerKeyForScoring` —
-   one of two deliberately conspicuous functions that touch secret columns.
+   one of two deliberately conspicuous functions that touch secret columns. It
+   holds an entry for all 75 questions.
 2. Attempts are streamed in batches of 500, each batch committing as a unit.
-3. `scoreMcq` compares in code: +4 correct, −1 wrong, 0 unattempted. Blank and
-   whitespace-only answers count as unattempted, never wrong. Comparison is
-   case-insensitive and trimmed, so a student is not penalised for how their
-   client encoded a click.
-4. `attempts.mcq_score` and `total_score` are written.
+3. `scoreMcq` compares in code: +4 correct, −1 wrong, 0 unattempted, for both
+   question types. Blank and whitespace-only answers count as unattempted, never
+   wrong.
+4. The comparison rule is chosen by the **key**, not by the paper, which is why
+   scoring needs no access to the paper at all. A key that parses as a number is
+   compared numerically, so `12`, `12.0`, `+12` and ` 12 ` all match — that is
+   the integer questions. Anything else is compared trimmed and
+   case-insensitively — that is the single-correct questions, where an option
+   recorded as `b` and one recorded as `B` are the same click.
+5. `attempts.mcq_score` and `total_score` are written, and they are equal.
 
-600,000 comparisons take about a second; the rest is row I/O. The job is
-deterministic, so a crashed pass is simply re-run.
-
-### Subjective grading
-
-1. An admin triggers `enqueue_grading`, which inserts one `grading_jobs` row per
-   subjective answer **ordered question-major**, so that ids group by question
-   and the cached rubric prefix actually hits.
-2. Lanes claim jobs with `FOR UPDATE SKIP LOCKED` and a 5-minute lease.
-3. For each: build a prompt whose cached prefix is the rubric and whose variable
-   part is the answer; call the model asking for **nine observations, never a
-   score**; validate the reply against the shared schema.
-4. `scoreRubric` computes the mark in code and applies `AWARD_CAP` with
-   `Math.min`. Both `raw_score` and `score` are stored, so the cap policy can
-   change later without re-grading 150,000 answers.
-5. `confidence: "low"` or `off_topic_or_blank` raises `needs_review` — it does
-   not change the mark.
-6. `rollUpScores` sums completed jobs onto the attempt, tolerating a partially
-   graded attempt, so results stay current as the queue drains.
+750,000 comparisons take about a second; the rest is row I/O. The job is
+deterministic, so a crashed pass is simply re-run — and so is a pass re-run after
+correcting a wrong key, which is how a disputed mark is fixed for the whole
+cohort at once.
 
 ### Flag and review
 
 1. `compute_flags` runs over every attempt that was issued a key.
-2. Three signals: keystroke ratio (client-reported), burst appearance
-   (server-derived from `sync_snapshots`, and the strong one because it depends
-   on no client-side JavaScript), and IP change (weak alone).
+2. One signal: IP change, derived from the addresses recorded per revision in
+   `sync_snapshots`. The two behavioural signals that used to carry this job read
+   the growth curve of typed prose and are gone with the written paper (D-038).
+   **Expect this to flag a large share of the cohort** — mobile networks rotate
+   addresses constantly — so it is a list to glance down beside submission
+   times, not ranked evidence.
 3. Flags are merged by `(code, questionId)`, so re-running the job is
    idempotent, and written to `attempts.flags` with `needs_review = true`.
    **No score column is touched by this path, anywhere.**
-4. `/admin/review-queue` sorts by severity. `/admin/attempt/:id` shows the
-   answer, the flags with their evidence, and the growth curve.
-5. A reviewer may override a score. The override writes `admin_audit` with the
-   admin's identity and a mandatory reason before the response goes out.
+4. `/admin/review-queue` sorts by severity. `/admin/attempt/:id` shows the flags
+   with their evidence, the sync trail, and the answers as submitted.
+5. A reviewer closes a review with a mandatory written reason, which writes
+   `admin_audit` with their identity before the response goes out. They cannot
+   change a mark: there is no per-student override (D-038).
 
 <!-- Appended as flows land. -->
 
@@ -738,11 +958,11 @@ deterministic, so a crashed pass is simply re-run.
 | Out-of-order sync packets | The stale one matches no rows and returns 200 with the server's revision. | None. |
 
 | A worker dies mid-job | `locked_until` lapses after 5 minutes and another lane claims the job. `attempts_made` has already been incremented, so a job that kills workers repeatedly is marked `failed` after 3 tries rather than cycling forever. | None. |
-| The LLM provider rate-limits | The 429 is translated to a retryable error; the lane backs off with jitter (honouring `Retry-After` when present) and the job returns to `pending`. Other lanes hit the same wall and back off in turn, so throughput self-limits. | None; grading takes longer. |
-| The LLM returns a malformed reply | Parsing throws, the job retries, and after 3 attempts it is `failed` and listed in `/admin/grading-status`. It is **never** recorded as a zero. | None. |
+| A question's answer key is wrong | Correct `tests.answer_key` and re-run `mcq_score`. It is idempotent and deterministic, so it rescores the whole cohort consistently. There is no per-student override to get out of step with (D-038). | None. |
 | A webhook never arrives | The reconciliation job finds `payments` rows stuck in `created` older than 15 minutes and asks Razorpay directly, then marks them paid through the same code path the webhook uses. | None, within one 5-minute cycle. |
 | A webhook arrives twice | `razorpay_payment_id` is UNIQUE and `markPaid` guards on status: the second delivery applies nothing and still returns 200, so Razorpay stops retrying. | None. |
-| The DB hits its connection limit | New connections are refused; the API returns 500 and clients retry on their own schedule with their work still held locally. **Prevention is the actual answer**: `replicas × PG_POOL_MAX` is checked before every deploy and logged at boot. | None, if clients reconnect before `ends_at`; otherwise auto-submit covers it. |
+| The DB hits its connection limit | Largely retired by Neon's pooler, which multiplexes every replica's connections onto the compute (D-006). What remains is the pooler's own client limit, far above `replicas × PG_POOL_MAX`. The API still logs its pool size at boot, and Neon's connection graph is the thing to read after any replica-count change. | None, if clients reconnect before `ends_at`; otherwise auto-submit covers it. |
+| **The Postgres instance or its volume is lost** (F-001) | There is no replica and no automatic failover: this is the system's worst case. Recovery is a restore: with PITR the exposure is seconds, and up to 15 minutes only if the fallback R2 dump is what has to be used, against the 90 s that constraint 1 promises. Two independent mechanisms exist so neither is a single point of failure: Neon's PITR, which restores to any second inside the retention window and makes this far less bad than it was on a single instance with a volume, and the worker's `pg_dump` to R2 every 15 minutes — a copy at a different vendor, which is the one that survives losing access to the Neon account itself. Clients hold their own answers in IndexedDB throughout and keep retrying, so a restore completed before `ends_at` + 10 min loses nothing a sync cannot replace — full-state sync (D-007) means a restored-to-stale server self-heals on the next sync from each client rather than needing a replay. **The restore must be rehearsed before the event, not discovered during it.** | Up to 15 min of server-side state, but near zero in practice for any student whose browser is still open, because the next sync carries full state. |
 | The API is down for a period | Clients keep writing to IndexedDB and keep retrying. When it returns, the next sync carries full state — there is no queue of missed deltas to replay, because there are no deltas. | None, provided it returns before `ends_at` + 10 min. |
 | The paper CDN object is missing or corrupt | The lobby's fourth check fails *before* the test starts, while there is still time to fix it. GCM is authenticated, so a truncated download fails to decrypt rather than rendering a mangled paper; the client re-downloads once before giving up. | None if caught in the lobby. |
 | A student's clock is wrong | Every timer runs on a server offset sampled three times at boot, keeping the fastest round trip, and re-sampled every 5 minutes. The key release is checked against the database clock, so an early request is simply refused. | None. |
@@ -762,9 +982,10 @@ section is the sequence to follow on the day.
 Run through this the **day before**, not on the morning.
 
 **The paper**
-- [ ] `build-paper --dry-run` passes: 60 MCQ, 15 subjective, every subjective
-      question has a rubric with at least two worked examples, every MCQ has an
-      answer in the key.
+- [ ] `build-paper --dry-run` passes: 20 single-correct and 5 integer per
+      subject, 75 in all; every question has an answer in the key; every
+      single-correct key names one of that question's own options; every
+      integer key is a number.
 - [ ] `build-paper --upload` run, and the round-trip verification passed.
 - [ ] `curl -I` the paper URL twice: 200, and `cf-cache-status: HIT` the second
       time.
@@ -782,13 +1003,36 @@ Run through this the **day before**, not on the morning.
 - [ ] Reconciliation has run recently and recovered nothing outstanding.
 
 **The services**
-- [ ] `api` at 4 replicas; boot log shows `poolMax: 15`. 4 × 15 = 60 < 100.
+- [ ] `api` at 4 replicas; boot log shows `poolMax: 15`. Neon's pooler absorbs
+      the total, but read its connection graph once under load anyway.
+- [ ] Both services have `DATABASE_URL` on the **`-pooler`** host and
+      `DATABASE_URL_UNPOOLED` on the direct one. Swapped, nothing fails until
+      the first backup or migration.
 - [ ] `worker` at 1 replica, `WORKER_JOBS` includes `autosubmit` and `backup`.
 - [ ] `GET /ready` returns 200 on every replica.
 - [ ] `select * from job_runs where job = 'auto_submit';` exists, `pending`,
       with `run_after` = `ends_at` + 10 minutes.
 - [ ] A backup has been written to R2 in the last 15 minutes.
+- [ ] Neon **autosuspend is disabled** on this branch and the compute is sized
+      for the event, not for the default. A cold start at the moment 10,000
+      students connect is a self-inflicted outage.
+- [ ] Neon's PITR retention covers the whole event plus the days after it, and
+      is enabled independently of the worker's `pg_dump` job.
+- [ ] The worker's boot log shows `backups enabled` with a `pg_dump` version of
+      **17 or newer**. Older than Neon's server and every dump is refused.
+- [ ] **A restore has been rehearsed**: the latest R2 dump loaded into a scratch
+      Postgres and verified. An untested backup is not a backup (F-001).
 - [ ] Load test run at 2× and its findings fixed.
+
+**The lock (D-037)**
+- [ ] `select status from tests where id = N;` is `live`. Until it is, every
+      student sees the coming-soon screen and `/attempt/register` answers 403
+      `not_open`, however correct the clock and the paper are.
+- [ ] Set it from `/admin` → Access → **Go live**, which requires a reason and
+      writes `admin_audit`. It refuses if no paper is published.
+- [ ] Confirm from a student account: `GET /test/status` returns
+      `examOpen: true`, and the exam client shows the waiting room rather than
+      the coming-soon screen.
 
 **Dry run**
 - [ ] One real account: register, enter the lobby, pass all four checks, start,
@@ -804,7 +1048,7 @@ a guess.
 | --- | --- | --- |
 | `staleOver4Minutes` climbing past ~1% of `inProgress` | Sync is failing for part of the cohort | Check API error rate and DB connections **before** touching anything |
 | `syncsLastMinute` far below `inProgress`/1.5 | Clients are not syncing at all | Check CORS, check the API is reachable from outside |
-| Connection errors in the API log | `replicas × PG_POOL_MAX` exceeded | Reduce replicas rather than raising `max_connections` mid-event |
+| Connection errors in the API log | The pooler's client limit, or a compute that is undersized | Read Neon's connection graph; reduce replicas rather than resizing the compute mid-event |
 | `registered` far below paid count | Students cannot get into the lobby | Check payments: run the reconciliation job by hand |
 
 **Do not deploy during the window.** If something must change, change the
@@ -824,20 +1068,32 @@ Run these in order, reading the output of each before starting the next.
      before publishing anything.
    - `zeroAnswer` above a handful means the paper did not render for some
      students. Investigate before publishing anything.
-2. **MCQ scoring** — `POST /admin/run-job {"job":"mcq_score"}`. Deterministic,
-   so it is safe to re-run.
-3. **Flags** — `POST /admin/run-job {"job":"compute_flags"}`. Expect 300-500
-   flagged attempts at 10,000 students. An order of magnitude more means a
-   threshold is wrong, not that the cohort cheated.
-4. **Publish objective results** (next morning).
-5. **Enqueue grading** — `POST /admin/run-job {"job":"enqueue_grading"}`. Then
-   scale `worker` to 2-3 replicas and watch `/admin/grading-status`.
-   - Start `GRADING_CONCURRENCY` at 10. Raise it only after watching for 429s.
-6. **Work the review queue** — `/admin/review-queue`, severity order.
-7. **Roll up and publish ranks** — `POST /admin/run-job {"job":"finalise_scores"}`.
-8. **Scale down.** `worker` to 0, `api` to 1 replica, `postgres` to the smallest
-   tier. This is the most commonly forgotten step and it silently repeats the
-   bill every month.
+2. **Scoring** — `POST /admin/run-job {"job":"mcq_score"}`. This is the whole of
+   grading (D-038): it marks all 75 questions and writes final totals, in about
+   a second of compute. Deterministic, so it is safe to re-run.
+   - Read its summary before going further. `totalUnattempted` far above what
+     the cohort plausibly skipped means answers did not reach the server, not
+     that 10,000 students left the paper blank.
+3. **Spot-check the marking before anyone sees a number.** Take three attempts —
+   a high scorer, a middling one and a near-blank — and recompute by hand from
+   `attempts.answers` and `tests.answer_key`. In particular check one integer
+   answer that was typed with a trailing `.0` or a leading `+`: it must score,
+   and this is the one marking rule that is new this event.
+4. **Flags** — `POST /admin/run-job {"job":"compute_flags"}`. Expect a large
+   share of the cohort to be flagged for an address change; that is the only
+   signal left and mobile networks trip it constantly (D-038). It means "worth a
+   glance", not "cheated".
+5. **Work the review queue** — `/admin/review-queue`. Closing a review needs a
+   written reason. No mark can be changed from here; if the queue surfaces a
+   question whose key is wrong, fix `tests.answer_key` and go back to step 2,
+   which rescores everyone consistently.
+6. **Publish marks and ranks** (next morning). Both are ready together now —
+   there is no second grading pass to wait for, which is why the public copy
+   says "the same week" rather than "within six days".
+7. **Scale down.** `worker` to 0, `api` to 1 replica, and the Neon compute back
+   to its smallest size with autosuspend re-enabled. Neon bills compute-hours,
+   so re-enabling autosuspend is most of the saving; this is the most commonly
+   forgotten step and it silently repeats the bill every month.
 
 ### Rolling back a deploy
 
@@ -884,15 +1140,13 @@ test plus a lobby plus a student who logged in the previous evening. **Needs a
 human decision:** whether a student should be able to stay logged in across the
 results window too, or be forced to re-authenticate to view results.
 
-### Q-003: `temperature: 0` is no longer accepted by the Messages API
+### Q-003: `temperature: 0` is no longer accepted by the Messages API — closed
 
-The brief specifies `temperature: 0` for grading. As of 2026-10-21 the Messages
-API returns a 400 for `temperature` on every model, so following the brief
-literally would make every grading call fail. **Assumption made:** the intent
-was a stable, parseable reply, so that is obtained instead from a server-enforced
-JSON Schema (D-024), validated again on our side. **Needs a human decision:**
-whether to measure run-to-run agreement on a sample before grading 150,000
-answers — recommended, and cheap.
+**Closed 2026-10-26 by D-038: there is no model call to configure.** Kept because
+the underlying fact outlives the decision — the Messages API returns a 400 for
+`temperature` on every model, so determinism has to come from a server-enforced
+schema rather than a sampling parameter. Anyone reintroducing a model call will
+hit this on their first request.
 
 ### Q-004: Rate limiting is per replica, not per user
 
@@ -901,20 +1155,27 @@ configured rate. **Assumption made:** acceptable, because the limiter exists to
 stop a runaway client rather than to meter precisely. **Needs a human
 decision:** none unless abuse appears that an approximate limit does not stop.
 
-### Q-005: Gemini Flash-Lite was not implemented
+### Q-005: Which grading model to use — closed
 
-The brief offers "Claude Haiku 5.5 **or** Gemini Flash-Lite". Only the Anthropic
-provider is implemented (D-023), behind a `GradingProvider` interface with a
-`stub` implementation for tests. **Needs a human decision:** whether a second
-provider is wanted as a live fallback for the grading window, which would be a
-new class implementing one method rather than a change to the lane.
+**Closed 2026-10-26 by D-038: the paper is machine-marked and no model is
+involved.** The provider interface and its implementations are deleted, and an
+invariant test fails if an AI SDK reappears in a manifest or a model call
+reappears in the source tree.
 
 ### Q-006: Results pages show status, not marks
 
 `apps/web/app/results` reports submission status and explains the schedule, but
 does not yet render marks or an all-India rank — ranking needs a published
-policy for ties and for attempts still in review. **Needs a human decision:**
-the tie-break rule and whether a flagged attempt's provisional score is shown
-before a reviewer has read it.
+policy for ties. **This is now the largest open gap in the product**, and it got
+more urgent with D-038: marks are final the morning after the test rather than
+six days later, so the page has something real to show much sooner, and the
+rank list is what the reward bands are defined against.
+
+**Needs a human decision:** the tie-break rule. With a 300-mark objective paper
+and 10,000 students, ties at the top are not a corner case — they are
+near-certain, and the first three percentile bands carry an iPad, an iPhone and
+mentorship. Decide it before publishing, not after someone contests it. The
+usual JEE rules (fewer wrong answers first, then subject-wise, then age) are the
+obvious precedent and all of them are computable from what is already stored.
 
      silently chosen. -->

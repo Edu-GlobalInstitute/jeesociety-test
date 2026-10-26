@@ -9,6 +9,7 @@ dist/
 coverage/
 tools/build-paper/out/
 apps/web/.next/
+apps/web/.next-dev/
 apps/web/out/
 apps/exam/dist/
 apps/web/next-env.d.ts

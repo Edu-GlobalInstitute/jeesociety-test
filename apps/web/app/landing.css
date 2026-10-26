@@ -1,0 +1,1656 @@
+/*
+ * The landing page.
+ *
+ * One idea runs through the whole file, and it is the brand palette's own: the
+ * page starts at night and ends in full sun. The hero is deep navy with a star
+ * field and a sun climbing out of the horizon; the sections after it brighten
+ * from cream to white-cream; the reward ladder drops back into the night so
+ * the gold on it is the brightest thing on screen; and the last band is the
+ * sunrise itself, orange to gold, with navy type on it.
+ *
+ * That is why the warm accents are rationed. Gold and orange appear on the
+ * price, on the register button, on the top percentile band and on the sun —
+ * and nowhere else — so a student reads those four things as one promise.
+ *
+ * Imported by app/page.tsx rather than from globals.css, so the quiet pages
+ * (register, results, admin) never download the poster.
+ */
+
+/* ── Scroll reveal ────────────────────────────────────────────────────── */
+
+/* The hidden state is only ever applied from JavaScript (components/Reveal),
+   so a visitor whose JS never arrives gets a readable page rather than an
+   empty one. */
+.reveal.is-armed {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 620ms ease, transform 620ms cubic-bezier(0.2, 0.8, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.reveal.is-armed.is-in {
+  opacity: 1;
+  transform: none;
+}
+
+/* ── Hero: the night, and the sun coming up ───────────────────────────── */
+
+.hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: clamp(46px, 7vw, 92px) 0 clamp(104px, 13vw, 168px);
+  color: var(--on-night);
+  /* The sky: a warm bloom at the horizon falling away to the navy base, which
+     is the palette's "dark base with warm accents" read literally. */
+  background:
+    radial-gradient(118% 82% at 50% 104%, #5b2f45 0%, #35305a 30%, var(--navy) 58%, var(--navy-deep) 100%);
+}
+
+/* Daybreak: the band's bottom edge melts into the cream of the next section,
+   so the two are one continuous sky rather than two stacked colours. */
+.hero::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 150px;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 244, 224, 0) 0%,
+    rgba(255, 201, 60, 0.07) 45%,
+    rgba(255, 244, 224, 0.55) 82%,
+    var(--cream) 100%
+  );
+}
+
+.hero__inner {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  gap: 30px;
+}
+
+/*
+ * Wide enough for the picture to sit beside the promise rather than under it.
+ * The headline's clamp is re-stated here because it now lives in a column
+ * roughly half the page wide, and the top of its range would wrap.
+ */
+@media (min-width: 980px) {
+  .hero__inner {
+    grid-template-columns: minmax(0, 1.18fr) minmax(280px, 0.82fr);
+    gap: 30px;
+    align-items: center;
+  }
+
+  /* These two are written as `.hero .x` on purpose. A media query adds no
+     specificity, and the base rules for both sit further down this file, so
+     the plain selectors would lose the cascade to them. */
+  .hero .hero__title { font-size: clamp(2.5rem, 3.75vw, 3.4rem); }
+
+  /* Two by two under the countdown. Four across in a half-width column puts
+     the last pair on a second row with a divider hanging off the first. */
+  .hero .hero__facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 24px;
+  }
+
+  .hero .hero__facts li { padding-right: 0; border-right: 0; }
+}
+
+.hero__art {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  margin-inline: auto;
+}
+
+/* The sun. Four empty elements, all of it painted by gradients. */
+.sunrise {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.sunrise__disc {
+  position: absolute;
+  left: 62%;
+  bottom: 0;
+  width: min(46vw, 430px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 44%,
+    #fff8e4 0%,
+    var(--gold) 34%,
+    var(--orange) 70%,
+    rgba(255, 140, 66, 0) 72%
+  );
+  /* Two-thirds of the disc stays below the horizon, so the hero's own copy
+     always sits on navy rather than on the sun. */
+  animation: sun-rise 2400ms cubic-bezier(0.18, 0.78, 0.26, 1) 150ms both;
+}
+
+.sunrise__glow {
+  position: absolute;
+  left: 62%;
+  bottom: -46vmax;
+  width: min(150vw, 1500px);
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  background: radial-gradient(
+    circle,
+    rgba(255, 140, 66, 0.3) 0%,
+    rgba(255, 201, 60, 0.13) 32%,
+    rgba(27, 42, 73, 0) 62%
+  );
+  animation: glow-breathe 8s ease-in-out 1.6s infinite;
+}
+
+/* A slow fan of light behind the disc. Masked to a soft circle so the spokes
+   never reach the type, and turned slowly enough to read as light rather
+   than as a spinning wheel. */
+.sunrise__rays {
+  position: absolute;
+  left: 62%;
+  bottom: -58vmax;
+  width: min(160vw, 1700px);
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  opacity: 0.62;
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgba(255, 201, 60, 0.15) 0deg 4.5deg,
+    rgba(255, 201, 60, 0) 4.5deg 15deg
+  );
+  -webkit-mask-image: radial-gradient(circle, #000 10%, rgba(0, 0, 0, 0.55) 34%, transparent 62%);
+  mask-image: radial-gradient(circle, #000 10%, rgba(0, 0, 0, 0.55) 34%, transparent 62%);
+  animation: rays-turn 120s linear infinite;
+}
+
+/* The haze sitting on the horizon line itself. */
+.sunrise__haze {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 42%;
+  background: linear-gradient(180deg, rgba(255, 140, 66, 0) 0%, rgba(255, 140, 66, 0.2) 100%);
+}
+
+/* ── Star field (components/HeroStars) ───────────────────────────────── */
+
+.hero-stars {
+  position: absolute;
+  inset: 0 0 32% 0;
+  z-index: 2;
+  pointer-events: none;
+  color: var(--cream);
+}
+
+.hero-star {
+  position: absolute;
+  display: block;
+  opacity: 0;
+  animation: hero-twinkle var(--star-duration, 5s) ease-in-out var(--star-delay, 0s) infinite;
+}
+
+@keyframes hero-twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.65); }
+  50% { opacity: var(--star-peak, 0.3); transform: scale(1); }
+}
+
+/* ── Hero content ─────────────────────────────────────────────────────── */
+
+.hero__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 22px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--navy-line);
+  background: rgba(255, 244, 224, 0.07);
+  color: var(--on-night-soft);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  animation: fade-up 600ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+.hero__pills .pill:nth-child(2) { animation-delay: 90ms; }
+.hero__pills .pill:nth-child(3) { animation-delay: 180ms; }
+
+.pill--live { color: var(--cream); border-color: rgba(46, 196, 182, 0.45); }
+
+/* Teal for "open", because the palette reserves it for growth and because a
+   green-ish dot is what a live indicator is read as everywhere else. */
+.pill__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--teal);
+  box-shadow: 0 0 0 0 rgba(46, 196, 182, 0.55);
+  animation: live-pulse 2.4s ease-out infinite;
+}
+
+.pill--date { color: var(--gold); border-color: rgba(255, 201, 60, 0.4); }
+
+.hero__title {
+  font-family: var(--poster);
+  font-weight: 900;
+  font-stretch: 84%;
+  font-size: clamp(2.4rem, 6.7vw, 4.9rem);
+  line-height: 0.98;
+  letter-spacing: -0.028em;
+  text-transform: uppercase;
+  margin: 0 0 22px;
+  max-width: 26ch;
+}
+
+/*
+ * Two elements per line: the outer one is the row, the inner one is what
+ * moves. The entrance is a lift and a fade rather than a slide out of a
+ * clipped box, on purpose — a clip only works while every line is exactly one
+ * line tall, and this headline is set in a webfont that may not have arrived
+ * yet. With a fallback face a line can wrap, and a clip would then hide half
+ * the promise. This degrades to "arrives slightly late" instead.
+ */
+.hero__line { display: block; }
+
+.hero__line > span {
+  display: block;
+  animation: line-up 860ms cubic-bezier(0.16, 0.84, 0.3, 1) both;
+}
+
+.hero__line:nth-child(1) > span { animation-delay: 120ms; }
+.hero__line:nth-child(2) > span { animation-delay: 240ms; }
+.hero__line:nth-child(3) > span { animation-delay: 380ms; }
+
+/* The promise line is the only type on the page made of sunlight. */
+.hero__line--lit > span {
+  background: linear-gradient(96deg, var(--gold) 0%, #fff1cc 26%, var(--orange) 58%, var(--gold) 100%);
+  background-size: 240% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation:
+    line-up 860ms cubic-bezier(0.16, 0.84, 0.3, 1) 380ms both,
+    gleam 7s ease-in-out 1.6s infinite;
+}
+
+.hero__sub {
+  max-width: 58ch;
+  margin: 0 0 30px;
+  font-size: clamp(1rem, 2.1vw, 1.2rem);
+  color: var(--on-night-soft);
+  animation: fade-up 700ms cubic-bezier(0.2, 0.8, 0.3, 1) 520ms both;
+}
+
+.hero__sub b { color: var(--gold); font-weight: 700; }
+
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  animation: fade-up 700ms cubic-bezier(0.2, 0.8, 0.3, 1) 640ms both;
+}
+
+/* ── The sunrise button ───────────────────────────────────────────────── */
+
+.btn-sun {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 11px 11px 24px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(96deg, var(--gold) 0%, var(--orange) 100%);
+  color: var(--navy);
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 14px 34px rgba(255, 140, 66, 0.3);
+  transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+}
+
+.btn-sun:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 42px rgba(255, 140, 66, 0.42);
+  filter: saturate(1.08);
+}
+
+.btn-sun:active { transform: translateY(0); }
+
+.btn-sun--big {
+  font-size: clamp(1.08rem, 2.4vw, 1.32rem);
+  padding: 14px 14px 14px 32px;
+}
+
+.btn-sun__arrow {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--navy);
+  color: var(--cream);
+  transition: transform 180ms ease;
+}
+
+.btn-sun--big .btn-sun__arrow { width: 38px; height: 38px; }
+.btn-sun__arrow svg { width: 17px; height: 17px; }
+.btn-sun:hover .btn-sun__arrow { transform: translateX(3px); }
+
+/* The secondary action on the night side: outlined, never filled, so there is
+   only ever one button asking to be pressed. */
+.btn-dusk {
+  display: inline-flex;
+  align-items: center;
+  padding: 13px 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 244, 224, 0.34);
+  color: var(--on-night);
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 180ms ease, border-color 180ms ease;
+}
+
+.btn-dusk:hover {
+  background: rgba(255, 244, 224, 0.1);
+  border-color: var(--on-night);
+  color: var(--on-night);
+}
+
+/* ── Countdown ────────────────────────────────────────────────────────── */
+
+.countdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 34px;
+  animation: fade-up 700ms cubic-bezier(0.2, 0.8, 0.3, 1) 760ms both;
+}
+
+.countdown__cell {
+  min-width: 78px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--navy-line);
+  background: rgba(255, 244, 224, 0.06);
+  text-align: center;
+}
+
+.countdown__num {
+  display: block;
+  font-family: var(--poster);
+  font-weight: 800;
+  font-stretch: 86%;
+  font-size: 1.9rem;
+  line-height: 1.1;
+  color: var(--gold);
+}
+
+.countdown__label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--on-night-faint);
+}
+
+/* ── Hero fact row ────────────────────────────────────────────────────── */
+
+.hero__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 34px;
+  list-style: none;
+  margin: 38px 0 0;
+  padding: 0;
+  animation: fade-up 700ms cubic-bezier(0.2, 0.8, 0.3, 1) 880ms both;
+}
+
+.hero__facts li {
+  display: flex;
+  flex-direction: column;
+  padding-right: 34px;
+  border-right: 1px solid var(--navy-line);
+}
+
+.hero__facts li:last-child { border-right: 0; padding-right: 0; }
+
+.hero__facts b {
+  font-family: var(--poster);
+  font-weight: 800;
+  font-stretch: 88%;
+  font-size: 1.5rem;
+  color: var(--cream);
+}
+
+.hero__facts span { font-size: 0.82rem; color: var(--on-night-faint); }
+
+/* ── Hero marks: the seal and one sparkle ─────────────────────────────── */
+
+/* The seal: navy on the closing band's sunrise, which is the one surface
+   bright enough to carry it. */
+.finale__seal {
+  position: absolute;
+  top: clamp(18px, 4vw, 48px);
+  right: clamp(18px, 5vw, 76px);
+  z-index: 1;
+  width: clamp(80px, 9vw, 132px);
+  color: var(--navy);
+  animation: seal-turn 34s linear infinite;
+}
+
+.seal { display: block; width: 100%; height: auto; overflow: visible; }
+.seal__disc { stroke: rgba(255, 244, 224, 0.5); stroke-width: 1.4; }
+
+.seal__text {
+  font-family: var(--poster);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  fill: var(--cream);
+  text-transform: uppercase;
+}
+
+.seal__hub { fill: var(--cream); }
+.seal__arrow { stroke: var(--navy); }
+
+.hero__sparkle {
+  position: absolute;
+  top: -10px;
+  right: 22%;
+  width: clamp(26px, 3.4vw, 50px);
+  color: var(--gold);
+  animation: twinkle 4.5s ease-in-out infinite;
+}
+
+.sparkle { display: block; width: 100%; height: auto; overflow: visible; }
+
+/* ── Bands ────────────────────────────────────────────────────────────── */
+
+.band {
+  position: relative;
+  padding: clamp(58px, 8vw, 102px) 0;
+}
+
+/* The page brightens as it goes: cream at daybreak, then a shade lighter. */
+.band--dawn { background: var(--cream); }
+.band--day { background: #fffbf2; }
+.band--quiet { background: var(--cream); }
+
+.band--night {
+  background:
+    radial-gradient(85% 60% at 50% 0%, rgba(255, 140, 66, 0.18) 0%, rgba(27, 42, 73, 0) 68%),
+    var(--navy);
+  color: var(--on-night);
+}
+
+.band__eyebrow {
+  font-family: var(--poster);
+  font-weight: 800;
+  font-stretch: 88%;
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--orange-deep);
+  margin: 0 0 12px;
+}
+
+.band--night .band__eyebrow { color: var(--gold); }
+
+.band__title {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(1.85rem, 4.3vw, 3.1rem);
+  line-height: 1.04;
+  letter-spacing: -0.025em;
+  margin: 0 0 16px;
+  max-width: 22ch;
+}
+
+.band__title em {
+  font-style: normal;
+  color: var(--orange-deep);
+}
+
+.band--night .band__title em { color: var(--gold); }
+
+.band__lede {
+  max-width: 64ch;
+  margin: 0;
+  font-size: clamp(1rem, 2vw, 1.14rem);
+  color: var(--ink-soft);
+}
+
+.band--night .band__lede { color: var(--on-night-soft); }
+.band__lede b { color: var(--ink); font-weight: 700; }
+.band--night .band__lede b { color: var(--gold); font-weight: 700; }
+
+.band__footnote {
+  max-width: 72ch;
+  margin: 26px 0 0;
+  font-size: 0.86rem;
+  line-height: 1.6;
+  color: var(--ink-faint);
+}
+
+/* ── The taster ───────────────────────────────────────────────────────── */
+
+.taster {
+  max-width: 780px;
+  margin: 30px 0 0;
+}
+
+.taster__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.taster__rail {
+  display: flex;
+  gap: 7px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.taster__pip {
+  width: 30px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--rule);
+  transition: background 220ms ease, transform 220ms ease;
+}
+
+.taster__pip--now { background: var(--gold); transform: scaleY(1.6); }
+.taster__pip--right { background: var(--teal); }
+.taster__pip--wrong { background: var(--orange-deep); }
+
+.taster__marks {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.taster__marks b {
+  font-family: var(--poster);
+  font-weight: 800;
+  font-size: 1.3rem;
+  letter-spacing: 0;
+  color: var(--teal-deep);
+}
+
+.taster__marks b.is-negative { color: var(--orange-deep); }
+
+.taster__card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 20px;
+  padding: clamp(20px, 3.4vw, 32px);
+  box-shadow: 0 20px 48px rgba(27, 42, 73, 0.1);
+  animation: card-in 440ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+.taster__topic {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 16px;
+}
+
+.taster__topic span {
+  font-family: var(--poster);
+  font-weight: 800;
+  font-stretch: 88%;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--navy);
+}
+
+.taster__topic small { font-size: 0.76rem; color: var(--ink-faint); }
+
+.taster__prompt {
+  margin: 0 0 20px;
+  font-size: clamp(1.05rem, 2.2vw, 1.28rem);
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.taster__options {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+@media (min-width: 620px) {
+  .taster__options { grid-template-columns: 1fr 1fr; }
+}
+
+.taster__option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 15px;
+  font: inherit;
+  text-align: left;
+  border: 1.5px solid var(--rule);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
+}
+
+.taster__option:hover { border-color: var(--orange); transform: translateY(-1px); }
+
+.taster__key {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background: var(--cream);
+  color: var(--navy);
+  font-family: var(--poster);
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+
+.taster__text { font-size: 1.02rem; }
+
+/* Marked answers. Colour alone never carries the verdict — the glyph and the
+   sentence under the options say it too. */
+.taster__option.is-right {
+  border-color: var(--teal);
+  background: #e9f8f6;
+}
+
+.taster__option.is-right .taster__key { background: var(--teal); color: #06342f; }
+
+.taster__option.is-right::after {
+  content: '✓';
+  margin-left: auto;
+  font-weight: 800;
+  color: var(--teal-deep);
+}
+
+.taster__option.is-wrong {
+  border-color: var(--orange-deep);
+  background: #fdeade;
+  animation: shake 380ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+.taster__option.is-wrong::after {
+  content: '✗';
+  margin-left: auto;
+  font-weight: 800;
+  color: var(--orange-deep);
+}
+
+.taster__option.is-dim { opacity: 0.44; }
+
+.taster__option[aria-disabled='true'] { cursor: default; }
+.taster__option[aria-disabled='true']:hover { transform: none; }
+.taster__option.is-dim:hover { border-color: var(--rule); }
+
+.taster__after {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px dashed var(--rule);
+  animation: fade-up 340ms ease both;
+}
+
+.taster__call {
+  margin: 0 0 6px;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 1.06rem;
+}
+
+.taster__call.is-right { color: var(--teal-deep); }
+.taster__call.is-wrong { color: var(--orange-deep); }
+
+.taster__why {
+  margin: 0 0 18px;
+  color: var(--ink-soft);
+  max-width: 62ch;
+}
+
+.taster__next {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 9px 9px 20px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--navy);
+  color: var(--cream);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+
+.taster__next:hover { background: var(--navy-lift); }
+
+.taster__next-arrow {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--gold);
+  color: var(--navy);
+}
+
+.taster__next-arrow svg { width: 15px; height: 15px; }
+
+.taster__hint {
+  margin: 18px 0 0;
+  font-size: 0.86rem;
+  color: var(--ink-faint);
+}
+
+/* The score card: the page's night, borrowed for one panel. */
+.taster--result {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(26px, 4.4vw, 44px);
+  border-radius: 22px;
+  text-align: center;
+  color: var(--on-night);
+  background:
+    radial-gradient(90% 90% at 50% 0%, rgba(255, 201, 60, 0.22) 0%, rgba(27, 42, 73, 0) 62%),
+    var(--navy);
+  animation: card-in 480ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+.taster__eyebrow {
+  margin: 0;
+  font-family: var(--poster);
+  font-weight: 800;
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--on-night-faint);
+}
+
+.taster__score {
+  margin: 6px 0 4px;
+  font-family: var(--poster);
+  font-weight: 900;
+  font-stretch: 86%;
+  font-size: clamp(3.2rem, 11vw, 5.6rem);
+  line-height: 1;
+  color: var(--gold);
+}
+
+.taster__score span {
+  font-size: 0.3em;
+  margin-left: 10px;
+  color: var(--on-night-faint);
+}
+
+.taster__tally {
+  margin: 0 0 18px;
+  font-size: 0.86rem;
+  color: var(--on-night-soft);
+}
+
+.taster__verdict {
+  margin: 0 0 10px;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(1.4rem, 3.4vw, 2rem);
+  letter-spacing: -0.02em;
+}
+
+.taster__note {
+  max-width: 58ch;
+  margin: 0 auto 26px;
+  color: var(--on-night-soft);
+}
+
+.taster__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.taster__again {
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--on-night-soft);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+.taster__again:hover { color: var(--gold); }
+
+/* The confetti canvas (components/Celebration). */
+.celebrate {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+}
+
+/* ── The reward ladder ────────────────────────────────────────────────── */
+
+.ladder__head {
+  display: grid;
+  gap: 28px;
+  align-items: center;
+}
+
+@media (min-width: 900px) {
+  .ladder__head { grid-template-columns: 1.3fr 0.7fr; }
+}
+
+.ladder {
+  list-style: none;
+  display: grid;
+  gap: 14px;
+  margin: 36px 0 0;
+  padding: 0;
+}
+
+.rung {
+  display: grid;
+  gap: 8px 18px;
+  align-items: center;
+  padding: 20px 24px;
+  border-radius: 18px;
+  border: 1px solid var(--navy-line);
+  background: rgba(255, 244, 224, 0.06);
+}
+
+@media (min-width: 760px) {
+  .rung { grid-template-columns: 148px 1fr auto; }
+}
+
+/* The top band is the one thing on the page allowed to glow. */
+.rung--top {
+  border-color: rgba(255, 201, 60, 0.46);
+  background:
+    linear-gradient(100deg, rgba(255, 201, 60, 0.2) 0%, rgba(255, 140, 66, 0.07) 100%);
+  box-shadow: 0 18px 46px rgba(255, 140, 66, 0.14);
+}
+
+.rung__pc {
+  font-family: var(--poster);
+  font-weight: 900;
+  font-stretch: 86%;
+  font-size: 2.7rem;
+  line-height: 0.95;
+  color: var(--gold);
+}
+
+.rung__pc small {
+  display: block;
+  font-family: var(--body);
+  font-weight: 500;
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--on-night-faint);
+  margin-top: 6px;
+}
+
+.rung__prize strong {
+  display: block;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 1.32rem;
+  letter-spacing: -0.015em;
+}
+
+.rung--top .rung__prize strong { color: var(--gold); }
+.rung__prize span { color: var(--on-night-soft); font-size: 0.95rem; }
+
+.rung__share {
+  font-size: 0.74rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--on-night-soft);
+  white-space: nowrap;
+}
+
+.ladder__rules {
+  margin-top: 32px;
+  padding: 26px 28px;
+  border-radius: 18px;
+  border: 1px solid var(--navy-line);
+  background: rgba(14, 24, 48, 0.45);
+}
+
+.ladder__rules > p { margin: 0 0 16px; color: var(--on-night-soft); max-width: 70ch; }
+.ladder__rules > p b { color: var(--cream); }
+
+.ladder__rules ul {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 860px) {
+  .ladder__rules ul { grid-template-columns: 1fr 1fr; gap: 14px 30px; }
+}
+
+.ladder__rules li {
+  color: var(--on-night-soft);
+  font-size: 0.95rem;
+  padding-left: 18px;
+  position: relative;
+}
+
+.ladder__rules li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--teal);
+}
+
+.ladder__rules b { color: var(--cream); font-weight: 700; }
+
+.ladder__cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px 26px;
+  margin-top: 32px;
+}
+
+.ladder__cta p {
+  margin: 0;
+  max-width: 34ch;
+  font-size: 0.92rem;
+  color: var(--on-night-soft);
+}
+
+.ladder__cta p b { color: var(--gold); font-weight: 700; }
+
+/* ── The prize photographs (components/PrizeDevices) ──────────────────── */
+
+.prize { position: relative; padding: 10px 0 24px; }
+
+.prize::before {
+  content: '';
+  position: absolute;
+  inset: -8% -4% 6% -4%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 201, 60, 0.26) 0%, rgba(255, 201, 60, 0) 68%);
+}
+
+.prize__tile {
+  position: relative;
+  max-width: 290px;
+  margin-inline: auto;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid var(--navy-line);
+  box-shadow: 0 24px 54px rgba(0, 0, 0, 0.38);
+}
+
+.prize__tile img { display: block; width: 100%; height: auto; }
+
+.prize__phone {
+  position: absolute;
+  left: 2%;
+  bottom: 0;
+  width: 27%;
+  height: auto;
+  filter: drop-shadow(0 18px 28px rgba(0, 0, 0, 0.45));
+  animation: float-y 6.5s ease-in-out infinite;
+}
+
+/* ── The paper: two halves and a spec strip ───────────────────────────── */
+
+.halves {
+  display: grid;
+  gap: 18px;
+  margin-top: 34px;
+}
+
+@media (min-width: 820px) {
+  .halves { grid-template-columns: 1fr 1fr; }
+}
+
+.halves > * { height: 100%; }
+
+.half {
+  height: 100%;
+  padding: 26px 28px;
+  border-radius: 18px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-top: 4px solid var(--orange);
+}
+
+/* The written half is the one nobody else offers, so it gets the second
+   accent rather than a repeat of the first. */
+.half--written { border-top-color: var(--teal); }
+
+.half__count {
+  display: block;
+  font-family: var(--poster);
+  font-weight: 900;
+  font-stretch: 86%;
+  font-size: 3.4rem;
+  line-height: 1;
+  color: var(--orange-deep);
+}
+
+.half--written .half__count { color: var(--teal-deep); }
+
+.half h3 {
+  margin: 4px 0 12px;
+  font-family: var(--poster);
+  font-weight: 800;
+  font-stretch: 90%;
+  font-size: 0.86rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--navy);
+}
+
+.half p { margin: 0; color: var(--ink-soft); }
+
+.strip {
+  display: grid;
+  gap: 1px;
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+@media (min-width: 720px) {
+  .strip { grid-template-columns: repeat(4, 1fr); }
+}
+
+.strip li {
+  background: var(--surface);
+  padding: 16px 18px;
+}
+
+.strip b {
+  display: block;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--navy);
+}
+
+.strip span { font-size: 0.86rem; color: var(--ink-faint); }
+
+/* ── Reassurance cards ────────────────────────────────────────────────── */
+
+.cards {
+  display: grid;
+  gap: 16px;
+  margin-top: 34px;
+}
+
+@media (min-width: 780px) {
+  .cards { grid-template-columns: repeat(3, 1fr); }
+}
+
+.cards > * { height: 100%; }
+
+.card {
+  height: 100%;
+  padding: 24px 26px;
+  border-radius: 18px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+}
+
+.card h3 {
+  margin: 0 0 10px;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 1.1rem;
+  letter-spacing: -0.015em;
+  color: var(--navy);
+}
+
+.card p { margin: 0; color: var(--ink-soft); }
+.card p b { color: var(--orange-deep); font-weight: 700; }
+
+/* ── Steps ────────────────────────────────────────────────────────────── */
+
+.steps {
+  list-style: none;
+  counter-reset: step;
+  max-width: 70ch;
+  margin: 30px 0 0;
+  padding: 0;
+}
+
+.steps li {
+  counter-increment: step;
+  position: relative;
+  padding: 18px 0 18px 64px;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink-soft);
+}
+
+.steps li:last-child { border-bottom: 0; }
+
+.steps li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 16px;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--navy);
+  color: var(--gold);
+  font-family: var(--poster);
+  font-weight: 800;
+  font-size: 1.2rem;
+}
+
+.steps strong { color: var(--ink); font-weight: 700; }
+
+/* ── The last band: the sun, fully up ─────────────────────────────────── */
+
+.finale {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(64px, 9vw, 120px) 0;
+  text-align: center;
+  color: var(--navy);
+  background: linear-gradient(168deg, var(--gold) 0%, var(--orange) 72%, #f2702a 100%);
+}
+
+/* The same ray fan as the hero, inverted into the light. */
+.finale::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -60%;
+  width: min(170vw, 1700px);
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgba(255, 255, 255, 0.22) 0deg 4deg,
+    rgba(255, 255, 255, 0) 4deg 14deg
+  );
+  -webkit-mask-image: radial-gradient(circle, #000 8%, rgba(0, 0, 0, 0.4) 32%, transparent 60%);
+  mask-image: radial-gradient(circle, #000 8%, rgba(0, 0, 0, 0.4) 32%, transparent 60%);
+  animation: rays-turn 140s linear infinite reverse;
+  pointer-events: none;
+}
+
+.finale .wrap { position: relative; z-index: 1; }
+
+.finale__kicker {
+  margin: 0;
+  font-family: var(--poster);
+  font-weight: 800;
+  font-size: 0.82rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(27, 42, 73, 0.72);
+}
+
+.finale__price {
+  margin: 8px 0 6px;
+  font-family: var(--poster);
+  font-weight: 900;
+  font-stretch: 84%;
+  font-size: clamp(4.4rem, 17vw, 10rem);
+  line-height: 0.88;
+  letter-spacing: -0.04em;
+}
+
+.finale__line {
+  max-width: 44ch;
+  margin: 0 auto 30px;
+  font-size: clamp(1.05rem, 2.3vw, 1.3rem);
+  font-weight: 600;
+}
+
+/* On the light band the button inverts: navy, so it still reads as the one
+   thing to press. */
+.finale .btn-sun {
+  background: var(--navy);
+  color: var(--cream);
+  box-shadow: 0 16px 36px rgba(27, 42, 73, 0.3);
+}
+
+.finale .btn-sun:hover { box-shadow: 0 20px 44px rgba(27, 42, 73, 0.38); }
+
+.finale .btn-sun__arrow { background: var(--gold); color: var(--navy); }
+
+.finale__small {
+  margin: 26px 0 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: rgba(27, 42, 73, 0.88);
+}
+
+/* ── The rescue ladder (components/RescueLadder) ──────────────────────── */
+
+/*
+ * One loop, four layers, thirteen seconds:
+ *
+ *   0-5%    a student stands at the foot of the three-band ladder
+ *   5-14%   they climb to the bottom rung (97)
+ *   14-26%  they stretch for the next one and slide back
+ *   27-36%  a hand comes in from off the picture
+ *   36-56%  it takes them from the bottom rung to the top one (99)
+ *   56-68%  they are set down, the top rung lights, the prize pops
+ *   68-88%  two hops of celebration
+ *   88-100% everything fades and the student is back on the ground
+ *
+ * Every layer runs the same 13s so the phases above are the same frames in
+ * each — the grab happens exactly when the hand arrives because both
+ * animations say 36%, not because two delays were added up by hand.
+ *
+ * The moving parts are the <svg> layers themselves, never their contents: a
+ * percentage translate on a layer is a percentage of the stage, so the whole
+ * picture scales from a 300px phone column to a 420px desktop one with the
+ * student's feet landing on the rungs either way.
+ */
+
+.climb { position: relative; }
+
+.climb__stage {
+  position: relative;
+  aspect-ratio: 1;
+}
+
+.climb__layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* The hand is drawn inside the viewBox but spends most of the loop
+     translated outside the stage, on its way in and out of the picture. */
+  overflow: visible;
+}
+
+/* ── The ladder itself ────────────────────────────────────────────────── */
+
+.climb__rail,
+.climb__rung {
+  stroke: var(--cream);
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+
+.climb__rail { opacity: 0.68; }
+
+.climb__ground {
+  stroke: rgba(255, 244, 224, 0.22);
+  stroke-width: 2;
+  stroke-dasharray: 6 9;
+}
+
+.climb__floor {
+  font-family: var(--poster);
+  font-weight: 800;
+  font-size: 29px;
+  letter-spacing: -0.02em;
+  fill: var(--gold);
+}
+
+.climb__prizeWord {
+  font-size: 16px;
+  fill: var(--on-night-soft);
+}
+
+/* Lights when the student is standing on the top rung. */
+.climb__glow {
+  stroke: var(--gold);
+  stroke-width: 11;
+  stroke-linecap: round;
+  opacity: 0;
+  animation: climb-glow 13s linear infinite;
+}
+
+/* ── The student ──────────────────────────────────────────────────────── */
+
+.climb__limb {
+  fill: none;
+  stroke: var(--cream);
+  stroke-width: 5.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.climb__head {
+  fill: var(--teal);
+  stroke: var(--cream);
+  stroke-width: 2.5;
+}
+
+.climb__kid { animation: climb-kid 13s linear infinite; }
+.climb__pose--climb { animation: climb-pose-climb 13s linear infinite; }
+.climb__pose--cheer { opacity: 0; animation: climb-pose-cheer 13s linear infinite; }
+
+/* ── The hand, and the student it is carrying ─────────────────────────── */
+
+.climb__hand {
+  opacity: 0;
+  animation: climb-hand 13s cubic-bezier(0.35, 0.05, 0.4, 1) infinite;
+}
+
+.climb__rider { opacity: 0; animation: climb-rider 13s linear infinite; }
+
+.climb__palm { fill: var(--cream); }
+.climb__sleeve { fill: var(--orange); }
+.climb__cuff { fill: var(--gold); }
+
+.climb__brand {
+  font-family: var(--poster);
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  fill: var(--navy);
+}
+
+/* ── The prize ────────────────────────────────────────────────────────── */
+
+.climb__prize {
+  opacity: 0;
+  /* The prize sits at (130, 40) of a 420 box, so scaling about that point
+     reads as the prize popping rather than the layer zooming. */
+  transform-origin: 31% 9.5%;
+  animation: climb-prize 13s cubic-bezier(0.2, 0.9, 0.3, 1.2) infinite;
+}
+
+.climb__tablet { fill: var(--gold); }
+.climb__screen { fill: var(--navy); }
+
+/*
+ * Opacity only, never transform. A CSS `transform` on an SVG child overrides
+ * the element's own `transform` attribute rather than composing with it, so
+ * the shared `twinkle` keyframes — which animate scale — would throw every
+ * sparkle back to its group's origin at full 100-unit size.
+ */
+.climb__spark {
+  fill: var(--gold);
+  animation: climb-spark 2.6s ease-in-out infinite;
+}
+
+.climb__caption {
+  margin: 10px 0 0;
+  text-align: center;
+  font-size: 0.84rem;
+  color: var(--on-night-faint);
+}
+
+@keyframes climb-kid {
+  0% { transform: translateY(0); opacity: 1; }
+  5% { transform: translateY(0); }
+  14% { transform: translateY(-11.43%); }
+  20% { transform: translateY(-21.9%); }
+  26% { transform: translateY(-11.43%); }
+  36% { transform: translateY(-11.43%); opacity: 1; }
+  /* Handed over: from here the carried copy inside the hand is the visible
+     one, and this layer repositions itself unseen. */
+  37.5% { opacity: 0; }
+  55.9% { opacity: 0; }
+  56% { transform: translateY(-54.29%); opacity: 1; }
+  62% { transform: translateY(-56.6%); }
+  68% { transform: translateY(-54.29%); }
+  74% { transform: translateY(-56.6%); }
+  80% { transform: translateY(-54.29%); }
+  88% { opacity: 1; }
+  93% { transform: translateY(-54.29%); opacity: 0; }
+  95% { transform: translateY(0); }
+  97.9% { opacity: 0; }
+  98%, 100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes climb-pose-climb {
+  0%, 55.9% { opacity: 1; }
+  56%, 95.9% { opacity: 0; }
+  96%, 100% { opacity: 1; }
+}
+
+@keyframes climb-pose-cheer {
+  0%, 55.9% { opacity: 0; }
+  56%, 95.9% { opacity: 1; }
+  96%, 100% { opacity: 0; }
+}
+
+@keyframes climb-hand {
+  0%, 26.9% { transform: translate(64%, -24%); opacity: 0; }
+  30% { opacity: 1; }
+  36% { transform: translate(0%, 0%); }
+  40% { transform: translate(0%, -2%); }
+  56% { transform: translate(0%, -42.86%); }
+  58% { transform: translate(2%, -45%); opacity: 1; }
+  66%, 100% { transform: translate(62%, -60%); opacity: 0; }
+}
+
+@keyframes climb-rider {
+  0%, 36% { opacity: 0; }
+  37.5%, 55% { opacity: 1; }
+  56.5%, 100% { opacity: 0; }
+}
+
+@keyframes climb-prize {
+  0%, 58% { opacity: 0; transform: scale(0.35); }
+  64% { opacity: 1; transform: scale(1.14); }
+  68% { transform: scale(1); }
+  88% { opacity: 1; transform: scale(1); }
+  93% { opacity: 0; transform: scale(0.9); }
+  100% { opacity: 0; transform: scale(0.35); }
+}
+
+@keyframes climb-spark {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+@keyframes climb-glow {
+  0%, 55% { opacity: 0; }
+  62%, 88% { opacity: 1; }
+  92%, 100% { opacity: 0; }
+}
+
+/* ── Keyframes ────────────────────────────────────────────────────────── */
+
+@keyframes sun-rise {
+  from { transform: translate(-50%, 100%); opacity: 0; }
+  to { transform: translate(-50%, 62%); opacity: 1; }
+}
+
+@keyframes glow-breathe {
+  0%, 100% { opacity: 0.78; transform: translateX(-50%) scale(1); }
+  50% { opacity: 1; transform: translateX(-50%) scale(1.05); }
+}
+
+@keyframes rays-turn {
+  from { transform: translateX(-50%) rotate(0deg); }
+  to { transform: translateX(-50%) rotate(360deg); }
+}
+
+@keyframes line-up {
+  from { transform: translateY(34%) rotate(1.6deg); opacity: 0; }
+  to { transform: translateY(0) rotate(0deg); opacity: 1; }
+}
+
+@keyframes gleam {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes fade-up {
+  from { transform: translateY(14px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes card-in {
+  from { transform: translateY(16px) scale(0.985); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@keyframes shake {
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(3px); }
+  30%, 50%, 70% { transform: translateX(-5px); }
+  40%, 60% { transform: translateX(5px); }
+}
+
+@keyframes live-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(46, 196, 182, 0.55); }
+  70% { box-shadow: 0 0 0 9px rgba(46, 196, 182, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(46, 196, 182, 0); }
+}
+
+@keyframes twinkle {
+  0%, 100% { transform: scale(0.85) rotate(0deg); opacity: 0.6; }
+  50% { transform: scale(1.1) rotate(18deg); opacity: 1; }
+}
+
+@keyframes seal-turn {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+/* ── Narrow screens ───────────────────────────────────────────────────── */
+
+@media (max-width: 860px) {
+  /* The seal is a mark, not information — it is the first thing to go when
+     the headline needs the width. */
+  .hero__sparkle { display: none; }
+}
+
+@media (max-width: 620px) {
+  .hero__title { max-width: none; font-size: clamp(2.3rem, 11vw, 3.4rem); }
+  .hero__actions { flex-direction: column; align-items: stretch; }
+  .hero__actions .btn-sun { justify-content: space-between; }
+  .btn-dusk { justify-content: center; }
+  .countdown__cell { flex: 1 1 0; min-width: 0; padding: 9px 6px; }
+  .countdown__num { font-size: 1.5rem; }
+  /* Two by two, with the dividers dropped — a single divider left hanging at
+     the end of a wrapped row reads as a mistake. */
+  .hero__facts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px 18px;
+    margin-top: 30px;
+  }
+
+  .hero__facts li { padding-right: 0; border-right: 0; }
+  .hero__art { max-width: 300px; }
+  .climb__caption { font-size: 0.78rem; }
+  .rung { padding: 18px; }
+  .ladder__rules { padding: 22px 20px; }
+  .taster__head { flex-wrap: wrap; }
+  .steps li { padding-left: 54px; }
+  .steps li::before { width: 36px; height: 36px; font-size: 1.05rem; }
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────────── */
+
+/*
+ * Everything here is decoration, so when a visitor asks for less motion the
+ * page keeps every pixel and drops every movement — including the ones that
+ * loop forever (the rays, the sun's bloom, the seal, the floating phone).
+ */
+@media (prefers-reduced-motion: reduce) {
+  .sunrise__disc,
+  .sunrise__glow,
+  .sunrise__rays,
+  .hero-star,
+  .finale__seal,
+  .hero__sparkle,
+  .prize__phone,
+  .pill,
+  .pill__dot,
+  .hero__sub,
+  .hero__actions,
+  .countdown,
+  .hero__facts,
+  .hero__line > span,
+  .hero__line--lit > span,
+  .taster__card,
+  .taster--result,
+  .taster__after,
+  .taster__option.is-wrong,
+  .finale::before {
+    animation: none !important;
+  }
+
+  .climb__kid,
+  .climb__hand,
+  .climb__prize,
+  .climb__glow,
+  .climb__spark,
+  .climb__pose--climb,
+  .climb__pose--cheer {
+    animation: none !important;
+  }
+
+  .climb__kid { transform: translateY(-54.29%); }
+  .climb__pose--climb { opacity: 0; }
+  .climb__pose--cheer { opacity: 1; }
+  .climb__prize { opacity: 1; transform: none; }
+  .climb__glow { opacity: 1; }
+  .climb__hand { opacity: 0; }
+
+  .hero-star { opacity: var(--star-peak, 0.26); }
+  .sunrise__disc { transform: translate(-50%, 62%); }
+  .reveal.is-armed { transition: none; }
+}

@@ -90,7 +90,6 @@ export async function fetchState() {
     revision: number;
     status: string;
     answers: Record<string, string>;
-    telemetry: Record<string, { keystrokes: number; pastes: number; pastedChars: number }>;
     submittedAt: string | null;
     receipt: string | null;
     serverTime: number;

@@ -1,14 +1,13 @@
 import { useEffect, useRef } from 'react';
-import { LIMITS, type Question } from '@jee/shared';
+import { LIMITS, MCQ_MARKS, type Question } from '@jee/shared';
 
 /**
- * One question. MCQs render as a radio group; subjective questions render a
- * textarea with telemetry listeners attached.
+ * One question. Single-correct questions render as a radio group; integer
+ * questions render a short numeric field.
  *
- * Paste is deliberately not blocked. Students legitimately move their own text
- * around — rewriting a derivation, pulling a line up from a scratch area — and
- * blocking it generates support load without stopping anyone determined. The
- * paste is counted, not prevented, and the count is evidence for a human.
+ * Both are marked identically (+4 / −1), so the header says so once and the
+ * student never has to work out which rule applies to the question in front of
+ * them.
  */
 
 export interface QuestionViewProps {
@@ -17,8 +16,6 @@ export interface QuestionViewProps {
   value: string;
   marked: boolean;
   onChange: (value: string) => void;
-  onKeystroke: () => void;
-  onPaste: (chars: number) => void;
   onToggleReview: () => void;
   onClear: () => void;
   onPrev: () => void;
@@ -27,14 +24,37 @@ export interface QuestionViewProps {
   hasNext: boolean;
 }
 
+/**
+ * Keeps the field to something that can be marked: an optional sign, digits and
+ * at most one decimal point. Filtering as they type beats validating on submit —
+ * a student who cannot see why their answer was rejected at minute 170 has no
+ * way to recover, and there is no one to ask.
+ *
+ * A minus anywhere in the input makes the value negative, rather than only one
+ * in front. Someone who types "4" and then the minus key meant −4, and a
+ * keypress that does nothing at all reads as a broken field; this way the sign
+ * appears where they can see it and press again to remove it.
+ *
+ * Not a correctness check. "9." and "-" are allowed through while being typed;
+ * scoring treats anything that is not a finite number as a wrong answer.
+ */
+export function filterIntegerInput(raw: string): string {
+  const cleaned = raw.replace(/[^0-9.\-]/g, '');
+  const negative = cleaned.includes('-');
+  const digits = cleaned.replace(/-/g, '');
+  const [whole, ...rest] = digits.split('.');
+  const joined = rest.length > 0 ? `${whole}.${rest.join('')}` : whole ?? '';
+  return `${negative ? '-' : ''}${joined}`.slice(0, LIMITS.maxAnswerChars);
+}
+
 export function QuestionView(props: QuestionViewProps) {
   const { question, number, value } = props;
-  const textarea = useRef<HTMLTextAreaElement>(null);
+  const input = useRef<HTMLInputElement>(null);
 
   // Focus moves with the question so keyboard navigation does not strand the
   // student in the navigator.
   useEffect(() => {
-    if (question.kind === 'subjective') textarea.current?.focus();
+    if (question.kind === 'integer') input.current?.focus();
   }, [question.id, question.kind]);
 
   return (
@@ -42,16 +62,16 @@ export function QuestionView(props: QuestionViewProps) {
       <header className="question__head">
         <span className="question__number tnum">Question {number}</span>
         <span className="question__kind">
-          {question.kind === 'mcq' ? 'Multiple choice' : 'Written answer'}
+          {question.kind === 'scq' ? 'One correct option' : 'Integer answer'}
         </span>
-        <span className="question__marks">
-          {question.kind === 'mcq' ? '+4 / −1' : 'up to 3 marks'}
+        <span className="question__marks tnum">
+          +{MCQ_MARKS.correct} / {MCQ_MARKS.wrong}
         </span>
       </header>
 
       <p className="question__body">{question.body}</p>
 
-      {question.kind === 'mcq' ? (
+      {question.kind === 'scq' ? (
         <fieldset className="options">
           <legend className="muted" style={{ marginBottom: 8 }}>
             Choose one
@@ -66,10 +86,7 @@ export function QuestionView(props: QuestionViewProps) {
                 name={question.id}
                 value={option.key}
                 checked={value === option.key}
-                onChange={() => {
-                  props.onKeystroke();
-                  props.onChange(option.key);
-                }}
+                onChange={() => props.onChange(option.key)}
               />
               <span className="option__key" aria-hidden="true">
                 {option.key}
@@ -80,29 +97,33 @@ export function QuestionView(props: QuestionViewProps) {
         </fieldset>
       ) : (
         <>
-          <textarea
-            ref={textarea}
-            className="answer"
-            value={value}
-            maxLength={LIMITS.maxAnswerChars}
-            spellCheck={false}
-            aria-label={`Answer to question ${number}`}
-            placeholder="Show your working here."
-            onChange={(event) => props.onChange(event.target.value)}
-            onKeyDown={(event) => {
-              // Counters only: one increment per character or backspace. The
-              // keys themselves are never recorded.
-              if (event.key.length === 1 || event.key === 'Backspace') props.onKeystroke();
-            }}
-            onPaste={(event) => {
-              props.onPaste(event.clipboardData.getData('text').length);
-            }}
-          />
-          <div className="answer__meta">
-            <span className="tnum">
-              {value.length.toLocaleString()} / {LIMITS.maxAnswerChars.toLocaleString()} characters
+          <div className="integer">
+            <input
+              ref={input}
+              className="integer__input tnum"
+              // `text` with inputMode rather than type="number": a number field
+              // scrolls its value on a trackpad gesture and silently swallows
+              // what it considers invalid, both of which lose a student's answer.
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
+              spellCheck={false}
+              maxLength={LIMITS.maxAnswerChars}
+              value={value}
+              aria-label={`Answer to question ${number}`}
+              placeholder="Your answer"
+              onChange={(event) => props.onChange(filterIntegerInput(event.target.value))}
+            />
+            {question.unit ? (
+              <span className="integer__unit" aria-hidden="true">
+                {question.unit}
+              </span>
+            ) : null}
+          </div>
+          <div className="integer__meta">
+            <span>
+              Digits only{question.unit ? `, in ${question.unit}` : ''}. Saved as you type.
             </span>
-            <span>Saved as you type</span>
           </div>
         </>
       )}

@@ -1,4 +1,4 @@
-import { CLIENT_TIMING, type AnswerMap, type TelemetryMap } from '@jee/shared';
+import { CLIENT_TIMING, type AnswerMap } from '@jee/shared';
 import { ApiError } from './api.js';
 
 /**
@@ -8,8 +8,9 @@ import { ApiError } from './api.js';
  *
  *  - **Skip when nothing changed.** If `revision` has not advanced since the
  *    last successful sync, the request is not sent at all. Across a cohort this
- *    drops 30-40% of all traffic — students reading a question or working on
- *    paper are not generating state to save.
+ *    drops well over half of all traffic — a student reading a question or
+ *    working it out on paper is not generating state to save, and on an
+ *    objective paper that is most of the three hours.
  *
  *  - **A stale response is success.** The server answers 200 with `stale: true`
  *    when it already holds a newer revision. Treating that as failure would
@@ -21,7 +22,6 @@ export interface SyncSnapshot {
   attemptId: string;
   revision: number;
   answers: AnswerMap;
-  telemetry: TelemetryMap;
 }
 
 export interface SyncOutcome {

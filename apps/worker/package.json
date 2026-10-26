@@ -14,8 +14,7 @@
     "@jee/db": "workspace:*",
     "@jee/shared": "workspace:*",
     "pino": "9.6.0",
-    "zod": "^3.25.0",
-    "@anthropic-ai/sdk": "1.1.0"
+    "zod": "^3.25.0"
   },
   "devDependencies": {
     "@types/node": "22.10.5",

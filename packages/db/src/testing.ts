@@ -1,5 +1,6 @@
 import pg from 'pg';
 import { migrate } from './migrate.js';
+import { isPooledConnectionString } from './pool.js';
 import { samplePaper } from './samplePaper.js';
 import { generatePaperKey } from '@jee/shared';
 
@@ -20,6 +21,29 @@ export const ADMIN_URL =
   process.env.DATABASE_URL ??
   'postgres://jee:jee@localhost:5433/jee';
 
+/**
+ * The suite creates and drops whole databases, so it must never run against
+ * the Neon branch that holds the event. A DATABASE_URL left in the shell is
+ * the obvious way for that to happen, so pointing at neon.tech is refused
+ * unless TEST_DATABASE_URL says so deliberately — and the pooled endpoint is
+ * refused outright, since CREATE DATABASE and pg_terminate_backend are
+ * session work PgBouncer cannot carry.
+ */
+function assertSafeAdminUrl(url: string): void {
+  if (isPooledConnectionString(url)) {
+    throw new Error(
+      'test databases cannot be created through Neon\'s pooled endpoint — ' +
+        'point TEST_DATABASE_URL at the local docker Postgres (pnpm db:up)',
+    );
+  }
+  if (/\.neon\.tech/i.test(url) && !process.env.TEST_DATABASE_URL) {
+    throw new Error(
+      'refusing to create test databases on Neon from DATABASE_URL — ' +
+        'run `pnpm db:up` and set TEST_DATABASE_URL=postgres://jee:jee@localhost:5433/jee',
+    );
+  }
+}
+
 function urlFor(database: string): string {
   const url = new URL(ADMIN_URL);
   url.pathname = `/${database}`;
@@ -36,6 +60,8 @@ export async function createTestDatabase(label: string): Promise<TestDb> {
   const name = `jee_test_${label}_${Date.now().toString(36)}${Math.floor(
     Math.random() * 1e6,
   ).toString(36)}`.toLowerCase();
+
+  assertSafeAdminUrl(ADMIN_URL);
 
   const admin = new pg.Pool({ connectionString: ADMIN_URL, max: 1 });
   try {
@@ -70,7 +96,8 @@ export interface Fixture {
   testId: number;
   userId: string;
   attemptId: string;
-  subjectiveIds: string[];
+  /** The ids of the integer-answer questions, for tests that need a typed value. */
+  integerIds: string[];
   answerKey: Record<string, string>;
 }
 
@@ -101,16 +128,15 @@ export async function seedFixture(
   );
   const testId = test.rows[0]!.id;
 
-  const { paper, answerKey, rubrics } = samplePaper(testId);
+  const { paper, answerKey } = samplePaper(testId);
   await db.query(
-    `UPDATE tests SET paper_url = $2, paper_key = $3, answer_key = $4, rubrics = $5
+    `UPDATE tests SET paper_url = $2, paper_key = $3, answer_key = $4
       WHERE id = $1`,
     [
       testId,
       `https://cdn.example.org/paper-${testId}.json`,
       generatePaperKey(),
       JSON.stringify(answerKey),
-      JSON.stringify(rubrics),
     ],
   );
 
@@ -143,7 +169,7 @@ export async function seedFixture(
     testId,
     userId,
     attemptId,
-    subjectiveIds: paper.questions.filter((q) => q.kind === 'subjective').map((q) => q.id),
+    integerIds: paper.questions.filter((q) => q.kind === 'integer').map((q) => q.id),
     answerKey,
   };
 }

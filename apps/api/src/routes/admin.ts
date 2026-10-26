@@ -1,7 +1,6 @@
 import express, { Router } from 'express';
 import { z } from 'zod';
-import { AWARD_CAP } from '@jee/shared';
-import { admin, attempts, grading, jobs, tests, type Pool } from '@jee/db';
+import { admin, attempts, jobs, tests, type Pool } from '@jee/db';
 import type { Auth } from '../auth.js';
 import { currentUser, requireAdmin } from '../middleware/session.js';
 import { badRequest, notFound } from '../middleware/errors.js';
@@ -35,39 +34,28 @@ export function adminRoutes({
   /** Live cohort health. The number to watch during the test is staleOver4Minutes. */
   router.get('/dashboard', async (req, res) => {
     const testId = await currentTestId(req.query);
-    const [stats, gradingCounts, runs] = await Promise.all([
+    const [test, stats, runs] = await Promise.all([
+      tests.getTest(testId, pool),
       admin.liveStats(testId, pool),
-      grading.gradingStatus(testId, pool),
       jobs.listJobRuns(testId, pool),
-    ]);
-    res.json({ testId, stats, grading: gradingCounts, jobs: runs, serverTime: Date.now() });
-  });
-
-  router.get('/grading-status', async (req, res) => {
-    const testId = await currentTestId(req.query);
-    const [counts, failed] = await Promise.all([
-      grading.gradingStatus(testId, pool),
-      grading.listFailedGradingJobs(testId, 50, pool),
     ]);
     res.json({
       testId,
-      counts,
-      // Failed jobs are surfaced, never silently dropped: each one is a student
-      // with a missing mark.
-      failed: failed.map((job) => ({
-        id: job.id,
-        attemptId: job.attempt_id,
-        questionId: job.question_id,
-        attemptsMade: job.attempts_made,
-        error: job.error,
-      })),
+      // The lock, so the dashboard can say whether students can get in at all.
+      test: test
+        ? { name: test.name, status: test.status, paperPublished: Boolean(test.paper_url) }
+        : null,
+      stats,
+      jobs: runs,
+      serverTime: Date.now(),
     });
   });
 
   /**
    * The review queue. Sorted by severity so the strongest evidence is read
-   * first — at 10,000 students expect 300-500 flagged attempts, which is
-   * reviewable inside the grading window in that order.
+   * first. On an all-objective paper the only signal left is a change of IP
+   * address mid-attempt, so this is a list to glance down rather than a ranked
+   * evidence pile — see queries/admin.ts.
    */
   router.get('/review-queue', async (req, res) => {
     const testId = await currentTestId(req.query);
@@ -85,28 +73,24 @@ export function adminRoutes({
         flagCount: row.flag_count,
         severity: Number(row.severity),
         mcqScore: row.mcq_score,
-        subjectiveScore: row.subjective_score,
         totalScore: row.total_score,
       })),
     });
   });
 
   /**
-   * Everything a reviewer needs on one screen: the answer text, the flags with
-   * their evidence, the sync growth curve for each question, and the assigned
-   * score. "This answer went from 0 to 800 characters between 11:42 and 11:43"
-   * is a defensible thing to say to a parent; "the AI thought it looked
-   * suspicious" is not.
+   * Everything a reviewer needs on one screen: the recorded answers, the flags
+   * with their evidence, and the sync trail showing what the server held at
+   * each revision and from which address. "At 11:42 this attempt had 31 answers
+   * recorded, from these two addresses" is a defensible thing to say to a
+   * parent; a guess about intent is not.
    */
   router.get('/attempt/:attemptId', async (req, res) => {
     const attemptId = z.string().uuid().parse(req.params.attemptId);
     const attempt = await attempts.getAttempt(attemptId, pool);
     if (!attempt) throw notFound('no_attempt', 'No such attempt.');
 
-    const [snapshots, gradingJobs] = await Promise.all([
-      attempts.listSnapshots(attemptId, pool),
-      grading.listJobsForAttempt(attemptId, pool),
-    ]);
+    const snapshots = await attempts.listSnapshots(attemptId, pool);
 
     res.json({
       attemptId: attempt.id,
@@ -116,71 +100,30 @@ export function adminRoutes({
       submittedAt: attempt.submitted_at?.toISOString() ?? null,
       revision: attempt.revision,
       answers: attempt.answers,
-      telemetry: attempt.telemetry,
       flags: attempt.flags,
       needsReview: attempt.needs_review,
       scores: {
         mcq: attempt.mcq_score,
-        subjective: attempt.subjective_score,
         total: attempt.total_score,
       },
-      // The growth curve, straight from sync_snapshots.
+      // The sync trail, straight from sync_snapshots.
       growth: snapshots.map((snapshot) => ({
         revision: snapshot.revision,
         at: snapshot.at.toISOString(),
         lengths: snapshot.lengths,
       })),
-      grading: gradingJobs.map((job) => ({
-        questionId: job.question_id,
-        status: job.status,
-        rawScore: job.raw_score,
-        score: job.score,
-        confidence: job.confidence,
-        feedback: job.feedback,
-        observation: job.rubric_output,
-        error: job.error,
-      })),
     });
   });
 
-  /* ---------------------------------------------------------------------- */
-  /* POST /admin/override-score                                              */
-  /* ---------------------------------------------------------------------- */
-  const OverrideSchema = z.object({
-    attemptId: z.string().uuid(),
-    questionId: z.string().min(1),
-    score: z.number().min(0).max(AWARD_CAP),
-    reason: z.string().min(3).max(1000),
-  });
-
-  router.post('/override-score', async (req, res) => {
-    const me = currentUser(req);
-    const body = OverrideSchema.parse(req.body);
-
-    const result = await admin.overrideQuestionScore(body, pool);
-    if (!result) throw notFound('no_job', 'No grading job for that question.');
-
-    // Logged with the admin's identity, before the response goes out.
-    await admin.logAdminAction(
-      {
-        adminId: me.id,
-        action: 'override_score',
-        attemptId: body.attemptId,
-        questionId: body.questionId,
-        before: { score: result.before },
-        after: { score: body.score },
-        reason: body.reason,
-      },
-      pool,
-    );
-    await grading.rollUpScores(
-      (await attempts.getAttempt(body.attemptId, pool))!.test_id,
-      pool,
-    );
-
-    log.info({ attemptId: body.attemptId, adminId: me.id }, 'score overridden');
-    res.json({ ok: true, before: result.before, after: body.score });
-  });
+  /**
+   * There is no per-student score override any more.
+   *
+   * Overriding used to mean correcting one model-graded subjective answer. On an
+   * all-objective paper a disputed mark is never about one student: it is a
+   * wrong entry in `tests.answer_key`, and the fix is to correct the key and
+   * re-run `mcq_score`, which is idempotent and rescores the whole cohort the
+   * same way. Fixing it per student would leave 9,999 others wrong.
+   */
 
   /** Marks a flagged attempt as reviewed. Flags stay on the row for the record. */
   router.post('/resolve-review', async (req, res) => {
@@ -206,10 +149,74 @@ export function adminRoutes({
   });
 
   /* ---------------------------------------------------------------------- */
+  /* POST /admin/test-status — the one switch that opens or locks the inside. */
+  /* ---------------------------------------------------------------------- */
+  /**
+   * `scheduled` sells the test and keeps the exam app on its coming-soon
+   * screen. `live` opens the lobby, the paper key and sync.
+   *
+   * Only those two values are accepted. `closed` and `graded` are written by
+   * the worker as the event moves through its own lifecycle, and letting an
+   * admin set them by hand would mean a mistyped request could shut sync on a
+   * cohort mid-test — the one thing hard constraint 1 forbids.
+   */
+  const TestStatusSchema = z.object({
+    status: z.enum(['scheduled', 'live']),
+    reason: z.string().min(3).max(1000),
+    testId: z.number().int().positive().optional(),
+  });
+
+  router.post('/test-status', async (req, res) => {
+    const me = currentUser(req);
+    const body = TestStatusSchema.parse(req.body);
+    const testId = body.testId ?? (await currentTestId(undefined));
+
+    const test = await tests.getTest(testId, pool);
+    if (!test) throw notFound('no_test', 'No such test.');
+    if (test.status === body.status) {
+      res.json({ ok: true, status: test.status, changed: false });
+      return;
+    }
+    // A test cannot go live without a paper to open. Students would reach the
+    // lobby, pass their checks and then find nothing to download.
+    if (body.status === 'live' && !test.paper_url) {
+      throw badRequest(
+        'no_paper',
+        'This test has no published paper. Upload it before going live.',
+      );
+    }
+    // Nor can it go back to locked once it has ended — that status is the
+    // worker's to set, and reopening a finished event is never what was meant.
+    if (!['scheduled', 'live'].includes(test.status)) {
+      throw badRequest(
+        'not_switchable',
+        `This test is ${test.status}. Only a scheduled or live test can be switched.`,
+      );
+    }
+
+    await tests.setTestStatus(testId, body.status, pool);
+    await admin.logAdminAction(
+      {
+        adminId: me.id,
+        action: `test_status:${body.status}`,
+        attemptId: null,
+        questionId: null,
+        before: { status: test.status },
+        after: { status: body.status },
+        reason: body.reason,
+      },
+      pool,
+    );
+
+    log.info({ testId, from: test.status, to: body.status, adminId: me.id }, 'test status set');
+    res.json({ ok: true, status: body.status, changed: true });
+  });
+
+  /* ---------------------------------------------------------------------- */
   /* POST /admin/run-job — schedules worker jobs. Never runs them inline.    */
   /* ---------------------------------------------------------------------- */
   const RunJobSchema = z.object({
-    job: z.enum(['auto_submit', 'mcq_score', 'enqueue_grading', 'compute_flags', 'finalise_scores']),
+    job: z.enum(['auto_submit', 'mcq_score', 'compute_flags']),
     testId: z.number().int().positive().optional(),
   });
 
@@ -219,7 +226,7 @@ export function adminRoutes({
     const testId = body.testId ?? (await currentTestId(undefined));
 
     // The request writes a row and returns. The worker claims it on its next
-    // poll — grading never happens inside an HTTP request.
+    // poll — scoring 10,000 attempts never happens inside an HTTP request.
     const run = await jobs.requeueJob(body.job, testId, pool);
     if (!run) throw badRequest('schedule_failed', 'Could not schedule that job.');
 

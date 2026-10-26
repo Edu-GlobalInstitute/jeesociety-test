@@ -92,17 +92,16 @@ export async function createTest(
   );
   const testId = created.rows[0]!.id;
 
-  const { answerKey, rubrics } = samplePaper(testId);
+  const { answerKey } = samplePaper(testId);
   const paperKey = generatePaperKey();
   await api.db.pool.query(
-    `UPDATE tests SET paper_url = $2, paper_key = $3, answer_key = $4, rubrics = $5
+    `UPDATE tests SET paper_url = $2, paper_key = $3, answer_key = $4
       WHERE id = $1`,
     [
       testId,
       `https://cdn.example.org/paper-${testId}.json`,
       paperKey,
       JSON.stringify(answerKey),
-      JSON.stringify(rubrics),
     ],
   );
   return { testId, answerKey, paperKey };

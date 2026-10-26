@@ -1,11 +1,15 @@
 /**
  * Every tunable number in the system lives here, so that policy changes are a
- * one-line diff rather than a hunt through the codebase. Nothing in this file
- * may be read from a prompt or from the client's request body — in particular
- * AWARD_CAP is enforced in code (see scoring.ts), never asked of the model.
+ * one-line diff rather than a hunt through the codebase.
  */
 
-/** JEE objective marking. Applied server-side only, after the test ends. */
+/**
+ * JEE objective marking. Applied server-side only, after the test ends.
+ *
+ * One rule for the whole paper: single-correct and integer questions are marked
+ * identically, which is both current JEE Main policy and the only version that
+ * fits on a landing page without a footnote.
+ */
 export const MCQ_MARKS = {
   correct: 4,
   wrong: -1,
@@ -13,20 +17,61 @@ export const MCQ_MARKS = {
 } as const;
 
 /**
- * Maximum mark a single subjective answer can earn after the rubric observations
- * are reduced to a number. raw_score (0-4) is stored alongside so this policy can
- * change later without re-grading 150,000 answers.
+ * What a student pays, in paise. The landing page quotes this and the payment
+ * route charges it, so the two cannot drift apart. TEST_FEE_PAISE in the API's
+ * environment overrides it; this is the default and the number on the page.
  */
-export const AWARD_CAP = 3;
+export const TEST_FEE_PAISE = 30_000;
 
-/** Highest raw score the rubric reducer can produce, before the cap. */
-export const RUBRIC_MAX_RAW = 4;
+/**
+ * Reward bands, by percentile in this test's own rank list.
+ *
+ * The bands do not overlap — a 99.2 percentile student is in the first band
+ * only — and they are read top-down, so the first band whose `floor` a student
+ * clears is the one they are in. `share` is true by the definition of a
+ * percentile rather than a projection: each band is one student in a hundred.
+ */
+export const REWARD_BANDS = [
+  { floor: 99, label: 'An iPad or an iPhone', share: 'top 1 in 100' },
+  { floor: 98, label: 'Mentorship worth ₹10,000', share: 'the next 1 in 100' },
+  { floor: 97, label: 'Half off that mentorship', share: 'the next 1 in 100' },
+] as const;
 
+/**
+ * When the paper opens. ISO-8601 with an explicit offset so the landing
+ * page's countdown and the server agree regardless of where either is run.
+ * This must match `tests.starts_at` in the database for the test being sold.
+ */
+export const TEST_STARTS_AT = '2026-11-10T09:00:00+05:30';
+
+/**
+ * The paper's shape, in one place.
+ *
+ * Three subjects, each with 20 single-correct questions and 5 integer-answer
+ * ones: 75 questions and 300 marks, the JEE Main pattern. Every question is
+ * machine-marked against `tests.answer_key`, so there is no human or model in
+ * the scoring path at all.
+ */
 export const PAPER = {
-  mcqCount: 60,
-  subjectiveCount: 15,
+  subjects: ['physics', 'chemistry', 'maths'],
+  scqPerSubject: 20,
+  integerPerSubject: 5,
+  /** Questions per subject — the size of one navigator section. */
+  get perSubject() {
+    return this.scqPerSubject + this.integerPerSubject;
+  },
+  get scqCount() {
+    return this.scqPerSubject * this.subjects.length;
+  },
+  get integerCount() {
+    return this.integerPerSubject * this.subjects.length;
+  },
   get totalCount() {
-    return this.mcqCount + this.subjectiveCount;
+    return this.scqCount + this.integerCount;
+  },
+  /** What a perfect paper is worth. Quoted on the landing page. */
+  get maxMarks() {
+    return this.totalCount * MCQ_MARKS.correct;
   },
 } as const;
 
@@ -50,10 +95,10 @@ export const CLIENT_TIMING = {
 export const SERVER_TIMING = {
   /** Auto-submit sweeps unsubmitted attempts this long after ends_at. */
   autoSubmitDelayMs: 10 * 60_000,
-  /** A grading job claimed by a lane is released again after this long. */
-  gradingLockMs: 5 * 60_000,
-  /** A grading job is marked failed (never silently dropped) after this many tries. */
-  gradingMaxAttempts: 3,
+  /** A one-shot job claimed by the scheduler is released again after this long. */
+  jobLockMs: 5 * 60_000,
+  /** A job is marked failed (never silently dropped) after this many tries. */
+  jobMaxAttempts: 3,
   /** Payments stuck in `created` older than this are reconciled against Razorpay. */
   paymentReconcileAfterMs: 15 * 60_000,
   /**
@@ -67,41 +112,36 @@ export const SERVER_TIMING = {
 } as const;
 
 export const LIMITS = {
-  /** express.json body ceiling. Full state for 75 answers gzips to ~10 KB. */
+  /** express.json body ceiling. Full state for 75 answers is well under 2 KB. */
   jsonBodyLimit: '256kb',
-  /** Per-answer character ceiling, enforced by zod on every sync. */
-  maxAnswerChars: 5_000,
+  /**
+   * Per-answer character ceiling, enforced by zod on every sync. An answer is
+   * now either an option key ("A") or a number ("-12.5"), so this is tight on
+   * purpose: the sync endpoint is no longer a place anyone can post prose.
+   */
+  maxAnswerChars: 16,
   /** Per-user sync rate. The client syncs at 1 per 90s; this allows retries. */
   syncPerMinute: 2,
   /** Per-IP auth attempts per minute. */
   authPerMinute: 10,
 } as const;
 
-/** Anti-cheat thresholds. These produce flags for a human, never score changes. */
-export const FLAGS = {
-  /** Keystroke ratio is only meaningful once an answer is substantial. */
-  keystrokeMinAnswerLen: 200,
-  /** Below this ratio of keystrokes to characters, flag for review. */
-  keystrokeRatio: 0.4,
-  /** Growth in one sync interval that no one types by hand. */
-  burstDeltaChars: 400,
-} as const;
-
-export type FlagCode =
-  | 'low_keystroke_ratio'
-  | 'burst_appearance'
-  | 'ip_change'
-  | 'grader_low_confidence'
-  | 'off_topic_or_blank';
+/**
+ * Review flags. These produce evidence for a human, never a score change.
+ *
+ * On an all-objective paper there is deliberately only one signal left. The
+ * behavioural signals this system used to compute — keystroke-to-character
+ * ratio and burst appearance — measured how typed prose grew, and an answer
+ * that is one character long has no growth curve to read. Keeping them would
+ * have implied a protection that cannot exist, so they are gone rather than
+ * dormant.
+ */
+export type FlagCode = 'ip_change';
 
 /**
  * Review ordering only. Severity never implies guilt and never touches a score —
  * it is how the review queue is sorted so the strongest evidence is read first.
  */
 export const FLAG_SEVERITY: Record<FlagCode, number> = {
-  burst_appearance: 3,
-  low_keystroke_ratio: 2,
-  off_topic_or_blank: 2,
-  grader_low_confidence: 1,
   ip_change: 1,
 };

@@ -9,12 +9,7 @@ import { one, rows, type Queryable } from '../query.js';
  * UNIQUE (job, test_id) means a double trigger cannot produce two runs.
  */
 
-export type JobName =
-  | 'auto_submit'
-  | 'mcq_score'
-  | 'enqueue_grading'
-  | 'compute_flags'
-  | 'finalise_scores';
+export type JobName = 'auto_submit' | 'mcq_score' | 'compute_flags';
 
 export interface JobRunRow {
   id: number;
@@ -65,11 +60,11 @@ export function requeueJob(
 }
 
 /**
- * Claims the next due job. Same shape as the grading claim: SKIP LOCKED so
- * concurrent workers never collide, a lease so a crashed worker's job returns.
+ * Claims the next due job. SKIP LOCKED so concurrent workers never collide, and
+ * a lease so a crashed worker's job returns to the queue rather than stranding.
  */
 export function claimNextJobRun(
-  leaseMs: number = SERVER_TIMING.gradingLockMs,
+  leaseMs: number = SERVER_TIMING.jobLockMs,
   db?: Queryable,
 ): Promise<JobRunRow | null> {
   return one<JobRunRow>(
@@ -109,7 +104,7 @@ export async function completeJobRun(
 export async function failJobRun(
   id: number,
   error: string,
-  maxAttempts: number = SERVER_TIMING.gradingMaxAttempts,
+  maxAttempts: number = SERVER_TIMING.jobMaxAttempts,
   db?: Queryable,
 ): Promise<void> {
   await rows(

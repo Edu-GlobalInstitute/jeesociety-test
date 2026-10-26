@@ -58,8 +58,7 @@ describe('POST /attempt/sync', () => {
     const response = await sync({
       attemptId,
       revision: 1,
-      answers: { q1: 'A', q61: 'my working' },
-      telemetry: { q61: { keystrokes: 120, pastes: 0, pastedChars: 0 } },
+      answers: { q1: 'A', q21: '12' },
     });
 
     expect(response.status).toBe(200);
@@ -68,8 +67,8 @@ describe('POST /attempt/sync', () => {
   });
 
   it('returns 200 — not 409 — for an out-of-order sync', async () => {
-    await sync({ attemptId, revision: 5, answers: { q1: 'newest' } });
-    const response = await sync({ attemptId, revision: 2, answers: { q1: 'older' } });
+    await sync({ attemptId, revision: 5, answers: { q1: 'D' } });
+    const response = await sync({ attemptId, revision: 2, answers: { q1: 'A' } });
 
     // A 4xx here would be read as failure by every retry wrapper on 10,000
     // clients at once, exactly when the network is worst.

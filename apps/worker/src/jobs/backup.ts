@@ -6,22 +6,33 @@ import { createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { join } from 'node:path';
 import type { Logger } from 'pino';
+import { directConnectionString } from '@jee/db';
 import type { Env } from '../env.js';
 
 /**
  * pg_dump every 15 minutes from the start of the lobby until grading completes,
  * gzipped and pushed to R2.
  *
- * The platform takes its own backups, but their cadence and retention are not
- * under our control and the event cannot be retried. Worst case with this
- * running is 15 minutes of data; worst case relying on the platform alone is
- * whatever the platform decides.
+ * Neon's PITR covers the same ground and covers it better — any second inside
+ * the retention window, rather than the last 15 minutes. This stays anyway:
+ * it is a copy in a different vendor's bucket, restorable with psql alone, and
+ * the event cannot be retried. Insurance against losing the database is worth
+ * less than insurance against losing access to the account that holds it.
+ *
+ * It dumps over the DIRECT endpoint. pg_dump takes a repeatable-read snapshot
+ * and leans on session state throughout, so through the transaction pooler it
+ * fails — or worse, succeeds against a shifting set of backends.
  */
 
+/** Postgres major version Neon serves; pg_dump must be at least this. */
+export const REQUIRED_PG_DUMP_MAJOR = 17;
+
 /**
- * `pg_dump` is not in a stock Node image. Checked once at boot so the gap is a
- * line in the deploy log rather than a silent absence of backups discovered on
- * the day someone needs one.
+ * `pg_dump` is checked at boot rather than discovered at 02:00 on the day
+ * someone needs a restore. Two ways it is wrong: absent from the image, or
+ * older than the server — Neon runs Postgres 17, and pg_dump refuses to dump a
+ * server newer than itself, which is a clean error that nonetheless means no
+ * backups for the whole event.
  */
 export function checkPgDumpAvailable(): Promise<{ ok: boolean; detail: string }> {
   return new Promise((resolve) => {
@@ -33,16 +44,28 @@ export function checkPgDumpAvailable(): Promise<{ ok: boolean; detail: string }>
     probe.on('error', () =>
       resolve({
         ok: false,
-        detail: 'pg_dump is not on PATH — install postgresql-client in the worker image',
+        detail:
+          'pg_dump is not on PATH — install postgresql 17 in the worker image (nixpacks.toml)',
       }),
     );
-    probe.on('close', (code) =>
-      resolve(
-        code === 0
-          ? { ok: true, detail: out.trim() }
-          : { ok: false, detail: `pg_dump exited ${code}` },
-      ),
-    );
+    probe.on('close', (code) => {
+      const detail = out.trim();
+      if (code !== 0) {
+        resolve({ ok: false, detail: `pg_dump exited ${code}` });
+        return;
+      }
+      const major = Number(/\b(\d+)\./.exec(detail)?.[1] ?? 0);
+      if (major && major < REQUIRED_PG_DUMP_MAJOR) {
+        resolve({
+          ok: false,
+          detail:
+            `${detail} is older than the Neon server (Postgres ${REQUIRED_PG_DUMP_MAJOR}) ` +
+            'and will refuse every dump — install postgresql 17 in the worker image',
+        });
+        return;
+      }
+      resolve({ ok: true, detail });
+    });
   });
 }
 
@@ -58,7 +81,10 @@ export async function runBackup(
   await mkdir(dir, { recursive: true });
 
   try {
-    await dumpToGzip(env.DATABASE_URL, path);
+    await dumpToGzip(
+      directConnectionString(env.DATABASE_URL, env.DATABASE_URL_UNPOOLED || undefined),
+      path,
+    );
     const { size } = await stat(path);
 
     if (env.R2_BUCKET && env.R2_ACCESS_KEY_ID) {

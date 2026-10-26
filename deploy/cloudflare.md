@@ -43,7 +43,9 @@ Not Vercel: its free tier forbids commercial use and this portal charges
 students (D-003).
 
 Set `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_EXAM_URL` and `VITE_API_URL` to the
-production API origin, and add both Pages origins to the API's `CORS_ORIGINS`.
+production API origin, `VITE_WEB_URL` to the public site's origin (the exam
+client links back to it for sign-in and registration), and add both Pages
+origins to the API's `CORS_ORIGINS`.
 
 The exam client is a static SPA, so add a redirect so deep links boot the app:
 

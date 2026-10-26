@@ -1,6 +1,4 @@
 import type { FlagCode } from './config.js';
-export type { RubricObservation } from './grading.js';
-import type { RubricObservation } from './grading.js';
 
 export type AttemptStatus =
   | 'registered'
@@ -10,26 +8,45 @@ export type AttemptStatus =
 
 export type TestStatus = 'draft' | 'scheduled' | 'live' | 'closed' | 'graded';
 
-export type GradingJobStatus = 'pending' | 'processing' | 'done' | 'failed';
+/**
+ * Whether the exam surface — lobby, paper key, sync, submit — is open.
+ *
+ * `scheduled` is the on-sale-but-locked state: the public site takes
+ * registrations and payments, and the exam app shows a coming-soon screen
+ * instead of a lobby. Promoting the row to `live` is the one switch that opens
+ * the inside, and it is checked on the server so the lock is not cosmetic.
+ */
+export function isExamOpen(status: TestStatus): boolean {
+  return status === 'live';
+}
+
+/**
+ * Whether the test has *ever* been open. Submit and resume are allowed in the
+ * past tense too: auto-submit moves the row to `closed` ten minutes after the
+ * window shuts, and a student fetching their receipt after that must not be
+ * told the test does not exist.
+ */
+export function hasExamOpened(status: TestStatus): boolean {
+  return status === 'live' || status === 'closed' || status === 'graded';
+}
 
 export type PaymentStatus = 'created' | 'paid' | 'failed' | 'refunded';
 
-export type QuestionKind = 'mcq' | 'subjective';
+/**
+ * The two question types. `scq` is single-correct-option; `integer` takes a
+ * numeric value typed by the student. Both are marked by comparison against
+ * `tests.answer_key` — see scoring.ts.
+ */
+export type QuestionKind = 'scq' | 'integer';
 
 /** Question ids are strings throughout ("q1".."q75"), never array indices. */
 export type QuestionId = string;
 
-/** What the client holds and sends. Keys are question ids. */
+/**
+ * What the client holds and sends. Keys are question ids; each value is an
+ * option key for an `scq` question or a typed number for an `integer` one.
+ */
 export type AnswerMap = Record<QuestionId, string>;
-
-/** Per-subjective-question counters. Counters only — never keystroke streams. */
-export interface QuestionTelemetry {
-  keystrokes: number;
-  pastes: number;
-  pastedChars: number;
-}
-
-export type TelemetryMap = Record<QuestionId, QuestionTelemetry>;
 
 /** Character lengths per question. What sync_snapshots stores — never the text. */
 export type LengthMap = Record<QuestionId, number>;
@@ -46,22 +63,29 @@ export interface AttemptFlag {
 /* Paper                                                                       */
 /* -------------------------------------------------------------------------- */
 
-export interface McqQuestion {
+export interface ScqQuestion {
   id: QuestionId;
-  kind: 'mcq';
+  kind: 'scq';
   subject: string;
   body: string;
   options: { key: string; body: string }[];
 }
 
-export interface SubjectiveQuestion {
+/**
+ * An integer-answer question. There are no options: the student types a value
+ * and the worker compares it numerically against the key, so "12", "12.0" and
+ * " 12 " are the same answer.
+ */
+export interface IntegerQuestion {
   id: QuestionId;
-  kind: 'subjective';
+  kind: 'integer';
   subject: string;
   body: string;
+  /** Shown next to the input, e.g. "m/s²". Display only — never marked on. */
+  unit?: string;
 }
 
-export type Question = McqQuestion | SubjectiveQuestion;
+export type Question = ScqQuestion | IntegerQuestion;
 
 /**
  * The decrypted paper. Byte-identical for all 10,000 students, which is what
@@ -84,30 +108,9 @@ export interface EncryptedPaper {
   ct: string;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Grading                                                                     */
-/* -------------------------------------------------------------------------- */
-
-export interface Rubric {
-  questionId: QuestionId;
-  /** Model-facing statement of what a full-credit answer contains. */
-  statement: string;
-  /** What each of the four marks is for. */
-  marks: {
-    approach: string;
-    setup: string;
-    calculation: string;
-    final_answer: string;
-  };
-  /** 2-3 worked anchors. Few-shot anchors beat any instruction about strictness. */
-  examples: {
-    answer: string;
-    observation: RubricObservation;
-    note: string;
-  }[];
-}
-
-export type RubricMap = Record<QuestionId, Rubric>;
-
-/** {"q1": "B", ...}. Lives in tests.answer_key and never leaves the server. */
+/**
+ * {"q1": "B", "q61": "12"}. Lives in tests.answer_key and never leaves the
+ * server. Every one of the 75 questions has an entry — there is no question in
+ * this paper that something other than this map decides.
+ */
 export type AnswerKey = Record<QuestionId, string>;

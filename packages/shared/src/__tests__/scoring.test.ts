@@ -1,19 +1,53 @@
 import { describe, expect, it } from 'vitest';
-import { AWARD_CAP, MCQ_MARKS } from '../config.js';
-import { scoreMcq, scoreRubric, totalScore } from '../scoring.js';
-import type { RubricObservation } from '../types.js';
+import { MCQ_MARKS, PAPER } from '../config.js';
+import { answerMatches, scoreMcq } from '../scoring.js';
+import { samplePaperShape } from './helpers.js';
 
-const observation = (over: Partial<RubricObservation> = {}): RubricObservation => ({
-  approach_correct: false,
-  approach_reason: '',
-  setup_correct: false,
-  calculation_correct: false,
-  calculation_error: null,
-  final_answer_correct: false,
-  units_present: false,
-  confidence: 'high',
-  off_topic_or_blank: false,
-  ...over,
+/**
+ * Scoring is the whole of grading now, so these tests are the thing standing
+ * between a correct answer and a student losing a mark for how their keyboard
+ * produced it.
+ */
+
+describe('answerMatches', () => {
+  it('compares option keys case-insensitively', () => {
+    expect(answerMatches('B', 'b')).toBe(true);
+    expect(answerMatches('B', ' B ')).toBe(true);
+    expect(answerMatches('B', 'C')).toBe(false);
+  });
+
+  it('compares integer answers numerically, not as strings', () => {
+    expect(answerMatches('12', '12')).toBe(true);
+    expect(answerMatches('12', '12.0')).toBe(true);
+    expect(answerMatches('12', '+12')).toBe(true);
+    expect(answerMatches('12', ' 12 ')).toBe(true);
+    expect(answerMatches('12', '012')).toBe(true);
+    expect(answerMatches('12', '13')).toBe(false);
+  });
+
+  it('handles a negative key and a negative answer', () => {
+    expect(answerMatches('-4', '-4')).toBe(true);
+    expect(answerMatches('-4', '-4.00')).toBe(true);
+    expect(answerMatches('-4', '4')).toBe(false);
+  });
+
+  it('matches a decimal key only on its value', () => {
+    expect(answerMatches('2.5', '2.50')).toBe(true);
+    expect(answerMatches('2.5', '2.6')).toBe(false);
+  });
+
+  it('counts a half-typed or non-numeric answer as not matching', () => {
+    // The client lets "9." and "-" exist while being typed; neither is a number.
+    expect(answerMatches('9', '9.')).toBe(true); // Number("9.") === 9
+    expect(answerMatches('9', '-')).toBe(false);
+    expect(answerMatches('9', 'nine')).toBe(false);
+  });
+
+  it('does not treat a non-finite answer as a match for anything', () => {
+    expect(answerMatches('12', 'Infinity')).toBe(false);
+    expect(answerMatches('12', '1e5000')).toBe(false);
+    expect(answerMatches('12', 'NaN')).toBe(false);
+  });
 });
 
 describe('scoreMcq', () => {
@@ -46,27 +80,43 @@ describe('scoreMcq', () => {
     expect(result.score).toBe(4 * MCQ_MARKS.correct);
   });
 
+  it('marks integer questions on the same +4 / -1 scale as the options', () => {
+    const mixed = { q1: 'A', q21: '12', q22: '-4' };
+    const result = scoreMcq(mixed, { q1: 'A', q21: '12.0', q22: '4' });
+    expect(result.correct).toBe(2);
+    expect(result.wrong).toBe(1);
+    expect(result.score).toBe(2 * MCQ_MARKS.correct + MCQ_MARKS.wrong);
+  });
+
   it('ignores answers to questions that are not in the key', () => {
-    // Subjective answers ride in the same map; they must not affect mcq_score.
-    const result = scoreMcq(key, { q1: 'A', q61: 'a long subjective answer' });
+    const result = scoreMcq(key, { q1: 'A', q99: 'B' });
     expect(result.correct).toBe(1);
-    expect(result.breakdown.q61).toBeUndefined();
+    expect(result.breakdown.q99).toBeUndefined();
     expect(Object.keys(result.breakdown)).toHaveLength(4);
   });
 
-  it('scores a full 60-question paper the way the event will', () => {
-    const fullKey = Object.fromEntries(
-      Array.from({ length: 60 }, (_, i) => [`q${i + 1}`, 'ABCD'[i % 4]!]),
-    );
-    const answers = Object.fromEntries(
-      Array.from({ length: 60 }, (_, i) => [
-        `q${i + 1}`,
-        i < 40 ? 'ABCD'[i % 4]! : i < 50 ? 'ABCD'[(i + 1) % 4]! : '',
-      ]),
-    );
-    const result = scoreMcq(fullKey, answers);
-    expect(result).toMatchObject({ correct: 40, wrong: 10, unattempted: 10 });
-    expect(result.score).toBe(40 * 4 + 10 * -1);
+  it('scores a full 75-question paper the way the event will', () => {
+    const { answerKey } = samplePaperShape();
+    const ids = Object.keys(answerKey);
+    expect(ids).toHaveLength(PAPER.totalCount);
+
+    // First 40 right, next 10 wrong, the rest left alone.
+    const answers: Record<string, string> = {};
+    ids.forEach((id, index) => {
+      if (index < 40) answers[id] = answerKey[id]!;
+      else if (index < 50) answers[id] = `${answerKey[id]}x`;
+    });
+
+    const result = scoreMcq(answerKey, answers);
+    expect(result).toMatchObject({ correct: 40, wrong: 10, unattempted: 25 });
+    expect(result.score).toBe(40 * MCQ_MARKS.correct + 10 * MCQ_MARKS.wrong);
+  });
+
+  it('awards the full paper to a perfect attempt', () => {
+    const { answerKey } = samplePaperShape();
+    const result = scoreMcq(answerKey, { ...answerKey });
+    expect(result.correct).toBe(PAPER.totalCount);
+    expect(result.score).toBe(PAPER.maxMarks);
   });
 
   it('produces a per-question breakdown for dispute handling', () => {
@@ -77,99 +127,5 @@ describe('scoreMcq', () => {
       q3: 'unattempted',
       q4: 'unattempted',
     });
-  });
-});
-
-describe('scoreRubric', () => {
-  it('awards one mark per satisfied rubric line', () => {
-    expect(scoreRubric(observation({ approach_correct: true })).raw).toBe(1);
-    expect(
-      scoreRubric(observation({ approach_correct: true, setup_correct: true })).raw,
-    ).toBe(2);
-  });
-
-  it('requires units for the final-answer mark', () => {
-    expect(scoreRubric(observation({ final_answer_correct: true })).raw).toBe(0);
-    expect(
-      scoreRubric(observation({ final_answer_correct: true, units_present: true })).raw,
-    ).toBe(1);
-  });
-
-  it('caps the awarded score at AWARD_CAP while preserving raw', () => {
-    const perfect = scoreRubric(
-      observation({
-        approach_correct: true,
-        setup_correct: true,
-        calculation_correct: true,
-        final_answer_correct: true,
-        units_present: true,
-      }),
-    );
-    expect(perfect.raw).toBe(4);
-    expect(perfect.score).toBe(AWARD_CAP);
-    expect(perfect.score).toBeLessThan(perfect.raw);
-  });
-
-  it('never returns a score above the cap for any combination of observations', () => {
-    const booleans = [false, true];
-    for (const approach_correct of booleans)
-      for (const setup_correct of booleans)
-        for (const calculation_correct of booleans)
-          for (const final_answer_correct of booleans)
-            for (const units_present of booleans)
-              for (const off_topic_or_blank of booleans) {
-                const result = scoreRubric(
-                  observation({
-                    approach_correct,
-                    setup_correct,
-                    calculation_correct,
-                    final_answer_correct,
-                    units_present,
-                    off_topic_or_blank,
-                  }),
-                );
-                expect(result.score).toBeLessThanOrEqual(AWARD_CAP);
-                expect(result.score).toBeGreaterThanOrEqual(0);
-                expect(result.raw).toBeGreaterThanOrEqual(result.score);
-              }
-  });
-
-  it('routes low confidence to review without changing the score', () => {
-    const result = scoreRubric(
-      observation({ approach_correct: true, setup_correct: true, confidence: 'low' }),
-    );
-    expect(result.score).toBe(2);
-    expect(result.needsReview).toBe(true);
-    expect(result.reviewReasons).toContain('grader_low_confidence');
-  });
-
-  it('routes off-topic/blank to review rather than trusting the zero', () => {
-    const result = scoreRubric(
-      observation({ off_topic_or_blank: true, approach_correct: true }),
-    );
-    expect(result.score).toBe(0);
-    expect(result.needsReview).toBe(true);
-    expect(result.reviewReasons).toContain('off_topic_or_blank');
-  });
-
-  it('does not flag a confident ordinary zero for review', () => {
-    const result = scoreRubric(observation({ confidence: 'high' }));
-    expect(result.score).toBe(0);
-    expect(result.needsReview).toBe(false);
-  });
-});
-
-describe('totalScore', () => {
-  it('sums mcq and subjective', () => {
-    expect(totalScore(120, [3, 2, 0, 3])).toEqual({ subjective: 8, total: 128 });
-  });
-
-  it('tolerates a partially graded attempt', () => {
-    // Subjective grading runs over days; the total is recomputed as it advances.
-    expect(totalScore(120, [])).toEqual({ subjective: 0, total: 120 });
-  });
-
-  it('keeps a negative mcq score negative rather than clamping it', () => {
-    expect(totalScore(-5, [1]).total).toBe(-4);
   });
 });

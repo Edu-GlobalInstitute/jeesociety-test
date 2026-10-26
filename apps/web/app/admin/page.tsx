@@ -14,6 +14,7 @@ import { api } from '../../lib/api';
 
 interface Dashboard {
   testId: number;
+  test: { name: string; status: string; paperPublished: boolean } | null;
   stats: {
     registered: number;
     inProgress: number;
@@ -24,12 +25,11 @@ interface Dashboard {
     staleOver4Minutes: number;
     flagged: number;
   };
-  grading: { pending: number; processing: number; done: number; failed: number; total: number };
   jobs: { job: string; status: string; run_after: string; error: string | null }[];
   serverTime: number;
 }
 
-const JOBS = ['auto_submit', 'mcq_score', 'enqueue_grading', 'compute_flags', 'finalise_scores'];
+const JOBS = ['auto_submit', 'mcq_score', 'compute_flags'];
 
 export default function AdminDashboard() {
   const [data, setData] = useState<Dashboard | null>(null);
@@ -51,6 +51,35 @@ export default function AdminDashboard() {
     const timer = setInterval(() => void load(), 10_000);
     return () => clearInterval(timer);
   }, []);
+
+  /**
+   * The go-live switch. A typed reason is required because it is written to
+   * admin_audit, and the confirmation names the consequence rather than asking
+   * "are you sure" — this is the control that decides whether 10,000 students
+   * can get in.
+   */
+  async function setTestStatus(next: 'scheduled' | 'live') {
+    setMessage(null);
+    const reason = window.prompt(
+      next === 'live'
+        ? 'Going live opens the lobby, the paper key and sync for every paid student. Why?'
+        : 'Locking puts every student back on the coming-soon screen. Why?',
+    );
+    if (!reason || reason.trim().length < 3) {
+      setMessage('A reason of at least three characters is required. Nothing was changed.');
+      return;
+    }
+    try {
+      await api('/admin/test-status', {
+        method: 'POST',
+        body: JSON.stringify({ status: next, reason: reason.trim() }),
+      });
+      setMessage(next === 'live' ? 'The test is live.' : 'The test is locked.');
+      void load();
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : 'Could not change the status.');
+    }
+  }
 
   async function runJob(job: string) {
     setMessage(null);
@@ -93,6 +122,12 @@ export default function AdminDashboard() {
         <a href="/admin/review">review queue ({stats.flagged})</a>
       </p>
 
+      {message ? (
+        <p className="muted" style={{ marginTop: 0 }}>
+          {message}
+        </p>
+      ) : null}
+
       {stats.inProgress > 0 && stalePercent >= 1 ? (
         <div className="notice">
           {stats.staleOver4Minutes} of {stats.inProgress} students in progress ({stalePercent}%)
@@ -121,6 +156,38 @@ export default function AdminDashboard() {
       </div>
 
       <section className="panel">
+        <h2 style={{ fontSize: '1rem', marginTop: 0 }}>Access</h2>
+        <p className="muted" style={{ marginTop: 0 }}>
+          {data.test?.status === 'live'
+            ? 'The test is live. Paid students can enter the lobby, open the paper and sync.'
+            : data.test?.status === 'scheduled'
+              ? 'The test is on sale and locked. Registration and payment work; every student '
+                + 'sees the coming-soon screen instead of a lobby.'
+              : `The test is ${data.test?.status ?? 'unknown'}. The worker owns this status; it `
+                + 'cannot be switched from here.'}
+        </p>
+        {data.test?.status === 'scheduled' && !data.test.paperPublished ? (
+          <div className="notice">
+            No paper is published for this test, so it cannot go live. Upload it with
+            tools/build-paper first.
+          </div>
+        ) : null}
+        {data.test?.status === 'scheduled' ? (
+          <button
+            className="btn"
+            disabled={!data.test.paperPublished}
+            onClick={() => void setTestStatus('live')}
+          >
+            Go live
+          </button>
+        ) : data.test?.status === 'live' ? (
+          <button className="btn btn--ghost" onClick={() => void setTestStatus('scheduled')}>
+            Lock the test again
+          </button>
+        ) : null}
+      </section>
+
+      <section className="panel">
         <h2 style={{ fontSize: '1rem', marginTop: 0 }}>Cohort</h2>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
           <tbody>
@@ -141,21 +208,6 @@ export default function AdminDashboard() {
             ))}
           </tbody>
         </table>
-      </section>
-
-      <section className="panel">
-        <h2 style={{ fontSize: '1rem', marginTop: 0 }}>Grading</h2>
-        <p className="muted" style={{ marginTop: 0 }}>
-          {data.grading.total === 0
-            ? 'Nothing enqueued yet.'
-            : `${data.grading.done} of ${data.grading.total} done · ${data.grading.pending} pending · ${data.grading.processing} in flight · ${data.grading.failed} failed`}
-        </p>
-        {data.grading.failed > 0 ? (
-          <div className="notice">
-            {data.grading.failed} grading jobs have failed permanently. Each one is a student
-            with a missing mark — read them before publishing ranks.
-          </div>
-        ) : null}
       </section>
 
       <section className="panel">
@@ -182,11 +234,6 @@ export default function AdminDashboard() {
             })}
           </tbody>
         </table>
-        {message ? (
-          <p className="muted" style={{ marginBottom: 0 }}>
-            {message}
-          </p>
-        ) : null}
       </section>
     </main>
   );

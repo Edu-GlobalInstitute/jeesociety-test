@@ -86,7 +86,7 @@ export function Lobby({ status, clock, onReady }: LobbyProps) {
       // A real sync, not a ping: a check that exercises a different code path
       // from the real thing is not a check. Revision 1 with no answers.
       try {
-        await syncAttempt({ attemptId: id, revision: 1, answers: {}, telemetry: {} });
+        await syncAttempt({ attemptId: id, revision: 1, answers: {} });
         if (cancelled) return;
         set('sync', 'ok');
       } catch (error) {
@@ -127,6 +127,7 @@ export function Lobby({ status, clock, onReady }: LobbyProps) {
 
   return (
     <main className="page">
+      <img className="page__logo" src="/logo.jpeg" alt="JEE Society" width={44} height={44} />
       <h1 className="page__title">{status.name}</h1>
       <p className="page__lede">
         Stay on this page. The test opens automatically when the countdown reaches zero — you do

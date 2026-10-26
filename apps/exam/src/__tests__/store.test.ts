@@ -41,28 +41,20 @@ describe('AnswerStore', () => {
   });
 
   it('persists after the debounce window', async () => {
-    store.setAnswer('q61', 'some working');
+    store.setAnswer('q21', '12');
     await store.flush();
     expect(persisted).toHaveBeenCalled();
     const saved = persisted.mock.calls.at(-1)![0];
-    expect(saved.answers.q61).toBe('some working');
+    expect(saved.answers.q21).toBe('12');
   });
 
-  it('coalesces a burst of typing into one write', async () => {
-    for (let i = 0; i < 50; i += 1) store.setAnswer('q61', 'x'.repeat(i));
+  it('coalesces a burst of changes into one write', async () => {
+    // A student revising an integer answer digit by digit, or clicking through
+    // the four options before settling.
+    for (let i = 0; i < 50; i += 1) store.setAnswer('q21', String(i));
     await store.flush();
     expect(persisted).toHaveBeenCalledTimes(1);
     expect(store.get().revision).toBe(50);
-  });
-
-  it('counts keystrokes and pastes without recording what was typed', async () => {
-    store.recordKeystrokes('q61', 5);
-    store.recordPaste('q61', 400);
-    await store.flush();
-
-    const telemetry = store.get().telemetry.q61!;
-    expect(telemetry).toEqual({ keystrokes: 5, pastes: 1, pastedChars: 400 });
-    expect(JSON.stringify(store.get().telemetry)).not.toContain('x');
   });
 
   it('never lowers the synced revision when acknowledgements arrive late', () => {
@@ -90,12 +82,18 @@ describe('AnswerStore', () => {
   });
 
   it('reports lengths for the snapshot, not text', () => {
-    store.setAnswer('q61', 'hello world');
-    expect(store.lengths()).toEqual({ q61: 11 });
+    store.setAnswer('q1', 'B');
+    store.setAnswer('q21', '12');
+    expect(store.lengths()).toEqual({ q1: 1, q21: 2 });
+  });
+
+  it('carries no answer text in the snapshot it sends for flagging', () => {
+    store.setAnswer('q21', '12');
+    expect(JSON.stringify(store.lengths())).not.toContain('12');
   });
 
   it('adopts server state only when asked, for a replacement machine', async () => {
-    store.adoptServerState({ answers: { q1: 'A' }, telemetry: {}, revision: 42 });
+    store.adoptServerState({ answers: { q1: 'A' }, revision: 42 });
     await store.flush();
     expect(store.get().answers).toEqual({ q1: 'A' });
     expect(store.get().revision).toBe(42);
@@ -108,16 +106,14 @@ describe('IndexedDB round trip', () => {
   it('survives a reload: state written is state read back', async () => {
     const store = new AnswerStore(emptyState('attempt-reload'), saveState, 0);
     store.setAnswer('q1', 'C');
-    store.setAnswer('q61', 'a long derivation');
-    store.recordKeystrokes('q61', 120);
+    store.setAnswer('q21', '12');
     await store.flush();
 
     // A new AnswerStore, as a reloaded page would build.
     const restored = await loadState('attempt-reload');
     expect(restored).toBeDefined();
-    expect(restored!.answers).toEqual({ q1: 'C', q61: 'a long derivation' });
+    expect(restored!.answers).toEqual({ q1: 'C', q21: '12' });
     expect(restored!.revision).toBe(2);
-    expect(restored!.telemetry.q61!.keystrokes).toBe(120);
   });
 
   it('keeps the revision across a reload, so the first sync is not ignored', async () => {

@@ -3,21 +3,17 @@ import { z } from 'zod';
 const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   LOG_LEVEL: z.string().default('info'),
+  /** Neon's pooled endpoint (`-pooler` host). Everything routine goes here. */
   DATABASE_URL: z.string().min(1),
+  /** Neon's direct endpoint. pg_dump and migrations need it; see pool.ts. */
+  DATABASE_URL_UNPOOLED: z.string().default(''),
   PG_POOL_MAX: z.coerce.number().int().positive().default(5),
 
   /** Which loops this process runs. One process can run all of them. */
   WORKER_JOBS: z
     .string()
-    .default('autosubmit,flags,payments,grading')
+    .default('autosubmit,flags,payments')
     .transform((value) => new Set(value.split(',').map((s) => s.trim()).filter(Boolean))),
-
-  GRADING_PROVIDER: z.enum(['anthropic', 'gemini', 'stub']).default('anthropic'),
-  GRADING_MODEL: z.string().default('claude-haiku-5-5'),
-  ANTHROPIC_API_KEY: z.string().default(''),
-  GEMINI_API_KEY: z.string().default(''),
-  /** Start at 10 and raise once you have watched for 429s for a while. */
-  GRADING_CONCURRENCY: z.coerce.number().int().min(1).max(100).default(10),
 
   RAZORPAY_KEY_ID: z.string().default(''),
   RAZORPAY_KEY_SECRET: z.string().default(''),
@@ -45,11 +41,25 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     );
   }
   const env = parsed.data;
-  if (env.NODE_ENV === 'production' && env.WORKER_JOBS.has('grading')) {
-    const key = env.GRADING_PROVIDER === 'anthropic' ? env.ANTHROPIC_API_KEY : env.GEMINI_API_KEY;
-    if (env.GRADING_PROVIDER !== 'stub' && !key) {
-      throw new Error(`grading enabled but no API key for provider ${env.GRADING_PROVIDER}`);
+
+  if (env.NODE_ENV === 'production') {
+    // Verification off against Neon would make the TLS decorative.
+    if (source.PGSSL_NO_VERIFY === 'true') {
+      throw new Error('PGSSL_NO_VERIFY must not be set in production');
+    }
+    // pg_dump cannot run through PgBouncer. Without the direct endpoint the
+    // worker would take no backups and only say so in a log line.
+    if (
+      env.WORKER_JOBS.has('backup') &&
+      env.DATABASE_URL.includes('-pooler') &&
+      !env.DATABASE_URL_UNPOOLED
+    ) {
+      throw new Error(
+        'DATABASE_URL_UNPOOLED must be set when backups run against Neon — ' +
+          'pg_dump cannot use the pooled endpoint',
+      );
     }
   }
+
   return env;
 }

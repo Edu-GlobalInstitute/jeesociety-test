@@ -1,16 +1,14 @@
 import { pino } from 'pino';
-import { closePool, createPool, grading, setPool, type Pool } from '@jee/db';
-import { loadEnv, type Env } from './env.js';
+import { closePool, createPool, setPool, type Pool } from '@jee/db';
+import { loadEnv } from './env.js';
 import { ensureScheduled, runScheduler } from './scheduler.js';
-import { runGradingLanes } from './grading/loop.js';
-import { createGradingProvider } from './grading/provider.js';
 import { reconcilePayments } from './jobs/paymentReconcile.js';
 import { checkPgDumpAvailable, runBackup } from './jobs/backup.js';
 
 /**
  * A plain Node process with no HTTP server. Nothing sends it requests; it polls
- * Postgres. Which loops it runs is set by WORKER_JOBS, so the same image runs
- * as one replica on test day and two or three during grading.
+ * Postgres. Which loops it runs is set by WORKER_JOBS, so the same image can run
+ * as the test-day replica and as the one that takes backups.
  */
 
 const env = loadEnv();
@@ -34,10 +32,7 @@ let running = true;
 const isRunning = () => running;
 const loops: Promise<unknown>[] = [];
 
-log.info(
-  { jobs: [...env.WORKER_JOBS], poolMax: env.PG_POOL_MAX, provider: env.GRADING_PROVIDER },
-  'worker starting',
-);
+log.info({ jobs: [...env.WORKER_JOBS], poolMax: env.PG_POOL_MAX }, 'worker starting');
 
 // Auto-submit is scheduled on boot regardless of which loops are enabled, so a
 // worker that only grades still leaves the safety net on the queue for another.
@@ -46,28 +41,6 @@ await ensureScheduled(pool, log);
 if (env.WORKER_JOBS.has('autosubmit') || env.WORKER_JOBS.has('flags')) {
   loops.push(
     runScheduler({ pool, log, isRunning, pollIntervalMs: env.POLL_INTERVAL_MS }),
-  );
-}
-
-if (env.WORKER_JOBS.has('grading')) {
-  const provider = createGradingProvider(env);
-  log.info(
-    { provider: provider.name, model: env.GRADING_MODEL, lanes: env.GRADING_CONCURRENCY },
-    'grading lanes starting',
-  );
-  loops.push(
-    runGradingLanes({
-      pool,
-      provider,
-      log,
-      concurrency: env.GRADING_CONCURRENCY,
-      isRunning,
-    }).then(async () => {
-      // Roll completed grading up onto the attempts so results stay current as
-      // the queue drains, rather than only at the very end.
-      const { rows } = await pool.query<{ id: number }>(`SELECT id FROM tests`);
-      for (const row of rows) await grading.rollUpScores(row.id, pool);
-    }),
   );
 }
 
@@ -117,9 +90,9 @@ async function interval(everyMs: number, fn: () => Promise<void>): Promise<void>
 }
 
 /**
- * Railway sends SIGTERM on every deploy. Setting running = false stops lanes
- * claiming new work and lets in-flight jobs finish; anything still held is
- * released by its lease a few minutes later regardless.
+ * Railway sends SIGTERM on every deploy. Setting running = false stops the
+ * scheduler claiming new work and lets in-flight jobs finish; anything still
+ * held is released by its lease a few minutes later regardless.
  */
 function shutdown(signal: string): void {
   if (!running) return;

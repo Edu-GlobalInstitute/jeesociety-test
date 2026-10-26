@@ -1,4 +1,4 @@
-import { CLIENT_TIMING, answerLengths, type AnswerMap, type TelemetryMap } from '@jee/shared';
+import { CLIENT_TIMING, answerLengths, type AnswerMap } from '@jee/shared';
 import { emptyState, saveState, type LocalState } from './idb.js';
 
 /**
@@ -87,43 +87,6 @@ export class AnswerStore {
     this.emit();
   }
 
-  /** Counters only — never a keystroke stream. Most of these students are minors. */
-  recordKeystrokes(questionId: string, count = 1): void {
-    const current = this.state.telemetry[questionId] ?? {
-      keystrokes: 0,
-      pastes: 0,
-      pastedChars: 0,
-    };
-    this.state = {
-      ...this.state,
-      telemetry: {
-        ...this.state.telemetry,
-        [questionId]: { ...current, keystrokes: current.keystrokes + count },
-      },
-    };
-    this.scheduleSave();
-  }
-
-  recordPaste(questionId: string, chars: number): void {
-    const current = this.state.telemetry[questionId] ?? {
-      keystrokes: 0,
-      pastes: 0,
-      pastedChars: 0,
-    };
-    this.state = {
-      ...this.state,
-      telemetry: {
-        ...this.state.telemetry,
-        [questionId]: {
-          ...current,
-          pastes: current.pastes + 1,
-          pastedChars: current.pastedChars + chars,
-        },
-      },
-    };
-    this.scheduleSave();
-  }
-
   toggleReview(questionId: string): void {
     const marked = this.state.markedForReview.includes(questionId)
       ? this.state.markedForReview.filter((id) => id !== questionId)
@@ -155,15 +118,10 @@ export class AnswerStore {
    * machine that has no IndexedDB copy — never to overwrite local work, which
    * is always at least as fresh as the server's.
    */
-  adoptServerState(params: {
-    answers: AnswerMap;
-    telemetry: TelemetryMap;
-    revision: number;
-  }): void {
+  adoptServerState(params: { answers: AnswerMap; revision: number }): void {
     this.state = {
       ...this.state,
       answers: params.answers,
-      telemetry: params.telemetry,
       revision: params.revision,
       syncedRevision: params.revision,
     };
@@ -176,7 +134,6 @@ export class AnswerStore {
       attemptId: this.state.attemptId,
       revision: this.state.revision,
       answers: this.state.answers,
-      telemetry: this.state.telemetry,
     };
   }
 

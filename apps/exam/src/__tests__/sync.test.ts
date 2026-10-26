@@ -10,7 +10,7 @@ import {
 } from '../lib/sync.js';
 
 const deps = (over: Partial<SyncDeps> = {}): SyncDeps => ({
-  getSnapshot: () => ({ attemptId: 'a', revision: 5, answers: { q1: 'A' }, telemetry: {} }),
+  getSnapshot: () => ({ attemptId: 'a', revision: 5, answers: { q1: 'A' } }),
   getSyncedRevision: () => 0,
   send: vi.fn().mockResolvedValue({ ok: true, revision: 5, stale: false }),
   onResult: vi.fn(),

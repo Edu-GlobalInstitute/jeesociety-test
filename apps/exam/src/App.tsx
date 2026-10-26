@@ -6,6 +6,7 @@ import { AnswerStore } from './lib/store.js';
 import { emptyState, loadState } from './lib/idb.js';
 import { openPaper } from './lib/paper.js';
 import { submitDelayMs, submitWithBackoff } from './lib/sync.js';
+import { ComingSoon } from './screens/ComingSoon.js';
 import { Lobby } from './screens/Lobby.js';
 import { Exam } from './screens/Exam.js';
 import { SubmitPending, Submitted, Submitting } from './screens/Submitting.js';
@@ -13,17 +14,24 @@ import { SubmitPending, Submitted, Submitting } from './screens/Submitting.js';
 /**
  * The state machine for a student's session.
  *
- *   loading → waiting → lobby → starting → exam → submitting → submitted
- *                                                            ↘ pending
+ *   loading → locked → waiting → lobby → starting → exam → submitting → submitted
+ *                                                                     ↘ pending
  *
  * The transition that matters is `starting`: at `startsAt` the client asks for
  * the decryption key, decrypts the paper it already downloaded in the lobby,
  * and renders. The origin serves a ~200 byte response, not 1.5 MB.
+ *
+ * `locked` is the phase before any of that: the test is on sale but its
+ * `tests.status` is still `scheduled`, so the paper is not open to anyone. The
+ * API refuses register, key and sync in that state, and this phase is what the
+ * student sees instead of a 403.
  */
 
 type Phase =
   | { name: 'loading' }
   | { name: 'error'; message: string }
+  | { name: 'signed-out' }
+  | { name: 'locked'; status: TestStatusResponse }
   | { name: 'waiting'; status: TestStatusResponse }
   | { name: 'lobby'; status: TestStatusResponse }
   | { name: 'starting'; status: TestStatusResponse }
@@ -33,6 +41,27 @@ type Phase =
   | { name: 'pending' };
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/** Where a student who is not signed in is sent. The public site owns auth. */
+const WEB_URL = import.meta.env.VITE_WEB_URL ?? 'http://localhost:3001';
+
+/**
+ * Which phase a status response puts the student in. Shared by boot and by the
+ * poll on the locked screen, so going live is picked up by a tab that has been
+ * sitting open without the two paths being able to disagree.
+ */
+function phaseFor(status: TestStatusResponse, now: number): Phase {
+  if (status.attempt?.submittedAt && status.attempt.receipt) {
+    // Checked before the lock: a student who has already sat the test must
+    // keep seeing their receipt after the row moves on from `live`.
+    return { name: 'submitted', receipt: status.attempt.receipt };
+  }
+  if (!status.examOpen) return { name: 'locked', status };
+  if (now < status.lobbyOpensAt) return { name: 'waiting', status };
+  if (now < status.startsAt) return { name: 'lobby', status };
+  if (status.attempt) return { name: 'starting', status };
+  return { name: 'waiting', status };
+}
 
 async function sampleClock(): Promise<ServerClock> {
   const samples: ClockSample[] = [];
@@ -61,19 +90,16 @@ export function App() {
         const status = await fetchStatus();
         if (cancelled) return;
         setClock(serverClock);
-
-        if (status.attempt?.submittedAt && status.attempt.receipt) {
-          setPhase({ name: 'submitted', receipt: status.attempt.receipt });
-          return;
-        }
-
-        const now = serverClock.now();
-        if (now < status.lobbyOpensAt) setPhase({ name: 'waiting', status });
-        else if (now < status.startsAt) setPhase({ name: 'lobby', status });
-        else if (status.attempt) setPhase({ name: 'starting', status });
-        else setPhase({ name: 'waiting', status });
+        setPhase(phaseFor(status, serverClock.now()));
       } catch (error) {
         if (cancelled) return;
+        if (error instanceof ApiError && error.status === 401) {
+          // Not signed in. Students reach this URL during the weeks before the
+          // paper opens, and an error screen would read as a fault in the test
+          // rather than as "you are not signed in yet".
+          setPhase({ name: 'signed-out' });
+          return;
+        }
         setPhase({
           name: 'error',
           message:
@@ -89,6 +115,28 @@ export function App() {
       cancelled = true;
     };
   }, []);
+
+  /* ------------------------------------------------ locked → waiting --- */
+  /**
+   * A student may leave this tab open for weeks, so the locked screen re-reads
+   * its status every minute rather than waiting for a reload. The cost is one
+   * ~300 byte request per minute per idle tab, and this is the period when
+   * there is no other traffic at all.
+   */
+  useEffect(() => {
+    if (phase.name !== 'locked' || !clock) return;
+    const timer = setInterval(() => {
+      void fetchStatus()
+        .then((next) => {
+          if (next.examOpen) setPhase(phaseFor(next, clock.now()));
+        })
+        .catch(() => {
+          // Nothing to tell the student: the screen they are on is correct
+          // either way, and it will ask again in a minute.
+        });
+    }, 60_000);
+    return () => clearInterval(timer);
+  }, [phase.name, clock]);
 
   /* ------------------------------------------------- waiting → lobby --- */
   useEffect(() => {
@@ -130,7 +178,6 @@ export function App() {
             if (server.revision > 0) {
               store.adoptServerState({
                 answers: server.answers,
-                telemetry: server.telemetry,
                 revision: server.revision,
               });
             }
@@ -210,6 +257,21 @@ export function App() {
         </main>
       );
 
+    case 'signed-out':
+      return (
+        <main className="page">
+          <img className="page__logo" src="/logo.jpeg" alt="JEE Society" width={44} height={44} />
+          <h1 className="page__title">Sign in to reach your test</h1>
+          <p className="page__lede">
+            This is the page you sit the paper on. Sign in with the email you registered with,
+            and come back here on the day.
+          </p>
+          <a className="btn btn--primary" href={`${WEB_URL}/register`}>
+            Sign in on the main site
+          </a>
+        </main>
+      );
+
     case 'error':
       return (
         <main className="page">
@@ -220,6 +282,9 @@ export function App() {
           </button>
         </main>
       );
+
+    case 'locked':
+      return <ComingSoon status={phase.status} />;
 
     case 'waiting':
       return (

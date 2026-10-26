@@ -36,7 +36,6 @@ const sync = (over: Partial<Parameters<typeof syncAttempt>[0]> = {}) =>
       userId: fixture.userId,
       revision: 1,
       answers: {},
-      telemetry: {},
       ip: '203.0.113.1',
       ...over,
     },
@@ -139,7 +138,6 @@ describe('syncAttempt', () => {
         userId: registered.userId,
         revision: 1,
         answers: {},
-        telemetry: {},
         ip: null,
       },
       db.pool,
@@ -148,14 +146,13 @@ describe('syncAttempt', () => {
     expect(attempt!.status).toBe('in_progress');
   });
 
-  it('records telemetry as counters', async () => {
-    await sync({
-      revision: 2,
-      answers: { q61: 'x'.repeat(300) },
-      telemetry: { q61: { keystrokes: 310, pastes: 0, pastedChars: 0 } },
-    });
+  it('stores both answer kinds verbatim', async () => {
+    // An option key and a typed number. The server never normalises either —
+    // scoring compares them, so a round trip that altered them would change a
+    // student's marks.
+    await sync({ revision: 2, answers: { q1: 'B', q21: '12.0', q22: '-4' } });
     const attempt = await getAttempt(fixture.attemptId, db.pool);
-    expect(attempt!.telemetry).toEqual({ q61: { keystrokes: 310, pastes: 0, pastedChars: 0 } });
+    expect(attempt!.answers).toEqual({ q1: 'B', q21: '12.0', q22: '-4' });
   });
 
   it('stores the originating address for the IP-change signal', async () => {

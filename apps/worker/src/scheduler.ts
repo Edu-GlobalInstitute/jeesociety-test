@@ -3,9 +3,7 @@ import { jobs, tests, type Pool } from '@jee/db';
 import type { Logger } from 'pino';
 import { runAutoSubmit } from './jobs/autoSubmit.js';
 import { runMcqScoring } from './jobs/mcqScore.js';
-import { runEnqueueGrading } from './jobs/enqueueGrading.js';
 import { runComputeFlags } from './jobs/computeFlags.js';
-import { grading } from '@jee/db';
 
 /**
  * Claims and runs one-shot jobs from `job_runs`.
@@ -32,9 +30,8 @@ const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
  *
  * Auto-submit is scheduled the moment a test is known, not at the end of the
  * test, so that it exists on the queue well before it is needed. The other
- * post-test jobs are admin-triggered: scoring 10,000 attempts and spending real
- * money on grading are decisions a person should make after reading the
- * reconciliation report.
+ * post-test jobs are admin-triggered: scoring 10,000 attempts is a decision a
+ * person should make after reading the reconciliation report.
  */
 export async function ensureScheduled(pool: Pool, log: Logger): Promise<void> {
   const test = await tests.getCurrentTest(pool);
@@ -56,7 +53,7 @@ export async function runScheduler(deps: SchedulerDeps): Promise<void> {
   while (deps.isRunning()) {
     try {
       await ensureScheduled(pool, log);
-      const run = await jobs.claimNextJobRun(SERVER_TIMING.gradingLockMs, pool);
+      const run = await jobs.claimNextJobRun(SERVER_TIMING.jobLockMs, pool);
 
       if (!run) {
         await sleep(deps.pollIntervalMs);
@@ -75,7 +72,7 @@ export async function runScheduler(deps: SchedulerDeps): Promise<void> {
         );
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        await jobs.failJobRun(run.id, message, SERVER_TIMING.gradingMaxAttempts, pool);
+        await jobs.failJobRun(run.id, message, SERVER_TIMING.jobMaxAttempts, pool);
         log.error({ job: run.job, testId: run.test_id, err: message }, 'job failed');
       }
     } catch (error) {
@@ -103,16 +100,8 @@ async function dispatch(
       return runAutoSubmit(testId, pool, log);
     case 'mcq_score':
       return runMcqScoring(testId, pool, log);
-    case 'enqueue_grading':
-      return runEnqueueGrading(testId, pool, log);
     case 'compute_flags':
       return runComputeFlags(testId, pool, log);
-    case 'finalise_scores': {
-      const updated = await grading.rollUpScores(testId, pool);
-      const counts = await grading.gradingStatus(testId, pool);
-      log.info({ testId, updated, counts }, 'scores rolled up');
-      return { updated, counts };
-    }
     default: {
       const exhaustive: never = job;
       throw new Error(`unknown job ${String(exhaustive)}`);

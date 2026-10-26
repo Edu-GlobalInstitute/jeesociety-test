@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { PAPER } from '@jee/shared/config';
 import { api } from '../../lib/api';
 
 interface Result {
   receipt: string | null;
   status: string;
   submittedAt: string | null;
-  scores: { mcq: number | null; subjective: number | null; total: number | null };
+  scores: { mcq: number | null; total: number | null };
 }
 
 /**
@@ -26,7 +27,7 @@ export default function Results() {
           receipt: state.receipt,
           status: state.status,
           submittedAt: state.submittedAt,
-          scores: { mcq: null, subjective: null, total: null },
+          scores: { mcq: null, total: null },
         }),
       )
       .catch(() => setError('Sign in to see your result.'));
@@ -57,12 +58,10 @@ export default function Results() {
           <section className="panel">
             <h2 style={{ fontSize: '1rem', marginTop: 0 }}>Marks</h2>
             <p className="prose" style={{ marginBottom: 0 }}>
-              {result.scores.mcq === null
-                ? 'Objective marks are published the morning after the test. Written answers are '
-                  + 'read against the rubric over the following days, and your all-India rank '
-                  + 'follows within six days of the test.'
-                : `Objective ${result.scores.mcq}, written ${result.scores.subjective ?? '—'}, `
-                  + `total ${result.scores.total ?? '—'}.`}
+              {result.scores.total === null
+                ? 'Every question on this paper is machine-marked, so marks are published the '
+                  + 'morning after the test and your all-India rank follows the same week.'
+                : `${result.scores.total} marks out of ${PAPER.maxMarks}.`}
             </p>
           </section>
         </>

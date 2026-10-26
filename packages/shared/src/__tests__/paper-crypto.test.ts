@@ -13,8 +13,8 @@ const paper: Paper = {
   name: 'JEE Mock 1',
   durationMinutes: 180,
   questions: [
-    { id: 'q1', kind: 'mcq', subject: 'physics', body: 'A body falls...', options: [{ key: 'A', body: '1' }] },
-    { id: 'q61', kind: 'subjective', subject: 'maths', body: 'Prove that...' },
+    { id: 'q1', kind: 'scq', subject: 'physics', body: 'A body falls...', options: [{ key: 'A', body: '1' }] },
+    { id: 'q21', kind: 'integer', subject: 'physics', body: 'Give the acceleration...', unit: 'm/s²' },
   ],
 };
 

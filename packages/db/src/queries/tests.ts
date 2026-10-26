@@ -1,4 +1,4 @@
-import type { AnswerKey, RubricMap, TestStatus } from '@jee/shared';
+import type { AnswerKey, TestStatus } from '@jee/shared';
 import { one, rows, type Queryable } from '../query.js';
 
 /**
@@ -79,9 +79,10 @@ export async function readPaperKeyForRelease(
 }
 
 /**
- * SECRET. Reads the answer key. Called from exactly one place: the worker's MCQ
+ * SECRET. Reads the answer key. Called from exactly one place: the worker's
  * scoring pass, which runs after the test window has closed. The API process
- * never calls this.
+ * never calls this. It holds an entry for all 75 questions — single-correct and
+ * integer alike — because every question in this paper is machine-marked.
  */
 export async function readAnswerKeyForScoring(
   testId: number,
@@ -93,19 +94,6 @@ export async function readAnswerKeyForScoring(
     db,
   );
   return row?.answer_key ?? null;
-}
-
-/** SECRET-adjacent: rubrics shape the grading prompt and never reach a client. */
-export async function readRubricsForGrading(
-  testId: number,
-  db?: Queryable,
-): Promise<RubricMap | null> {
-  const row = await one<{ rubrics: RubricMap | null }>(
-    `SELECT rubrics FROM tests WHERE id = $1`,
-    [testId],
-    db,
-  );
-  return row?.rubrics ?? null;
 }
 
 export async function setTestStatus(
