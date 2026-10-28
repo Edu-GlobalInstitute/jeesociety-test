@@ -1,0 +1,9 @@
+# Cloudflare Pages: serve index.html for every path, with a 200 rather than a
+# redirect, so the SPA's router handles the URL.
+#
+# Without this, a student who refreshes mid-exam — or whose browser reloads the
+# tab after a crash — gets a 404 from the CDN instead of the app, and the
+# resume path (restore from IndexedDB, re-enter the paper) never runs. That is
+# the one failure this file exists to prevent, so it ships with the app rather
+# than being set in the dashboard where it can be forgotten.
+/*    /index.html   200
