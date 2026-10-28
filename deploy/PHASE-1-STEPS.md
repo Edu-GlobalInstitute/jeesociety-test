@@ -26,7 +26,7 @@ decision for later, not now.
 
 ---
 
-## Step 1 — Push the code to GitHub
+## Step 1 — Push the code to GitHub ✅ DONE 2026-10-29
 
 Railway and Cloudflare both deploy from GitHub, so nothing works until the code
 is there. Three commits are ready on `main`.
@@ -43,12 +43,43 @@ the password.
 
 ---
 
-## Step 2 — Neon: the database
+## Step 2 — Neon: the database ✅ DONE 2026-10-29
+
+Project `ancient-meadow-62709723`, branch `production`, region
+`ap-southeast-1` (correct — same metro as Railway). Server reported
+**PostgreSQL 18.6**.
+
+Migrations applied: `applied 5` — `001_auth`, `002_core`, `003_ops`,
+`004_mcq_only`, `005_student_profile`. Verified afterwards: 13 tables,
+`student_profiles` with 15 columns and the `trg_student_profiles_complete`
+trigger, and both endpoints reachable.
+
+The two connection strings for step 4 differ only by `-pooler`:
+
+```
+POOLED  (DATABASE_URL)
+  ...@ep-sparkling-frost-aopw6f31-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+
+DIRECT  (DATABASE_URL_UNPOOLED)
+  ...@ep-sparkling-frost-aopw6f31.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+```
+
+> **The password in that connection string was pasted into a chat, so treat it
+> as exposed.** Rotate it before real registrations open: Neon console →
+> **Roles** → `neondb_owner` → **Reset password**, then update `DATABASE_URL`
+> and `DATABASE_URL_UNPOOLED` on the Railway service. Nothing else holds a copy.
+
+The steps below are kept for when this is set up again (a fresh branch, or
+after a reset).
+
+---
+
+## Step 2 (reference) — Neon: the database
 
 1. Go to <https://console.neon.tech> and sign up.
 2. **New project**:
    - Name: `jee-test`
-   - Postgres version: **17**
+   - Postgres version: **whatever Neon defaults to** (it served 18.6 here)
    - Region: **AWS Asia Pacific 1 (Singapore)** — `ap-southeast-1`
 3. On the dashboard, find **Connection string**. There is a toggle for
    **Pooled connection**. You need **both** forms:
