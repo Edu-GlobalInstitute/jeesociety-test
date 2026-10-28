@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { TEST_FEE_PAISE } from '@jee/shared/config';
 import { ApiError, api, openCheckout, type RazorpayOrder } from '../../lib/api';
+import { getProfile } from '../../lib/auth';
 import { TEST_WHEN } from '../../lib/testDate';
 
 /**
@@ -27,13 +28,11 @@ interface Status {
 const RUPEES = TEST_FEE_PAISE / 100;
 
 export default function Register() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [mode, setMode] = useState<'sign-in' | 'sign-up'>('sign-up');
   const [status, setStatus] = useState<Status | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Null while unknown; false sends the student to step two. */
+  const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
 
   const refresh = async () => {
     try {
@@ -43,8 +42,28 @@ export default function Register() {
     }
   };
 
+  /**
+   * Sign-in and sign-up used to live on this page behind a `mode` toggle. They
+   * are now /login and /signup, and the profile fields are /complete-profile,
+   * so this page is only the last step: pay, or see what you already have.
+   *
+   * An unauthenticated or unfinished student is sent back to the step they are
+   * actually on, which is also what /payments/order enforces server-side.
+   */
   useEffect(() => {
-    void refresh();
+    void (async () => {
+      const profile = await getProfile().catch(() => null);
+      if (!profile) {
+        window.location.href = '/login';
+        return;
+      }
+      if (!profile.complete) {
+        window.location.href = '/complete-profile';
+        return;
+      }
+      setProfileComplete(true);
+      await refresh();
+    })();
   }, []);
 
   useEffect(() => {
@@ -56,29 +75,6 @@ export default function Register() {
       script.remove();
     };
   }, []);
-
-  async function authenticate(event: React.FormEvent) {
-    event.preventDefault();
-    setBusy(true);
-    setMessage(null);
-    try {
-      await api(`/auth/${mode === 'sign-up' ? 'sign-up' : 'sign-in'}/email`, {
-        method: 'POST',
-        body: JSON.stringify(
-          mode === 'sign-up' ? { email, password, name } : { email, password },
-        ),
-      });
-      await refresh();
-    } catch (error) {
-      setMessage(
-        error instanceof ApiError
-          ? error.message
-          : 'We could not sign you in. Check your details and try again.',
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function pay() {
     setBusy(true);
@@ -126,59 +122,11 @@ export default function Register() {
 
       {message ? <div className="notice">{message}</div> : null}
 
-      {!status ? (
+      {/* Signed in and profile complete, but the status call has not landed:
+          the redirect in the effect above owns every other case. */}
+      {profileComplete === null || !status ? (
         <section className="panel">
-          <h2 style={{ fontSize: '1rem', marginTop: 0 }}>
-            {mode === 'sign-up' ? 'Create your account' : 'Sign in'}
-          </h2>
-          <form onSubmit={authenticate}>
-            {mode === 'sign-up' ? (
-              <div className="field">
-                <label htmlFor="name">Your name</label>
-                <input
-                  id="name"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  autoComplete="name"
-                  required
-                />
-              </div>
-            ) : null}
-            <div className="field">
-              <label htmlFor="email">Email</label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                autoComplete="email"
-                required
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="password">Password</label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                autoComplete={mode === 'sign-up' ? 'new-password' : 'current-password'}
-                minLength={8}
-                required
-              />
-            </div>
-            <button className="btn" type="submit" disabled={busy}>
-              {mode === 'sign-up' ? 'Create account' : 'Sign in'}
-            </button>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              style={{ marginLeft: 10 }}
-              onClick={() => setMode(mode === 'sign-up' ? 'sign-in' : 'sign-up')}
-            >
-              {mode === 'sign-up' ? 'I already have an account' : 'Create an account instead'}
-            </button>
-          </form>
+          <p className="prose">Loading…</p>
         </section>
       ) : status.paid && !status.examOpen ? (
         /* Paid, but the inside is not open yet. The receipt comes first: a

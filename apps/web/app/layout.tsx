@@ -83,7 +83,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <nav className="masthead__nav">
               <a href="/">Home</a>
               <a href="/results">Results</a>
-              <a className="nav-cta" href="/register">
+              <a href="/login">Sign in</a>
+              <a className="nav-cta" href="/signup">
                 Register
                 <span className="nav-cta__arrow" aria-hidden="true">
                   <ArrowIcon />

@@ -39,7 +39,7 @@ export default function Results() {
 
       {error ? (
         <div className="notice">
-          {error} <a href="/register">Sign in</a>
+          {error} <a href="/login">Sign in</a>
         </div>
       ) : null}
 

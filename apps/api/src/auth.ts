@@ -17,6 +17,18 @@ import type { Env } from './env.js';
 export type Auth = ReturnType<typeof createAuth>;
 
 export function createAuth(env: Env, pool: Pool) {
+  // Absent unless both halves are set: a client id with no secret is a broken
+  // button on the sign-in page, which is worse than no button at all.
+  const google =
+    env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+      ? {
+          google: {
+            clientId: env.GOOGLE_CLIENT_ID,
+            clientSecret: env.GOOGLE_CLIENT_SECRET,
+          },
+        }
+      : {};
+
   return betterAuth({
     database: pool,
     secret: env.BETTER_AUTH_SECRET,
@@ -30,6 +42,38 @@ export function createAuth(env: Env, pool: Pool) {
       // Verification is sent but not required to sit the test.
       requireEmailVerification: false,
       minPasswordLength: 8,
+    },
+    /**
+     * Google sign-in, offered alongside email and password rather than instead
+     * of it. Two reasons, both about the morning of the event:
+     *
+     *  - a misconfigured redirect URI is a total auth outage, and a student who
+     *    cannot sign in cannot sit the paper. Keeping passwords working means a
+     *    Google problem is an inconvenience rather than the event;
+     *  - Google returns an email and a name. It does not return a phone number,
+     *    a class or a guardian's consent, so it cannot complete a registration
+     *    on its own. Everything else is collected at /complete-profile, and
+     *    /payments/order refuses an incomplete profile.
+     *
+     * Configured only when both keys are present, so local development and the
+     * test suite run without Google credentials.
+     */
+    socialProviders: google,
+    account: {
+      accountLinking: {
+        /**
+         * A student who registered with a password and later clicks "Continue
+         * with Google" on the same address gets their existing account, not a
+         * second one. Without this they would have two accounts, one of which
+         * holds the payment.
+         *
+         * Safe only because Google is the sole trusted provider here and it
+         * verifies the address it asserts. Adding a provider that does not
+         * verify email would make this an account-takeover path.
+         */
+        enabled: true,
+        trustedProviders: ['google'],
+      },
     },
     session: {
       expiresIn: 60 * 60 * 12,

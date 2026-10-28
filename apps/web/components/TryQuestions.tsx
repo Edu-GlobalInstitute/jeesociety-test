@@ -122,7 +122,7 @@ export function TryQuestions() {
         <h3 className="taster__verdict">{verdict.title}</h3>
         <p className="taster__note">{verdict.note}</p>
         <div className="taster__actions">
-          <a className="btn-sun" href="/register">
+          <a className="btn-sun" href="/signup">
             Take the real paper
             <span className="btn-sun__arrow" aria-hidden="true"><ArrowIcon /></span>
           </a>

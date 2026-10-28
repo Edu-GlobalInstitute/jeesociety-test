@@ -1,0 +1,255 @@
+/*
+ * Sign in, sign up, and finishing a profile.
+ *
+ * These are the first pages on the daylight side of the palette (globals.css):
+ * the poster has done its work, the student has decided, and what is left is a
+ * short form that must not get in the way. So: cream, one column, no animation,
+ * and the single warm accent reserved for the one button that has to be pressed.
+ *
+ * Shared by /login, /signup and /complete-profile, which are the same object at
+ * three lengths.
+ */
+
+.auth {
+  min-height: 72vh;
+  padding: 44px 20px 72px;
+  display: flex;
+  justify-content: center;
+}
+
+.auth__card {
+  width: 100%;
+  max-width: 460px;
+}
+
+/* The profile form carries two columns of short fields on a desktop. */
+.auth__card--wide { max-width: 620px; }
+
+.auth__title {
+  font-family: var(--display);
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 0 0 8px;
+}
+
+.auth__sub {
+  color: var(--ink-soft);
+  margin: 0 0 24px;
+  font-size: 0.98rem;
+}
+
+.auth__panel {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 26px 26px 24px;
+}
+
+/* ── Google ───────────────────────────────────────────────────────────── */
+
+/*
+ * Deliberately not the gold CTA. Google's button is a route in, not the
+ * recommended one — the palette's one shouting accent stays on the form's own
+ * submit, so the page still has a single obvious next action.
+ */
+.auth__google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  width: 100%;
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.98rem;
+  padding: 12px 18px;
+  border-radius: var(--radius);
+  border: 1px solid var(--rule-strong);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.auth__google:hover { background: var(--paper); border-color: var(--ink-faint); }
+.auth__google:disabled { opacity: 0.55; cursor: not-allowed; }
+.auth__google svg { width: 18px; height: 18px; flex: none; }
+
+/* "or" between the two routes in, as a rule with a word sitting on it. */
+.auth__or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+  color: var(--ink-faint);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.auth__or::before,
+.auth__or::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--rule);
+}
+
+/* ── Fields ───────────────────────────────────────────────────────────── */
+
+/* .field comes from globals.css; these are the additions the forms need. */
+
+.auth__row {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1fr 1fr;
+}
+
+@media (max-width: 560px) {
+  .auth__row { grid-template-columns: 1fr; gap: 0; }
+}
+
+.field select,
+.field textarea {
+  font: inherit;
+  padding: 10px 12px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+/* The +91 that sits inside the phone field, so the country code is shown
+   rather than typed — the server strips it either way, but a visible prefix
+   stops the student wondering whether to include it. */
+.field__phone {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.field__phone:focus-within { outline: 3px solid var(--orange); outline-offset: 2px; }
+
+.field__prefix {
+  display: grid;
+  place-items: center;
+  padding: 0 11px;
+  background: var(--paper);
+  border-right: 1px solid var(--rule);
+  color: var(--ink-soft);
+  font-size: 0.94rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.field__phone input {
+  border: 0;
+  border-radius: 0;
+  flex: 1;
+  min-width: 0;
+  outline: none;
+}
+
+.field__hint { font-size: 0.82rem; color: var(--ink-faint); }
+
+/* A field-level error. Navy-toned rather than red: the exam client forbids red
+   (apps/exam/src/styles.css) and the pages leading into it match it. */
+.field__error {
+  font-size: 0.84rem;
+  color: var(--orange-deep);
+  font-weight: 500;
+}
+
+.field input[aria-invalid='true'],
+.field select[aria-invalid='true'] { border-color: var(--orange-deep); }
+
+.auth__check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.auth__check input { margin-top: 3px; flex: none; }
+
+/* The guardian block appears once a date of birth says it is needed, so it is
+   set off as its own region rather than appearing as three loose fields. */
+.auth__guardian {
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--gold);
+  border-radius: var(--radius);
+  background: var(--paper);
+  padding: 18px 18px 4px;
+  margin-bottom: 18px;
+}
+
+.auth__guardian h3 {
+  font-size: 0.95rem;
+  margin: 0 0 4px;
+}
+
+.auth__guardian p {
+  font-size: 0.86rem;
+  color: var(--ink-soft);
+  margin: 0 0 14px;
+}
+
+.auth__submit { width: 100%; margin-top: 4px; }
+
+.auth__alt {
+  margin: 18px 0 0;
+  text-align: center;
+  font-size: 0.93rem;
+  color: var(--ink-soft);
+}
+
+.auth__alt a { font-weight: 600; }
+
+.auth__fine {
+  margin: 22px auto 0;
+  max-width: 460px;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+  line-height: 1.55;
+}
+
+/* ── Progress, on the profile form ────────────────────────────────────── */
+
+.auth__steps {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 20px;
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+}
+
+.auth__step {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.auth__step b {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--ink-soft);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.auth__step--done b { background: var(--answered); color: var(--cream); }
+.auth__step--now b { background: var(--accent); color: var(--cream); }
+.auth__step--now { color: var(--ink); font-weight: 600; }
+.auth__steps span[aria-hidden] { color: var(--rule-strong); }

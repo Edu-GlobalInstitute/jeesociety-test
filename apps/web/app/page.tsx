@@ -93,7 +93,7 @@ export default function Home() {
             </p>
 
             <div className="hero__actions">
-              <a className="btn-sun btn-sun--big" href="/register">
+              <a className="btn-sun btn-sun--big" href="/signup">
                 Register for ₹{RUPEES}
                 <span className="btn-sun__arrow" aria-hidden="true"><ArrowIcon /></span>
               </a>
@@ -219,7 +219,7 @@ export default function Home() {
 
           <Reveal delay={520}>
             <div className="ladder__cta">
-              <a className="btn-sun" href="/register">
+              <a className="btn-sun" href="/signup">
                 Register for ₹{RUPEES}
                 <span className="btn-sun__arrow" aria-hidden="true"><ArrowIcon /></span>
               </a>
@@ -370,7 +370,7 @@ export default function Home() {
               One paper. One all-India rank. One shot at the top band — and nothing more to pay,
               ever.
             </p>
-            <a className="btn-sun btn-sun--big" href="/register">
+            <a className="btn-sun btn-sun--big" href="/signup">
               Register for ₹{RUPEES}
               <span className="btn-sun__arrow" aria-hidden="true"><ArrowIcon /></span>
             </a>

@@ -29,6 +29,24 @@ const EnvSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(32, 'BETTER_AUTH_SECRET must be at least 32 characters'),
   BETTER_AUTH_URL: z.string().url(),
 
+  /**
+   * Google OAuth. Optional: both empty disables the "Continue with Google"
+   * button everywhere rather than rendering one that 500s. Email and password
+   * is always available, so this is an addition, never the only way in.
+   *
+   * The redirect URI registered in Google Cloud must be exactly
+   * `${BETTER_AUTH_URL}/auth/callback/google` — Google matches it as a string.
+   */
+  GOOGLE_CLIENT_ID: z.string().default(''),
+  GOOGLE_CLIENT_SECRET: z.string().default(''),
+
+  /**
+   * Where to send the browser after a social sign-in. Must be an origin in
+   * CORS_ORIGINS; checked at boot, because a wrong value here sends students
+   * to someone else's site carrying a fresh session.
+   */
+  WEB_ORIGIN: z.string().url().default('http://localhost:3001'),
+
   /** Origins allowed to send credentialed requests. Never '*' with credentials. */
   CORS_ORIGINS: z
     .string()
@@ -90,6 +108,16 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     }
     if (env.SERVE_LOCAL_PAPERS) {
       throw new Error('SERVE_LOCAL_PAPERS must be false in production — the CDN serves papers');
+    }
+    // Half-configured Google is the failure that only shows up when a student
+    // clicks the button, so it stops the boot instead.
+    if (Boolean(env.GOOGLE_CLIENT_ID) !== Boolean(env.GOOGLE_CLIENT_SECRET)) {
+      throw new Error('set both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET, or neither');
+    }
+    // An open redirect that hands over a live session. The allowlist is the
+    // same one CORS uses, so there is one list to get right rather than two.
+    if (!env.CORS_ORIGINS.includes(env.WEB_ORIGIN)) {
+      throw new Error('WEB_ORIGIN must be one of CORS_ORIGINS');
     }
   }
 
