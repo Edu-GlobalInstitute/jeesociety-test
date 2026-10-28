@@ -1,11 +1,12 @@
 # Local development + test Postgres only. Production Postgres is a Neon branch in
 # ap-southeast-1 — see SYSTEM_DESIGN.md D-006 and deploy/neon.md. Keep this image's
-# major version in step with Neon's (17) so local runs and the event run the same
-# planner. Bumping the image major needs the old volume thrown away first:
+# major version in step with Neon's (18, checked 2026-10-29) so local runs and
+# the event run the same planner. Bumping the image major needs the old volume
+# thrown away first:
 #   docker compose down -v && pnpm db:up && pnpm migrate && pnpm seed
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     container_name: jee-postgres
     environment:
       POSTGRES_USER: jee

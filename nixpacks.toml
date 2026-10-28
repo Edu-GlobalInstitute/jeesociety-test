@@ -1,14 +1,19 @@
 # Railway build configuration for the api and worker services. Postgres itself
 # is no longer here — it is a Neon branch (see deploy/neon.md).
 #
-# postgresql_17 is here for `pg_dump` only: the worker's backup job shells out
+# postgresql_18 is here for `pg_dump` only: the worker's backup job shells out
 # to it every 15 minutes. It must match Neon's major version or be newer —
 # pg_dump refuses to dump a server newer than itself — and without it the
 # worker boots fine and silently takes no backups, so it is installed for both
 # services rather than relying on a per-service override that someone will
 # forget.
+#
+# Neon served Postgres 18.6 when this was last checked (2026-10-29). This and
+# REQUIRED_PG_DUMP_MAJOR in apps/worker/src/jobs/backup.ts are a pair — raise
+# them together, or the worker either refuses to back up or asserts a version
+# this image does not carry.
 [phases.setup]
-nixPkgs = ['nodejs_20', 'postgresql_17']
+nixPkgs = ['nodejs_20', 'postgresql_18']
 
 [phases.install]
 cmds = ['corepack enable && pnpm install --frozen-lockfile']

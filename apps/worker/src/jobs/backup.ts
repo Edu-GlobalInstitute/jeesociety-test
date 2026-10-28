@@ -24,15 +24,24 @@ import type { Env } from '../env.js';
  * fails — or worse, succeeds against a shifting set of backends.
  */
 
-/** Postgres major version Neon serves; pg_dump must be at least this. */
-export const REQUIRED_PG_DUMP_MAJOR = 17;
+/**
+ * Postgres major version Neon serves; pg_dump must be at least this.
+ *
+ * Verified against the live branch on 2026-10-29: `SELECT version()` reported
+ * PostgreSQL 18.6. Neon upgrades its default major over time, so this is the
+ * one constant here that goes stale on its own -- re-check it against the
+ * branch rather than trusting this line, and raise it together with
+ * nixpacks.toml's nixPkgs entry. The two are a pair: bumping one alone either
+ * disables backups or asserts a version the image does not have.
+ */
+export const REQUIRED_PG_DUMP_MAJOR = 18;
 
 /**
  * `pg_dump` is checked at boot rather than discovered at 02:00 on the day
  * someone needs a restore. Two ways it is wrong: absent from the image, or
- * older than the server — Neon runs Postgres 17, and pg_dump refuses to dump a
- * server newer than itself, which is a clean error that nonetheless means no
- * backups for the whole event.
+ * older than the server — pg_dump refuses to dump a server newer than itself,
+ * which is a clean error that nonetheless means no backups for the whole
+ * event.
  */
 export function checkPgDumpAvailable(): Promise<{ ok: boolean; detail: string }> {
   return new Promise((resolve) => {
@@ -45,7 +54,8 @@ export function checkPgDumpAvailable(): Promise<{ ok: boolean; detail: string }>
       resolve({
         ok: false,
         detail:
-          'pg_dump is not on PATH — install postgresql 17 in the worker image (nixpacks.toml)',
+          'pg_dump is not on PATH — install postgresql '
+          + `${REQUIRED_PG_DUMP_MAJOR} in the worker image (nixpacks.toml)`,
       }),
     );
     probe.on('close', (code) => {
@@ -59,8 +69,9 @@ export function checkPgDumpAvailable(): Promise<{ ok: boolean; detail: string }>
         resolve({
           ok: false,
           detail:
-            `${detail} is older than the Neon server (Postgres ${REQUIRED_PG_DUMP_MAJOR}) ` +
-            'and will refuse every dump — install postgresql 17 in the worker image',
+            `${detail} is older than the Neon server (Postgres ${REQUIRED_PG_DUMP_MAJOR}) `
+            + `and will refuse every dump — install postgresql ${REQUIRED_PG_DUMP_MAJOR} `
+            + 'in the worker image',
         });
         return;
       }
