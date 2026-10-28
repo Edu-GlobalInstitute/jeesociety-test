@@ -10,6 +10,7 @@ import { errorHandler, notFoundHandler } from './middleware/errors.js';
 import { createRateLimiter } from './middleware/rateLimit.js';
 import { attemptRoutes } from './routes/attempt.js';
 import { statusRoutes } from './routes/status.js';
+import { profileRoutes } from './routes/profile.js';
 import { paymentRoutes } from './routes/payments.js';
 import { adminRoutes } from './routes/admin.js';
 
@@ -121,6 +122,7 @@ export function createApp({ env, pool, log, auth }: AppDeps): BuiltApp {
   );
 
   app.use('/test', statusRoutes({ pool, auth: authInstance }));
+  app.use('/profile', profileRoutes({ pool, auth: authInstance, log: logger }));
   app.use('/attempt', attemptRoutes({ pool, auth: authInstance, log: logger }));
   app.use('/admin', adminRoutes({ pool, auth: authInstance, log: logger }));
 

@@ -1,6 +1,6 @@
 import express, { Router } from 'express';
 import { z } from 'zod';
-import { payments, tests, type Pool } from '@jee/db';
+import { payments, profiles, tests, type Pool } from '@jee/db';
 import type { Auth } from '../auth.js';
 import { currentUser, requireUser } from '../middleware/session.js';
 import { badRequest, forbidden, notFound } from '../middleware/errors.js';
@@ -53,6 +53,22 @@ export function paymentRoutes({
 
     if (await payments.hasPaid(me.id, test.id, pool)) {
       throw forbidden('already_paid', 'You have already paid for this test.');
+    }
+
+    /**
+     * The profile gate. This is what makes /complete-profile mandatory rather
+     * than a form a student can navigate past — particularly a Google student,
+     * who arrives here with a session and nothing else.
+     *
+     * Checked server-side at the moment of sale, not just in the UI: taking
+     * ₹300 from someone we have no phone number for means no way to reach them
+     * if the exam date moves, and a refund to arrange by hand.
+     */
+    if (!(await profiles.isComplete(me.id, pool))) {
+      throw forbidden(
+        'profile_incomplete',
+        'Add your mobile number and class before paying.',
+      );
     }
 
     const order = await razorpay.createOrder(config, {

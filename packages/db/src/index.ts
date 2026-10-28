@@ -6,3 +6,4 @@ export * as attempts from './queries/attempts.js';
 export * as jobs from './queries/jobs.js';
 export * as payments from './queries/payments.js';
 export * as admin from './queries/admin.js';
+export * as profiles from './queries/profiles.js';

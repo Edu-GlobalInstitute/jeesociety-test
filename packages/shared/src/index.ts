@@ -1,5 +1,6 @@
 export * from './config.js';
 export * from './types.js';
+export * from './profile.js';
 export * from './contract.js';
 export * from './scoring.js';
 export * from './flags.js';
