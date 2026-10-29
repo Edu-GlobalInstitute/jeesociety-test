@@ -609,7 +609,11 @@ function LeadDrawer({
                 <dt>Signed up</dt>
                 <dd>
                   {lead.signedUpAt ? new Date(lead.signedUpAt).toLocaleString('en-IN') : '—'}
-                  {lead.providers.includes('google') ? ' · Google' : ''}
+                  {/* Google sign-in has been removed, but accounts created
+                      through it before that still carry the provider and have
+                      no password. Worth seeing on the card: such a student
+                      cannot sign in at all until a password is set for them. */}
+                  {lead.providers.includes('google') ? ' · Google (no password)' : ''}
                 </dd>
                 <dt>Payment</dt>
                 <dd>

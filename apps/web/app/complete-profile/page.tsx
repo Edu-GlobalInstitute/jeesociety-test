@@ -14,10 +14,10 @@ import { getProfile } from '../../lib/auth';
 /**
  * Step two: the details Better Auth does not collect.
  *
- * This page is the reason Google sign-in works at all. Google returns an email
- * and a name, and a ₹300 purchase needs a number to reach the student on, the
- * cohort they are in, and a guardian's consent when they are a minor — so there
- * has to be one place to finish, reached the same way from both routes in.
+ * Sign-up collects only what an account needs to exist: a name, an address, a
+ * password. A ₹300 purchase needs more — a number to reach the student on, the
+ * cohort they are in, and a guardian's consent when they are a minor — and
+ * asking for all of it on the first screen is how a sign-up gets abandoned.
  *
  * It is mandatory rather than skippable: POST /payments/order refuses an
  * incomplete profile, so there is no path to checkout around this form.

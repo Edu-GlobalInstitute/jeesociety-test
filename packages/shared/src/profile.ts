@@ -7,10 +7,10 @@ import { z } from 'zod';
  * the rest of contract.ts gives: a field the form allows and the server rejects
  * is a student stuck on a page with no way forward, discovered on the day.
  *
- * This is also what makes Google sign-in work. Google hands back an email and a
- * name; everything a 300-rupee purchase actually needs — a number to reach the
- * student on, which cohort they are in, a guardian's consent when they are a
- * minor — is collected here, after the OAuth round trip and before checkout.
+ * Sign-up asks only for a name, an address and a password. Everything a
+ * 300-rupee purchase actually needs — a number to reach the student on, which
+ * cohort they are in, a guardian's consent when they are a minor — is collected
+ * here, on its own screen and before checkout.
  */
 
 export const INDIAN_STATES = [
@@ -138,7 +138,13 @@ export const ProfileStatusSchema = z.object({
       referralSource: z.string().nullable(),
     })
     .nullable(),
-  /** Whether this account can sign in with a password, or only with Google. */
+  /**
+   * Whether this account has a password to sign in with.
+   *
+   * True for every account created since social sign-in was removed. Accounts
+   * created through Google before that have no password row, and a reset flow
+   * has to tell them apart rather than mailing a link that cannot help.
+   */
   hasPassword: z.boolean(),
   providers: z.array(z.string()),
 });

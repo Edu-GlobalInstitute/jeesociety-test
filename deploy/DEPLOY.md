@@ -13,10 +13,10 @@ Four places get something:
 | **Cloudflare Pages** | `jee-web`, `jee-exam` static sites | free |
 | **Cloudflare R2** | the encrypted paper + backups | ~free at this size |
 
-Plus **Razorpay** (per-transaction) and **Google Cloud** (free, OAuth only).
+Plus **Razorpay** (per-transaction).
 
 The detail for each lives in [neon.md](neon.md), [railway.md](railway.md),
-[cloudflare.md](cloudflare.md) and [google-oauth.md](google-oauth.md). This file
+[cloudflare.md](cloudflare.md). This file
 is the sequence and the things that bite.
 
 ---
@@ -24,14 +24,14 @@ is the sequence and the things that bite.
 ## 0. Before you start
 
 You need: a GitHub account with this repo pushed to it, a card for Railway and
-Neon, a Razorpay account, and a Google account.
+Neon and a Razorpay account.
 
 **Push the repo first.** Railway and Pages both deploy from GitHub, so nothing
 below works until the code is on a branch they can see.
 
 ```bash
 git add -A
-git commit -m "Add login, signup and Google sign-in"
+git commit -m "Add login and signup"
 git push origin main
 ```
 
@@ -130,8 +130,6 @@ BETTER_AUTH_URL=https://<your-api-domain>
 CORS_ORIGINS=https://<web-domain>,https://<exam-domain>
 WEB_ORIGIN=https://<web-domain>
 
-GOOGLE_CLIENT_ID=<from google-oauth.md>
-GOOGLE_CLIENT_SECRET=<from google-oauth.md>
 
 RAZORPAY_KEY_ID=<test key>
 RAZORPAY_KEY_SECRET=<test secret>
@@ -165,24 +163,22 @@ URL is wrong.
 
 ---
 
-## 4. Google OAuth
+## 4. Sign-in
 
-Follow [google-oauth.md](google-oauth.md) in full. The one thing to get exactly
-right: the authorised redirect URI is
+Email and password is the only way in. There is nothing to configure here.
 
-```
-https://<your-api-domain>/auth/callback/google
-```
+Google sign-in was offered and has been removed — `socialProviders` is empty in
+`apps/api/src/auth.ts`, so `/auth/sign-in/social` answers `PROVIDER_NOT_FOUND`
+and no saved link can create an account that bypasses the password. Any
+`GOOGLE_CLIENT_ID` or `GOOGLE_CLIENT_SECRET` still set in the Render dashboard
+is ignored and should be deleted so it cannot look live.
 
-Google string-matches it. A trailing slash is a `redirect_uri_mismatch`.
-
-Then **publish the consent screen** — while it is in "Testing" only the test
-users you listed can sign in, and everyone else is blocked.
-
-> Publishing requires a privacy policy URL and a terms URL. **Those pages do not
-> exist in this repo yet.** You need them before Google sign-in can go live, and
-> you need the privacy policy anyway: most candidates are minors, so the DPDP
-> Act applies. Email and password works without any of this.
+> **There is still no password reset.** No email sending is configured, so a
+> student who forgets their password has no self-service route back in. This is
+> the gap to close before the paper opens — and note that any account created
+> through Google *before* the removal has no password row at all, so those
+> students cannot sign in until one is set for them. See the admin recovery
+> script in [ADMIN-PORTAL.md](ADMIN-PORTAL.md).
 
 ---
 
@@ -229,14 +225,13 @@ web one into `WEB_ORIGIN`.
 
 Pages → the project → **Custom domains**. `test.jeesociety.in` → `jee-web`,
 and something like `exam.jeesociety.in` → `jee-exam`. Then update
-`CORS_ORIGINS`, `WEB_ORIGIN`, `NEXT_PUBLIC_*`, `VITE_*` **and** the Google
-redirect URI to match. Every one of them is a string compare somewhere.
+`CORS_ORIGINS`, `WEB_ORIGIN`, `NEXT_PUBLIC_*` and `VITE_*` to match. Every one
+of them is a string compare somewhere.
 
 > The build plan (§3.2) wants everything on **one** origin —
 > `test.jeesociety.in`, with the API at `/api/*`. That is better: cookies become
-> first-party, CORS disappears, and the Safari/third-party-cookie problem in
-> [google-oauth.md](google-oauth.md) goes away. It is also part of the
-> Cloudflare port, which §2.1 says to skip if the exam is under four weeks out.
+> first-party and CORS disappears. It is also part of the Cloudflare port,
+> which §2.1 says to skip if the exam is under four weeks out.
 > Two origins works today; one origin is where this should land.
 
 ---
@@ -268,11 +263,11 @@ Do this on the deployed site, not locally. In order:
 6. The page polls and flips to "payment is recorded".
 7. In Razorpay's dashboard → Webhooks, the delivery shows **200**.
 8. Sign out. Sign in at `/login`. You land on `/register`, already paid.
-9. **Google:** sign in with a Google account that has never used the site.
-   Confirm it lands on `/complete-profile` and that you cannot reach checkout
-   before saving it.
-10. **Linking:** sign in with Google using the address you registered with by
-    password. Confirm it is the *same* account, not a second one.
+9. **Profile gate:** with a fresh account, confirm `/register` sends you to
+   `/complete-profile` and that checkout is unreachable until it is saved.
+10. **No social route:** `POST /auth/sign-in/social` with
+    `{"provider":"google"}` must answer `PROVIDER_NOT_FOUND`. If it returns a
+    URL, the deployed build still has a provider configured.
 
 If step 7 shows anything other than 200, stop and fix it. A failing webhook
 means students pay and get nothing, and the reconciliation job only partly
@@ -355,10 +350,7 @@ it repeats the bill silently until someone notices.
 | API boot loop, log names a variable | A production guard doing its job. Set it. |
 | `/health` OK, `/ready` 503 | `DATABASE_URL` wrong, or Neon compute suspended |
 | Student pays, no access | Webhook secret mismatch, or the URL still points at the old domain. Check Razorpay → Webhooks for non-200s. |
-| `redirect_uri_mismatch` | Google's URI is not exactly `${BETTER_AUTH_URL}/auth/callback/google` |
-| Google works, then "That did not work" on `/auth/callback` | Session cookie set but not sent back — two-origin third-party cookie. See [google-oauth.md](google-oauth.md). |
 | `/profile` 500s, nobody can pay | Migration `005` not applied |
-| "Access blocked" on Google for everyone but you | Consent screen still in Testing. Publish it. |
 | CORS errors in the browser console | A Pages domain missing from `CORS_ORIGINS`, exactly (scheme, no trailing slash) |
 | Exam client 404s on refresh | `_redirects` missing from `apps/exam/public/` |
 | Worker runs, no backups | `pg_dump` absent or older than Postgres 17 |

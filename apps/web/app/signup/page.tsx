@@ -5,7 +5,6 @@ import { TEST_FEE_PAISE } from '@jee/shared/config';
 import '../auth.css';
 import { ApiError } from '../../lib/api';
 import { getProfile, nextStepFor, signUp } from '../../lib/auth';
-import { GoogleButton } from '../../components/GoogleButton';
 import { TEST_WHEN } from '../../lib/testDate';
 
 /**
@@ -13,8 +12,8 @@ import { TEST_WHEN } from '../../lib/testDate';
  *
  * Only what Better Auth needs to exist: a name, an address, a password. The
  * phone number, class and guardian consent are step two (/complete-profile),
- * because Google sign-in cannot supply them and one profile form serving both
- * routes in beats two that drift apart.
+ * which keeps this first screen short and leaves one profile form to maintain
+ * rather than a long sign-up that repeats it.
  *
  * Splitting it this way also shortens the first screen a student meets after
  * deciding to spend ₹300, which is the screen most likely to be abandoned.
@@ -107,10 +106,6 @@ export default function SignUp() {
         </p>
 
         <div className="auth__panel">
-          <GoogleButton next="/register" disabled={busy || checking} label="Sign up with Google" />
-
-          <div className="auth__or">or</div>
-
           {error ? (
             <div className="notice" role="alert">
               {error}

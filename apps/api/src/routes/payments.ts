@@ -61,8 +61,9 @@ export function paymentRoutes({
 
     /**
      * The profile gate. This is what makes /complete-profile mandatory rather
-     * than a form a student can navigate past — particularly a Google student,
-     * who arrives here with a session and nothing else.
+     * than a form a student can navigate past: sign-up does not collect a
+     * phone number, so a student reaches this point with a session and little
+     * else.
      *
      * Checked server-side at the moment of sale, not just in the UI: taking
      * ₹300 from someone we have no phone number for means no way to reach them

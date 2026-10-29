@@ -35,20 +35,9 @@ const EnvSchema = z.object({
     .refine((value) => value.length === 0 || value.length >= 32, 'ADMIN_BOOTSTRAP_SECRET must be at least 32 characters'),
 
   /**
-   * Google OAuth. Optional: both empty disables the "Continue with Google"
-   * button everywhere rather than rendering one that 500s. Email and password
-   * is always available, so this is an addition, never the only way in.
-   *
-   * The redirect URI registered in Google Cloud must be exactly
-   * `${BETTER_AUTH_URL}/auth/callback/google` — Google matches it as a string.
-   */
-  GOOGLE_CLIENT_ID: z.string().default(''),
-  GOOGLE_CLIENT_SECRET: z.string().default(''),
-
-  /**
-   * Where to send the browser after a social sign-in. Must be an origin in
-   * CORS_ORIGINS; checked at boot, because a wrong value here sends students
-   * to someone else's site carrying a fresh session.
+   * The site's own origin. Must be one of CORS_ORIGINS; checked at boot,
+   * because anything that redirects a signed-in student reads this, and a wrong
+   * value sends them to someone else's site carrying a fresh session.
    */
   WEB_ORIGIN: z.string().url().default('http://localhost:3001'),
 
@@ -113,11 +102,6 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     }
     if (env.SERVE_LOCAL_PAPERS) {
       throw new Error('SERVE_LOCAL_PAPERS must be false in production — the CDN serves papers');
-    }
-    // Half-configured Google is the failure that only shows up when a student
-    // clicks the button, so it stops the boot instead.
-    if (Boolean(env.GOOGLE_CLIENT_ID) !== Boolean(env.GOOGLE_CLIENT_SECRET)) {
-      throw new Error('set both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET, or neither');
     }
     // An open redirect that hands over a live session. The allowlist is the
     // same one CORS uses, so there is one list to get right rather than two.

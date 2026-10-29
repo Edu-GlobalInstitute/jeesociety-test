@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import '../auth.css';
 import { ApiError } from '../../lib/api';
 import { getProfile, nextStepFor, signIn } from '../../lib/auth';
-import { GoogleButton } from '../../components/GoogleButton';
 
 /**
  * Sign in.
@@ -89,10 +88,6 @@ export default function Login() {
         </p>
 
         <div className="auth__panel">
-          <GoogleButton next="/register" disabled={busy || checking} label="Sign in with Google" />
-
-          <div className="auth__or">or</div>
-
           {error ? (
             <div className="notice" role="alert">
               {error}
@@ -135,9 +130,13 @@ export default function Login() {
           </p>
         </div>
 
+        {/* Google sign-in was removed, and there is no password reset flow yet
+            (no email sending is configured), so a student who cannot get in has
+            no self-service route. Saying who to contact is the honest thing
+            here; a "forgot password" link would lead nowhere. */}
         <p className="auth__fine">
-          Signed up with Google? Use the Google button — an account created that way has no
-          password to type.
+          Can’t get in? Write to us from the address you registered with and we will sort it
+          out.
         </p>
       </div>
     </main>

@@ -3,7 +3,7 @@
 **Scope:** the public funnel on `test.jeesociety.in` — landing page, create an
 account, sign in, and pay with **test** keys so no real money moves.
 
-**Not in this phase:** Google sign-in (code is in, switched off), the exam
+**Not in this phase:** the exam
 client, the admin panel, the paper, real payments.
 
 Follow the steps in order. Where a step produces a value the next one needs, it
@@ -163,9 +163,10 @@ The webhook itself gets configured in step 5, once you have an API URL.
    SERVE_LOCAL_PAPERS=false
    ```
 
-   Leave `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` **out entirely**. The
-   Google button then hides itself and email/password is unaffected. Setting
-   only one of the pair refuses to boot on purpose.
+   There are no social-provider variables: email and password is the only way
+   in. Delete any `GOOGLE_CLIENT_ID` or `GOOGLE_CLIENT_SECRET` still set in the
+   dashboard — they are ignored now, and leaving them there makes it look as
+   though a second route in is live.
 
    `BETTER_AUTH_SECRET` signs every session cookie. **Changing it later signs
    out every student**, so set it once and leave it alone.
@@ -332,14 +333,14 @@ the Railway log.
 
 Then I will do the next piece. In rough order of what matters:
 
-- **privacy policy + terms pages** — needed for Google sign-in to be publishable
-  at all, and needed anyway under the DPDP Act because most candidates are
-  minors
-- **forgot-password / reset-password** — not built yet; a student who forgets
-  their password currently has no route back in
+- **forgot-password / reset-password** — not built yet, and now the only way in
+  is a password, so a student who forgets theirs has no route back in at all.
+  This is the most urgent gap.
+- **privacy policy + terms pages** — required under the DPDP Act because most
+  candidates are minors
 - **email sending** — nothing is emailed yet, including the payment receipt
 - **the admit card page**
-- then: Google sign-in, the exam client, the admin panel, the paper
+- then: the exam client and the paper pipeline
 
 ---
 

@@ -179,10 +179,10 @@ export async function phoneTakenByOther(
 /**
  * Which providers an account can sign in with.
  *
- * The site needs this to answer one question honestly: a student who signed up
- * with Google and lands on "forgot password" has no password to reset, and
- * telling them to check their inbox would leave them waiting for an email that
- * is never coming.
+ * The site needs this to answer one question honestly: an account created
+ * through Google, before social sign-in was removed, has no password row at
+ * all. Such a student cannot sign in now, and telling them to reset a password
+ * they never had would leave them waiting for an email that cannot help.
  */
 export async function authProviders(userId: string, db?: Queryable): Promise<string[]> {
   const list = await rows<{ providerId: string }>(

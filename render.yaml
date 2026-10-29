@@ -87,9 +87,10 @@ services:
       #   RAZORPAY_WEBHOOK_SECRET  a string you invent; the same one goes in
       #                            Razorpay's dashboard
       #
-      # GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are intentionally absent: with
-      # neither set the "Continue with Google" button hides itself and
-      # email-and-password is unaffected. Setting only one refuses to boot.
+      # There are no social-provider variables. Email and password is the only
+      # way in; see apps/api/src/auth.ts. Any GOOGLE_CLIENT_ID or
+      # GOOGLE_CLIENT_SECRET left in the dashboard is now ignored and should be
+      # deleted so it cannot look like a live configuration.
       - key: DATABASE_URL
         sync: false
       - key: DATABASE_URL_UNPOOLED

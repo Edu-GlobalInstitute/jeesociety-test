@@ -33,35 +33,6 @@ export function signOut() {
   return api('/auth/sign-out', { method: 'POST', body: '{}' });
 }
 
-/**
- * Starts the Google round trip.
- *
- * Two steps, because Better Auth's /sign-in/social is a POST that returns the
- * provider URL as JSON rather than a 302: ask for the URL, then navigate to it.
- * A plain link cannot do this, which is why the button is a <button>.
- *
- * `callbackURL` is where Google's round trip lands the student once the session
- * cookie is set. It is validated server-side against the API's own allowlist
- * (WEB_ORIGIN), so a tampered value cannot carry a live session off-site.
- *
- * `next` rides along in the query string so a student who clicked "Register"
- * comes back to the registration flow rather than the home page.
- */
-export async function signInWithGoogle(next = '/register'): Promise<void> {
-  const callbackURL = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
-  const { url, redirect } = await api<{ url: string; redirect: boolean }>(
-    '/auth/sign-in/social',
-    {
-      method: 'POST',
-      body: JSON.stringify({ provider: 'google', callbackURL }),
-    },
-  );
-  // `redirect: false` means the provider is misconfigured server-side (no
-  // client id, usually). Surfacing it beats navigating to `undefined`.
-  if (!redirect || !url) throw new ApiError(500, 'google_unavailable', 'Google sign-in is unavailable.');
-  window.location.href = url;
-}
-
 export interface ProfileState {
   complete: boolean;
   profile: {

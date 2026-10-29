@@ -10,11 +10,10 @@ import type { Logger } from '../logger.js';
 /**
  * The registration fields Better Auth does not collect (BUILD_PLAN s7.1).
  *
- * This route exists because of Google sign-in. An email-and-password student
- * could in principle submit everything in one form, but a Google student
- * arrives back from the OAuth round trip with an account, a session, and no
- * phone number — so there has to be a place to finish, and one place is better
- * than two code paths that drift.
+ * Sign-up asks only for what an account needs to exist, so a student arrives
+ * here with a session and no phone number. Keeping these fields on their own
+ * route means the first screen after deciding to pay stays short, and there is
+ * one form to maintain rather than a long sign-up that repeats it.
  *
  * `/payments/order` refuses an incomplete profile, which is what makes this
  * mandatory rather than a form students can skip past.
@@ -58,8 +57,10 @@ export function profileRoutes({
             referralSource: profile.referral_source,
           }
         : null,
-      // A Google-only account has no password row, so "forgot password" would
-      // send an email that can never arrive. The site reads this to say so.
+      // Every account now signs in with a password, so this is true for all of
+      // them -- kept because accounts created before social sign-in was removed
+      // may still have no password row, and a reset flow will need to tell
+      // those students apart rather than mailing a link that cannot help.
       hasPassword: providers.includes('credential'),
       providers,
     });

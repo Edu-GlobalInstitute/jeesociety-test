@@ -18,18 +18,6 @@ import type { Env } from './env.js';
 export type Auth = ReturnType<typeof createAuth>;
 
 export function createAuth(env: Env, pool: Pool) {
-  // Absent unless both halves are set: a client id with no secret is a broken
-  // button on the sign-in page, which is worse than no button at all.
-  const google =
-    env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
-      ? {
-          google: {
-            clientId: env.GOOGLE_CLIENT_ID,
-            clientSecret: env.GOOGLE_CLIENT_SECRET,
-          },
-        }
-      : {};
-
   return betterAuth({
     database: pool,
     secret: env.BETTER_AUTH_SECRET,
@@ -45,37 +33,24 @@ export function createAuth(env: Env, pool: Pool) {
       minPasswordLength: 8,
     },
     /**
-     * Google sign-in, offered alongside email and password rather than instead
-     * of it. Two reasons, both about the morning of the event:
+     * No social providers.
      *
-     *  - a misconfigured redirect URI is a total auth outage, and a student who
-     *    cannot sign in cannot sit the paper. Keeping passwords working means a
-     *    Google problem is an inconvenience rather than the event;
-     *  - Google returns an email and a name. It does not return a phone number,
-     *    a class or a guardian's consent, so it cannot complete a registration
-     *    on its own. Everything else is collected at /complete-profile, and
-     *    /payments/order refuses an incomplete profile.
+     * Google sign-in was offered and has been removed: email and password is
+     * the only way in. Removing it here, rather than only hiding the button, is
+     * what makes that true -- /auth/sign-in/social answers
+     * PROVIDER_NOT_FOUND once this is empty, so a saved link or a crafted
+     * request cannot create an account that bypasses the password.
      *
-     * Configured only when both keys are present, so local development and the
-     * test suite run without Google credentials.
+     * `account.accountLinking` went with it. It existed so that a student who
+     * had registered with a password and later used Google got their existing
+     * account rather than a second one holding no payment; with one route in
+     * there is nothing to link.
+     *
+     * Note for anyone turning a provider back on: an account created through
+     * one has no password row, and this deployment has no email sending, so
+     * such a student has no reset path. Add password reset first.
      */
-    socialProviders: google,
-    account: {
-      accountLinking: {
-        /**
-         * A student who registered with a password and later clicks "Continue
-         * with Google" on the same address gets their existing account, not a
-         * second one. Without this they would have two accounts, one of which
-         * holds the payment.
-         *
-         * Safe only because Google is the sole trusted provider here and it
-         * verifies the address it asserts. Adding a provider that does not
-         * verify email would make this an account-takeover path.
-         */
-        enabled: true,
-        trustedProviders: ['google'],
-      },
-    },
+    socialProviders: {},
     session: {
       expiresIn: 60 * 60 * 12,
       // Rolling refresh, at most hourly, so a 3-hour test never expires under
