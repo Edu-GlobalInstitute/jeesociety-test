@@ -1,0 +1,93 @@
+# Render blueprint for the API.
+#
+# Phase 1 only: the public funnel (landing page, sign-up, sign-in, payment in
+# Razorpay test mode). The site itself is on Cloudflare Pages; this is the
+# Express API from apps/api.
+#
+# Not here, deliberately:
+#   - the `worker` service. It does auto-submit, scoring and backups, none of
+#     which have anything to act on before a paper exists.
+#   - a database. Postgres is a Neon branch in ap-southeast-1 (deploy/neon.md),
+#     not a Render instance, so nothing here provisions one.
+#
+# On the free plan this service sleeps after 15 minutes idle and the next
+# request pays ~30-60s to wake it. That is acceptable while the site is only
+# taking early registrations and is NOT acceptable for the event: at 25,000
+# students the exam hour needs roughly 4 replicas of 2 vCPU / 2 GB (see
+# deploy/railway.md for the sizing). Move off free before the paper opens.
+
+services:
+  - type: web
+    name: jee-api
+    runtime: node
+    plan: free
+    # Singapore. Neon's branch is in ap-southeast-1 and the API makes several
+    # queries per request, so a region on another continent taxes all of them.
+    region: singapore
+    branch: main
+
+    # pnpm, not npm: this is a workspace monorepo and `npm install` resolves
+    # the workspace: protocol differently, producing a tree that builds and
+    # then fails at runtime. --frozen-lockfile makes a drifted lockfile a build
+    # failure rather than a silent version change.
+    buildCommand: >-
+      corepack enable &&
+      pnpm install --frozen-lockfile &&
+      pnpm -r --filter @jee/shared --filter @jee/db --filter @jee/api build
+    startCommand: node apps/api/dist/server.js
+
+    # Touches the database: an API that cannot reach Postgres is not ready to
+    # take a student's registration. /health answers without querying.
+    healthCheckPath: /ready
+
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NODE_ENV
+        value: production
+      - key: PG_POOL_MAX
+        # Small on purpose: the free instance has 512 MB, and Neon's pooler
+        # multiplexes anyway, so a large pool here buys nothing and costs RAM.
+        value: "5"
+      - key: TRUST_PROXY_HOPS
+        # Render's edge is one hop. Never `true`: trusting every hop lets a
+        # client forge X-Forwarded-For and defeat the rate limiter.
+        value: "1"
+      - key: SERVE_LOCAL_PAPERS
+        value: "false"
+      - key: CORS_ORIGINS
+        value: https://test.jeesociety.in
+      - key: WEB_ORIGIN
+        # Must be one of CORS_ORIGINS; the API refuses to boot otherwise,
+        # because a wrong value here redirects a student carrying a live
+        # session to an origin we do not control.
+        value: https://test.jeesociety.in
+
+      # Set by hand in the Render dashboard, never committed:
+      #   DATABASE_URL             Neon POOLED  (hostname contains -pooler)
+      #   DATABASE_URL_UNPOOLED    Neon DIRECT  (same hostname, no -pooler)
+      #   BETTER_AUTH_SECRET       32+ random chars; rotating it signs out every
+      #                            student, so set it once
+      #   BETTER_AUTH_URL          https://<this service's own render.com host>
+      #   RAZORPAY_KEY_ID
+      #   RAZORPAY_KEY_SECRET
+      #   RAZORPAY_WEBHOOK_SECRET  a string you invent; the same one goes in
+      #                            Razorpay's dashboard
+      #
+      # GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are intentionally absent: with
+      # neither set the "Continue with Google" button hides itself and
+      # email-and-password is unaffected. Setting only one refuses to boot.
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_URL_UNPOOLED
+        sync: false
+      - key: BETTER_AUTH_SECRET
+        sync: false
+      - key: BETTER_AUTH_URL
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
