@@ -44,9 +44,10 @@ export function requireUser(auth: Auth): RequestHandler {
  *   admin_access_log there would be no trace of someone trying an admin
  *   account repeatedly.
  *
- * The grace period is what keeps this from being a lockout. The first admin row
- * is always created by hand in SQL, by someone who then has to sign in and set
- * up an authenticator — so an admin without 2FA is allowed through until
+ * The grace period is what keeps this from being a lockout. The first admin
+ * account is initialized through the bootstrap route (or, for an existing
+ * account, by a one-time SQL grant), after which the admin can sign in and set
+ * up an authenticator. An admin without 2FA is allowed through until
  * `mfa_grace_until`, and refused after it.
  */
 export function requireAdmin(auth: Auth, pool: Pool): RequestHandler {

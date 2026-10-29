@@ -32,13 +32,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [access, setAccess] = useState<'checking' | 'ready' | 'error'>('checking');
 
   useEffect(() => {
+    if (pathname === '/admin/login') return;
     let live = true;
     void getProfile()
       .then((profile) => {
         if (!live) return;
         if (!profile) {
           const next = `${window.location.pathname}${window.location.search}`;
-          window.location.replace(`/login?next=${encodeURIComponent(next)}`);
+          window.location.replace(`/admin/login?next=${encodeURIComponent(next)}`);
           return;
         }
         setAccess('ready');
@@ -49,7 +50,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return () => {
       live = false;
     };
-  }, []);
+  }, [pathname]);
+
+  if (pathname === '/admin/login') return <div className="admin admin--login">{children}</div>;
 
   if (access !== 'ready') {
     return (
@@ -88,6 +91,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <a className="admin__exit" href="/">
           View site
         </a>
+        <button
+          className="admin__exit admin__logout"
+          type="button"
+          onClick={async () => {
+            try {
+              await (await import('../../lib/auth')).signOut();
+            } finally {
+              window.location.href = '/admin/login';
+            }
+          }}
+        >
+          Log out
+        </button>
       </header>
       {children}
     </div>

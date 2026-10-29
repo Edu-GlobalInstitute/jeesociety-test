@@ -10,42 +10,67 @@ Three screens, behind a row in the `admins` table.
 | Live console | `/admin/live` | The during-test dashboard (was `/admin`) |
 | Review queue | `/admin/review` | Flagged attempts |
 
-## Before it works: two steps
+## Before it works: apply migrations and provision the admin account
 
 ### 1. Run the migration
 
-`006_admin_portal.sql` adds five tables and three columns. It has not been run
-yet — the deploy denied the command when it was attempted from here.
+`006_admin_portal.sql` adds the admin portal tables and columns. `007_admin_2fa.sql` adds the authenticator schema. Apply all pending migrations from the repository root:
 
-```bash
-cd "D:/Orvinex Software Solution/testseries/packages/db"
-DATABASE_URL="<your Neon pooled URL>" npx tsx src/cli/migrate.ts
+```powershell
+cd "D:/Orvinex Software Solution/testseries"
+$env:DATABASE_URL = "<your Neon pooled URL>"
+npx --yes pnpm@9.15.4 migrate
+Remove-Item Env:DATABASE_URL
 ```
 
 It derives Neon's **direct** endpoint from the pooled one by itself (DDL is
 session work and the pooler cannot carry an advisory lock), so the pooled URL is
-the right thing to pass. Expect `applied 1: 006_admin_portal.sql`.
+the right thing to pass. Expect both admin migrations to be listed as applied.
 
 Re-running it is safe: every statement is `IF NOT EXISTS` or idempotent, and
 `schema_migrations` records what has been applied.
 
-### 2. Make yourself an admin
+### 2. Bootstrap the fixed admin
 
-Admin is a row in `admins`, checked on **every request** rather than from a
-claim in the session cookie, so access can be revoked immediately. Run this in
-the Neon SQL editor:
+The only admin identity is `jeesocietydev@gmail.com`. Access is checked on
+**every request** rather than from a claim in the session cookie. Use the
+dedicated setup form below for a new account. If the account already exists,
+grant its existing user row in Neon:
 
 ```sql
 INSERT INTO admins (user_id, note)
 SELECT "id", 'founder'
   FROM "user"
- WHERE "email" = 'mk1842454@gmail.com'
+ WHERE lower("email") = lower('jeesocietydev@gmail.com')
 ON CONFLICT (user_id) DO NOTHING;
 ```
 
-You must have signed up on the site first — there is no row in `"user"` to
-reference otherwise. Without this, every admin screen answers
-403 `not_admin`, which is what it should do.
+This inserts no row unless the exact admin account already exists in `"user"`. The API rejects other email addresses even if an `admins` row is present.
+
+## Dedicated admin sign-in
+
+The admin sign-in page is `/admin/login`. It uses the fixed account
+`jeesocietydev@gmail.com`, and the API enforces that same email as the only
+admin identity. The admin bar has a **Log out** button; student login remains
+at `/login`.
+
+For a first-time setup, create a private setup code and add it to the Render
+service as `ADMIN_BOOTSTRAP_SECRET`. Generate one locally with:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+```
+
+Do not paste the code into chat or commit it. Open `/admin/login` → **First
+time? Set up the admin account**, enter the code, choose a password and confirm
+it. The account is created and granted admin access in one flow. Remove
+`ADMIN_BOOTSTRAP_SECRET` from Render after setup, then redeploy. If the account
+already exists, use **Admin sign in** with its existing password instead; the
+setup form deliberately refuses to replace an existing account's password.
+
+The setup code exists because email verification is not configured. A public
+form that lets anyone set the password for a known email address would let
+someone else claim the admin account.
 
 ## What was added to the schema
 

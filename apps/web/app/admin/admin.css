@@ -45,6 +45,20 @@ body:has(.admin) > .foot {
   font-size: 0.9rem;
 }
 
+.admin--login .auth {
+  min-height: 100vh;
+  align-items: center;
+  background: var(--admin-bg);
+}
+.admin--login .auth__card {
+  max-width: 440px;
+  padding: 30px;
+  border: 1px solid var(--admin-line);
+  border-radius: 12px;
+  background: var(--admin-panel);
+  box-shadow: 0 12px 40px rgba(16, 24, 40, 0.08);
+}
+
 /* ── Top bar ──────────────────────────────────────────────────────────── */
 
 .admin__bar {
@@ -103,6 +117,44 @@ body:has(.admin) > .foot {
   white-space: nowrap;
 }
 .admin__exit:hover { color: #fff; }
+.admin__logout {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.admin-login__password { position: relative; }
+.admin-login__password .inp { padding-right: 64px; }
+.admin-login__toggle {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  border: 0;
+  padding: 5px;
+  background: transparent;
+  color: var(--navy);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.auth__eyebrow {
+  margin: 0 0 10px;
+  color: var(--ink-faint);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.admin-login__mode {
+  display: block;
+  margin: 18px auto 0;
+  color: var(--navy);
+  font-size: 0.9rem;
+}
 
 /* ── Page scaffolding ─────────────────────────────────────────────────── */
 

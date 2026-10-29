@@ -15,6 +15,7 @@ import { paymentRoutes } from './routes/payments.js';
 import { adminRoutes } from './routes/admin.js';
 import { adminCrmRoutes } from './routes/admin-crm.js';
 import { adminSecurityRoutes } from './routes/admin-security.js';
+import { adminBootstrapRoutes } from './routes/admin-bootstrap.js';
 import { adminTestRoutes } from './routes/admin-tests.js';
 import { adminUploadRoutes } from './routes/admin-uploads.js';
 import { paperRoutes } from './routes/papers.js';
@@ -149,6 +150,17 @@ export function createApp({ env, pool, log, auth }: AppDeps): BuiltApp {
   app.use('/admin', adminTestRoutes({ pool, auth: authInstance, log: logger }));
   app.use('/admin', adminCrmRoutes({ pool, auth: authInstance }));
   app.use('/admin/uploads', adminUploadRoutes({ pool, auth: authInstance }));
+
+  app.use(
+    '/admin-bootstrap',
+    createRateLimiter({
+      windowMs: 60_000,
+      max: 5,
+      key: (req) => req.ip ?? 'unknown',
+      message: 'Too many setup attempts. Try again in a minute.',
+    }),
+    adminBootstrapRoutes({ pool, auth: authInstance, env, log: logger }),
+  );
 
   // Mounted on its own prefix, NOT under /admin, because one of its routes has
   // to stay reachable by an admin that requireAdmin is currently refusing --

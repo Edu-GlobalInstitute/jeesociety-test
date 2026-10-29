@@ -1,6 +1,9 @@
 import type { AttemptFlag } from '@jee/shared';
 import { one, rows, type Queryable } from '../query.js';
 
+/** The single administrator account provisioned for this deployment. */
+const BOOTSTRAP_ADMIN_EMAIL = 'jeesocietydev@gmail.com';
+
 /** Admin-only reads and the audit trail. Nothing here runs during the event. */
 
 export async function isAdmin(userId: string, db?: Queryable): Promise<boolean> {
@@ -190,8 +193,9 @@ export async function adminStanding(
        a.mfa_grace_until
      FROM admins a
      JOIN "user" u ON u."id" = a.user_id
-     WHERE a.user_id = $1`,
-    [userId],
+     WHERE a.user_id = $1
+       AND lower(u."email") = lower($2)`,
+    [userId, BOOTSTRAP_ADMIN_EMAIL],
     db,
   );
 

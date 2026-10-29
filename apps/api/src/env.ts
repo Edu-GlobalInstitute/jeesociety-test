@@ -28,6 +28,11 @@ const EnvSchema = z.object({
 
   BETTER_AUTH_SECRET: z.string().min(32, 'BETTER_AUTH_SECRET must be at least 32 characters'),
   BETTER_AUTH_URL: z.string().url(),
+  /** One-time setup code for the single bootstrap admin. Keep empty after setup. */
+  ADMIN_BOOTSTRAP_SECRET: z
+    .string()
+    .default('')
+    .refine((value) => value.length === 0 || value.length >= 32, 'ADMIN_BOOTSTRAP_SECRET must be at least 32 characters'),
 
   /**
    * Google OAuth. Optional: both empty disables the "Continue with Google"
