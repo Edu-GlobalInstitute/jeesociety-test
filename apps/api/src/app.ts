@@ -151,16 +151,16 @@ export function createApp({ env, pool, log, auth }: AppDeps): BuiltApp {
   app.use('/admin', adminCrmRoutes({ pool, auth: authInstance }));
   app.use('/admin/uploads', adminUploadRoutes({ pool, auth: authInstance }));
 
-  app.use(
-    '/admin-bootstrap',
+  app.post(
+    '/admin-bootstrap/setup',
     createRateLimiter({
       windowMs: 60_000,
       max: 5,
       key: (req) => req.ip ?? 'unknown',
       message: 'Too many setup attempts. Try again in a minute.',
     }),
-    adminBootstrapRoutes({ pool, auth: authInstance, env, log: logger }),
   );
+  app.use('/admin-bootstrap', adminBootstrapRoutes({ pool, auth: authInstance, env, log: logger }));
 
   // Mounted on its own prefix, NOT under /admin, because one of its routes has
   // to stay reachable by an admin that requireAdmin is currently refusing --

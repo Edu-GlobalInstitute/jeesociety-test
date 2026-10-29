@@ -23,6 +23,7 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [setupCode, setSetupCode] = useState('');
+  const [setupAvailable, setSetupAvailable] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -60,6 +61,18 @@ export default function AdminLoginPage() {
           setChecking(false);
         }
       });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let live = true;
+    void api<{ available: boolean }>('/admin-bootstrap/status')
+      .then((status) => {
+        if (live) setSetupAvailable(status.available);
+      })
+      .catch(() => {});
     return () => {
       live = false;
     };
@@ -186,15 +199,15 @@ export default function AdminLoginPage() {
             {busy ? 'Working…' : mode === 'setup' ? 'Create admin account' : 'Sign in to admin'}
           </button>
         </form>
-        {mode === 'sign-in' ? (
+        {mode === 'sign-in' && setupAvailable ? (
           <button className="link-button admin-login__mode" type="button" onClick={() => { setMode('setup'); setError(null); }}>
             First time? Set up the admin account
           </button>
-        ) : (
+        ) : mode === 'setup' ? (
           <button className="link-button admin-login__mode" type="button" onClick={() => { setMode('sign-in'); setError(null); }}>
             Back to admin sign in
           </button>
-        )}
+        ) : null}
         <p className="auth__fine">This page only signs in {ADMIN_EMAIL}; the server checks the same email and admin permission on every admin request.</p>
       </div>
     </main>

@@ -33,6 +33,23 @@ export function adminBootstrapRoutes({
     confirmPassword: z.string().min(8).max(128),
   });
 
+  // The client only shows the setup action while the private setup code is
+  // configured and this fixed account has not been claimed. This is a UX
+  // signal only; POST /setup still enforces the secret and the account check.
+  router.get('/status', async (_req, res) => {
+    if (!env.ADMIN_BOOTSTRAP_SECRET) {
+      res.json({ available: false });
+      return;
+    }
+    const account = await pool.query<{ exists: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1 FROM "user" WHERE lower("email") = lower($1)
+       ) AS exists`,
+      [ADMIN_EMAIL],
+    );
+    res.json({ available: !account.rows[0]?.exists });
+  });
+
   router.post('/setup', async (req, res) => {
     if (!env.ADMIN_BOOTSTRAP_SECRET) {
       res.status(503).json({
