@@ -39,7 +39,7 @@
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  padding: clamp(46px, 7vw, 92px) 0 clamp(104px, 13vw, 168px);
+  padding: clamp(30px, 4.6vw, 62px) 0 clamp(104px, 13vw, 168px);
   color: var(--on-night);
   /* The sky: a warm bloom at the horizon falling away to the navy base, which
      is the palette's "dark base with warm accents" read literally. */
@@ -209,7 +209,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 0 0 22px;
+  margin: 0 0 16px;
 }
 
 .pill {
@@ -244,6 +244,34 @@
 }
 
 .pill--date { color: var(--gold); border-color: rgba(255, 201, 60, 0.4); }
+
+/*
+ * The one pill carrying the offer, so it is the only filled one in the row.
+ * The sheen is a highlight swept across it on a long, slow loop — short
+ * enough to catch the eye on arrival, rare enough not to nag.
+ */
+.pill--prize {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(255, 201, 60, 0.55);
+  background: linear-gradient(100deg, rgba(255, 201, 60, 0.22), rgba(255, 140, 66, 0.16));
+  color: var(--cream);
+  font-weight: 700;
+}
+
+.pill--prize::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 45%;
+  background: linear-gradient(100deg, transparent, rgba(255, 244, 224, 0.42), transparent);
+  animation: pill-sheen 5.5s ease-in-out infinite;
+}
+
+@keyframes pill-sheen {
+  0%, 62% { transform: translateX(-160%); }
+  88%, 100% { transform: translateX(340%); }
+}
 
 .hero__title {
   font-family: var(--poster);
@@ -354,26 +382,6 @@
 .btn-sun--big .btn-sun__arrow { width: 38px; height: 38px; }
 .btn-sun__arrow svg { width: 17px; height: 17px; }
 .btn-sun:hover .btn-sun__arrow { transform: translateX(3px); }
-
-/* The secondary action on the night side: outlined, never filled, so there is
-   only ever one button asking to be pressed. */
-.btn-dusk {
-  display: inline-flex;
-  align-items: center;
-  padding: 13px 22px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 244, 224, 0.34);
-  color: var(--on-night);
-  font-weight: 600;
-  text-decoration: none;
-  transition: background 180ms ease, border-color 180ms ease;
-}
-
-.btn-dusk:hover {
-  background: rgba(255, 244, 224, 0.1);
-  border-color: var(--on-night);
-  color: var(--on-night);
-}
 
 /* ── Countdown ────────────────────────────────────────────────────────── */
 
@@ -490,15 +498,22 @@
 }
 
 /* The page brightens as it goes: cream at daybreak, then a shade lighter. */
-.band--dawn { background: var(--cream); }
 .band--day { background: #fffbf2; }
 .band--quiet { background: var(--cream); }
 
-.band--night {
+/*
+ * The calm band straight after the hero. The hero's bottom edge already melts
+ * to cream, so this starts on that exact cream and cools off into a pale
+ * neutral with one soft teal wash, ending on `.band--day`'s own #fffbf2 so
+ * the section below it joins without a seam. Everything inside it was written
+ * for the night sky, so it is re-coloured for ink-on-light further down.
+ */
+.band--dawn {
+  color: var(--ink);
   background:
-    radial-gradient(85% 60% at 50% 0%, rgba(255, 140, 66, 0.18) 0%, rgba(27, 42, 73, 0) 68%),
-    var(--navy);
-  color: var(--on-night);
+    radial-gradient(76% 56% at 86% 102%, rgba(46, 196, 182, 0.09) 0%, rgba(46, 196, 182, 0) 70%),
+    radial-gradient(88% 46% at 50% 0%, rgba(255, 201, 60, 0.13) 0%, rgba(255, 201, 60, 0) 64%),
+    linear-gradient(180deg, var(--cream) 0%, #fbf9f4 22%, #f7f8f6 62%, #fffbf2 100%);
 }
 
 .band__eyebrow {
@@ -511,8 +526,6 @@
   color: var(--orange-deep);
   margin: 0 0 12px;
 }
-
-.band--night .band__eyebrow { color: var(--gold); }
 
 .band__title {
   font-family: var(--display);
@@ -529,8 +542,6 @@
   color: var(--orange-deep);
 }
 
-.band--night .band__title em { color: var(--gold); }
-
 .band__lede {
   max-width: 64ch;
   margin: 0;
@@ -538,337 +549,7 @@
   color: var(--ink-soft);
 }
 
-.band--night .band__lede { color: var(--on-night-soft); }
 .band__lede b { color: var(--ink); font-weight: 700; }
-.band--night .band__lede b { color: var(--gold); font-weight: 700; }
-
-.band__footnote {
-  max-width: 72ch;
-  margin: 26px 0 0;
-  font-size: 0.86rem;
-  line-height: 1.6;
-  color: var(--ink-faint);
-}
-
-/* ── The taster ───────────────────────────────────────────────────────── */
-
-.taster {
-  max-width: 780px;
-  margin: 30px 0 0;
-}
-
-.taster__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 14px;
-}
-
-.taster__rail {
-  display: flex;
-  gap: 7px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.taster__pip {
-  width: 30px;
-  height: 7px;
-  border-radius: 999px;
-  background: var(--rule);
-  transition: background 220ms ease, transform 220ms ease;
-}
-
-.taster__pip--now { background: var(--gold); transform: scaleY(1.6); }
-.taster__pip--right { background: var(--teal); }
-.taster__pip--wrong { background: var(--orange-deep); }
-
-.taster__marks {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--ink-faint);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.taster__marks b {
-  font-family: var(--poster);
-  font-weight: 800;
-  font-size: 1.3rem;
-  letter-spacing: 0;
-  color: var(--teal-deep);
-}
-
-.taster__marks b.is-negative { color: var(--orange-deep); }
-
-.taster__card {
-  background: var(--surface);
-  border: 1px solid var(--rule);
-  border-radius: 20px;
-  padding: clamp(20px, 3.4vw, 32px);
-  box-shadow: 0 20px 48px rgba(27, 42, 73, 0.1);
-  animation: card-in 440ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
-}
-
-.taster__topic {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  margin: 0 0 16px;
-}
-
-.taster__topic span {
-  font-family: var(--poster);
-  font-weight: 800;
-  font-stretch: 88%;
-  font-size: 0.8rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--navy);
-}
-
-.taster__topic small { font-size: 0.76rem; color: var(--ink-faint); }
-
-.taster__prompt {
-  margin: 0 0 20px;
-  font-size: clamp(1.05rem, 2.2vw, 1.28rem);
-  line-height: 1.5;
-  color: var(--ink);
-}
-
-.taster__options {
-  display: grid;
-  gap: 10px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-@media (min-width: 620px) {
-  .taster__options { grid-template-columns: 1fr 1fr; }
-}
-
-.taster__option {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 12px 15px;
-  font: inherit;
-  text-align: left;
-  border: 1.5px solid var(--rule);
-  border-radius: 14px;
-  background: var(--surface);
-  color: var(--ink);
-  cursor: pointer;
-  transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
-}
-
-.taster__option:hover { border-color: var(--orange); transform: translateY(-1px); }
-
-.taster__key {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 28px;
-  height: 28px;
-  border-radius: 9px;
-  background: var(--cream);
-  color: var(--navy);
-  font-family: var(--poster);
-  font-weight: 800;
-  font-size: 0.85rem;
-}
-
-.taster__text { font-size: 1.02rem; }
-
-/* Marked answers. Colour alone never carries the verdict — the glyph and the
-   sentence under the options say it too. */
-.taster__option.is-right {
-  border-color: var(--teal);
-  background: #e9f8f6;
-}
-
-.taster__option.is-right .taster__key { background: var(--teal); color: #06342f; }
-
-.taster__option.is-right::after {
-  content: '✓';
-  margin-left: auto;
-  font-weight: 800;
-  color: var(--teal-deep);
-}
-
-.taster__option.is-wrong {
-  border-color: var(--orange-deep);
-  background: #fdeade;
-  animation: shake 380ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
-}
-
-.taster__option.is-wrong::after {
-  content: '✗';
-  margin-left: auto;
-  font-weight: 800;
-  color: var(--orange-deep);
-}
-
-.taster__option.is-dim { opacity: 0.44; }
-
-.taster__option[aria-disabled='true'] { cursor: default; }
-.taster__option[aria-disabled='true']:hover { transform: none; }
-.taster__option.is-dim:hover { border-color: var(--rule); }
-
-.taster__after {
-  margin-top: 20px;
-  padding-top: 18px;
-  border-top: 1px dashed var(--rule);
-  animation: fade-up 340ms ease both;
-}
-
-.taster__call {
-  margin: 0 0 6px;
-  font-family: var(--display);
-  font-weight: 800;
-  font-size: 1.06rem;
-}
-
-.taster__call.is-right { color: var(--teal-deep); }
-.taster__call.is-wrong { color: var(--orange-deep); }
-
-.taster__why {
-  margin: 0 0 18px;
-  color: var(--ink-soft);
-  max-width: 62ch;
-}
-
-.taster__next {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 9px 9px 20px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--navy);
-  color: var(--cream);
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 160ms ease;
-}
-
-.taster__next:hover { background: var(--navy-lift); }
-
-.taster__next-arrow {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 999px;
-  background: var(--gold);
-  color: var(--navy);
-}
-
-.taster__next-arrow svg { width: 15px; height: 15px; }
-
-.taster__hint {
-  margin: 18px 0 0;
-  font-size: 0.86rem;
-  color: var(--ink-faint);
-}
-
-/* The score card: the page's night, borrowed for one panel. */
-.taster--result {
-  position: relative;
-  overflow: hidden;
-  padding: clamp(26px, 4.4vw, 44px);
-  border-radius: 22px;
-  text-align: center;
-  color: var(--on-night);
-  background:
-    radial-gradient(90% 90% at 50% 0%, rgba(255, 201, 60, 0.22) 0%, rgba(27, 42, 73, 0) 62%),
-    var(--navy);
-  animation: card-in 480ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
-}
-
-.taster__eyebrow {
-  margin: 0;
-  font-family: var(--poster);
-  font-weight: 800;
-  font-size: 0.78rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--on-night-faint);
-}
-
-.taster__score {
-  margin: 6px 0 4px;
-  font-family: var(--poster);
-  font-weight: 900;
-  font-stretch: 86%;
-  font-size: clamp(3.2rem, 11vw, 5.6rem);
-  line-height: 1;
-  color: var(--gold);
-}
-
-.taster__score span {
-  font-size: 0.3em;
-  margin-left: 10px;
-  color: var(--on-night-faint);
-}
-
-.taster__tally {
-  margin: 0 0 18px;
-  font-size: 0.86rem;
-  color: var(--on-night-soft);
-}
-
-.taster__verdict {
-  margin: 0 0 10px;
-  font-family: var(--display);
-  font-weight: 800;
-  font-size: clamp(1.4rem, 3.4vw, 2rem);
-  letter-spacing: -0.02em;
-}
-
-.taster__note {
-  max-width: 58ch;
-  margin: 0 auto 26px;
-  color: var(--on-night-soft);
-}
-
-.taster__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-}
-
-.taster__again {
-  border: 0;
-  background: none;
-  font: inherit;
-  color: var(--on-night-soft);
-  text-decoration: underline;
-  text-underline-offset: 4px;
-  cursor: pointer;
-}
-
-.taster__again:hover { color: var(--gold); }
-
-/* The confetti canvas (components/Celebration). */
-.celebrate {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  pointer-events: none;
-}
 
 /* ── The reward ladder ────────────────────────────────────────────────── */
 
@@ -1011,38 +692,339 @@
 
 .ladder__cta p b { color: var(--gold); font-weight: 700; }
 
-/* ── The prize photographs (components/PrizeDevices) ──────────────────── */
+/* ── The ladder on the light band ─────────────────────────────────────── */
 
-.prize { position: relative; padding: 10px 0 24px; }
+/*
+ * The rungs and the rule card were drawn as cream-on-navy. On `.band--dawn`
+ * they invert: white cards on a pale ground, with the gold accents dropped to
+ * the darkened hue the palette keeps for type on cream.
+ */
+.band--dawn .rung {
+  border-color: var(--rule);
+  background: rgba(255, 255, 255, 0.72);
+}
 
-.prize::before {
+.band--dawn .rung--top {
+  border-color: rgba(201, 86, 13, 0.34);
+  background:
+    linear-gradient(100deg, rgba(255, 201, 60, 0.3) 0%, rgba(255, 140, 66, 0.12) 100%);
+  box-shadow: 0 16px 38px rgba(201, 86, 13, 0.1);
+}
+
+.band--dawn .rung__pc { color: var(--orange-deep); }
+.band--dawn .rung__pc small { color: var(--ink-faint); }
+.band--dawn .rung--top .rung__prize strong { color: var(--orange-deep); }
+
+.band--dawn .rung__prize span,
+.band--dawn .rung__share { color: var(--ink-soft); }
+
+.band--dawn .ladder__rules {
+  border-color: var(--rule);
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.band--dawn .ladder__rules > p,
+.band--dawn .ladder__rules li,
+.band--dawn .ladder__cta p { color: var(--ink-soft); }
+
+.band--dawn .ladder__rules > p b,
+.band--dawn .ladder__rules b { color: var(--ink); }
+
+.band--dawn .ladder__cta p b { color: var(--orange-deep); }
+
+/*
+ * MentorScene is a cream line drawing meant to sit on the night sky — its
+ * limbs and floor would vanish on cream. Rather than recolour forty strokes,
+ * the picture keeps its own night panel and reads as a framed scene.
+ */
+.band--dawn .ladder__art {
+  padding: 14px;
+  border-radius: 22px;
+  background:
+    radial-gradient(118% 90% at 50% 0%, var(--navy-lift) 0%, var(--navy) 46%, var(--navy-deep) 100%);
+  box-shadow: 0 20px 48px rgba(27, 42, 73, 0.16);
+}
+
+/* ── The lesson (components/MentorScene) ───────────────────────────── */
+
+/*
+ * A bhaiya at the board, his chhote bhai on the floor, and one question being
+ * worked through. Five stacked layers over one stage, every phase below
+ * written as a percentage of the same 14 s loop so the beats cannot drift:
+ *
+ *   0-6%     the first chalk stroke lands; the working writes itself on from
+ *            here to ~34%, each stroke offset by its own animation-delay
+ *   2-5%     he turns to the board — rest pose out, pointing pose in
+ *   9-38%    the question mark sits over the boy
+ *   40-47%   the tick is drawn, the doubt goes out and the bulb pops
+ *   45-80%   the boy has it: both arms up, sparkles firing
+ *   68-100%  the board is wiped, stroke by stroke, and everyone resets
+ */
+
+.mentor { position: relative; }
+
+.mentor::before {
   content: '';
   position: absolute;
-  inset: -8% -4% 6% -4%;
+  inset: -6% -5% 4% -5%;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 201, 60, 0.26) 0%, rgba(255, 201, 60, 0) 68%);
+  background: radial-gradient(circle, rgba(255, 201, 60, 0.22) 0%, rgba(255, 201, 60, 0) 68%);
 }
 
-.prize__tile {
+.mentor__stage {
   position: relative;
-  max-width: 290px;
-  margin-inline: auto;
-  border-radius: 18px;
-  overflow: hidden;
-  border: 1px solid var(--navy-line);
-  box-shadow: 0 24px 54px rgba(0, 0, 0, 0.38);
+  /* The viewBox is 420 × 340, and the stage has to match it or the layers
+     letterbox and the figures drift off the floor line. */
+  aspect-ratio: 420 / 340;
 }
 
-.prize__tile img { display: block; width: 100%; height: auto; }
-
-.prize__phone {
+.mentor__layer {
   position: absolute;
-  left: 2%;
-  bottom: 0;
-  width: 27%;
-  height: auto;
-  filter: drop-shadow(0 18px 28px rgba(0, 0, 0, 0.45));
-  animation: float-y 6.5s ease-in-out infinite;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ── The room ───────────────────────────────────────────── */
+
+.mentor__frame {
+  fill: var(--navy-lift);
+  stroke: var(--gold);
+  stroke-width: 2;
+  stroke-opacity: 0.45;
+}
+
+.mentor__board { fill: var(--navy-deep); }
+
+.mentor__tray { fill: var(--navy-lift); }
+.mentor__chalkStick { fill: var(--cream); opacity: 0.8; }
+
+.mentor__floor {
+  stroke: rgba(255, 244, 224, 0.22);
+  stroke-width: 2;
+  stroke-dasharray: 6 9;
+}
+
+.mentor__mat { fill: rgba(46, 196, 182, 0.16); }
+
+/* ── The handwriting ─────────────────────────────────────── */
+
+/*
+ * `pathLength="1"` in the markup is what makes one dasharray fit every
+ * stroke: the browser rescales the dash pattern to a unit-length path, so
+ * "1 1" is always exactly one stroke of gap followed by one of ink, whatever
+ * the real geometry measures.
+ */
+.mentor__chalk,
+.mentor__tick {
+  fill: none;
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 1;
+}
+
+.mentor__chalk {
+  stroke: var(--cream);
+  animation: mentor-chalk 14s ease-out infinite;
+}
+
+/* The tick is the only teal mark in the picture: the moment he gets it. */
+.mentor__tick {
+  stroke: var(--teal);
+  stroke-width: 6;
+  animation: mentor-tick 14s ease-out infinite;
+}
+
+/* ── The two of them ─────────────────────────────────────── */
+
+.mentor__limb {
+  fill: none;
+  stroke: var(--cream);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mentor__head {
+  fill: var(--teal);
+  stroke: var(--cream);
+  stroke-width: 2.5;
+}
+
+.mentor__cord { fill: none; stroke: var(--orange); stroke-width: 2.5; }
+.mentor__tagCard { fill: var(--gold); }
+
+.mentor__tag {
+  font-family: var(--poster);
+  font-weight: 800;
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  text-anchor: middle;
+  fill: var(--navy);
+}
+
+.mentor__book { fill: var(--cream); }
+.mentor__bookLine { stroke: var(--navy); stroke-width: 1.6; }
+
+.mentor__pose--rest { animation: mentor-pose-rest 14s linear infinite; }
+.mentor__pose--teach { opacity: 0; animation: mentor-pose-teach 14s linear infinite; }
+.mentor__pose--write { animation: mentor-pose-write 14s linear infinite; }
+.mentor__pose--cheer { opacity: 0; animation: mentor-pose-cheer 14s linear infinite; }
+
+.mentor__pointer {
+  stroke: var(--gold);
+  stroke-width: 4;
+  stroke-linecap: round;
+  opacity: 0;
+  animation: mentor-pointer 14s linear infinite;
+}
+
+/* ── Over his head: a doubt, then a bulb ────────────────────────── */
+
+.mentor__doubt { opacity: 0; animation: mentor-doubt 14s linear infinite; }
+
+.mentor__bubble {
+  fill: rgba(255, 244, 224, 0.1);
+  stroke: var(--on-night-faint);
+  stroke-width: 2;
+  stroke-dasharray: 5 6;
+}
+
+.mentor__doubtMark {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 26px;
+  text-anchor: middle;
+  fill: var(--on-night-soft);
+}
+
+/*
+ * The only CSS transform in the picture. It is safe here because this group
+ * carries no `transform` attribute of its own — its parent does the placing —
+ * and `fill-box` pins the origin to the bulb's own bounding box, so it grows
+ * where it stands instead of flying to the viewBox origin.
+ */
+.mentor__idea {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mentor-idea 14s cubic-bezier(0.2, 0.9, 0.3, 1.3) infinite;
+}
+
+.mentor__bulbGlass {
+  fill: var(--gold);
+  stroke: var(--cream);
+  stroke-width: 2;
+}
+
+.mentor__bulbBase { fill: var(--cream-deep); }
+
+.mentor__filament {
+  fill: none;
+  stroke: var(--orange-deep);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.mentor__rays {
+  stroke: var(--gold);
+  stroke-width: 4;
+  stroke-linecap: round;
+  animation: mentor-rays 1.5s ease-in-out infinite;
+}
+
+/* Opacity only, for the reason spelled out on .climb__spark. */
+.mentor__spark {
+  fill: var(--gold);
+  opacity: 0;
+  animation: mentor-spark 14s linear infinite;
+}
+
+.mentor__caption {
+  margin: 12px 0 0;
+  text-align: center;
+  font-size: 0.86rem;
+  color: var(--on-night-soft);
+}
+
+/* ── The lesson's fourteen seconds ─────────────────────────────── */
+
+/*
+ * Each stroke carries its own animation-delay, which shifts its whole cycle
+ * rather than just its start, so the sequence below has to finish inside the
+ * loop with room for the largest delay (3.92 s, or 28%) still to run. Drawing
+ * at 0-6% and wiping at 68-73% puts the last stroke's wipe at 96-100% — which
+ * is why the board clears in a sweep, and why those numbers are not round.
+ */
+@keyframes mentor-chalk {
+  0%, 1% { stroke-dashoffset: 1; opacity: 1; }
+  6%, 68% { stroke-dashoffset: 0; opacity: 1; }
+  73%, 100% { stroke-dashoffset: 0; opacity: 0; }
+}
+
+@keyframes mentor-tick {
+  0%, 40% { stroke-dashoffset: 1; opacity: 1; }
+  47%, 84% { stroke-dashoffset: 0; opacity: 1; }
+  89%, 100% { stroke-dashoffset: 0; opacity: 0; }
+}
+
+@keyframes mentor-pose-rest {
+  0%, 2% { opacity: 1; }
+  5%, 70% { opacity: 0; }
+  74%, 100% { opacity: 1; }
+}
+
+@keyframes mentor-pose-teach {
+  0%, 2% { opacity: 0; }
+  5%, 70% { opacity: 1; }
+  74%, 100% { opacity: 0; }
+}
+
+@keyframes mentor-pose-write {
+  0%, 41% { opacity: 1; }
+  45%, 80% { opacity: 0; }
+  85%, 100% { opacity: 1; }
+}
+
+@keyframes mentor-pose-cheer {
+  0%, 41% { opacity: 0; }
+  45%, 80% { opacity: 1; }
+  85%, 100% { opacity: 0; }
+}
+
+@keyframes mentor-pointer {
+  0%, 3% { opacity: 0; }
+  7%, 69% { opacity: 0.9; }
+  73%, 100% { opacity: 0; }
+}
+
+@keyframes mentor-doubt {
+  0%, 5% { opacity: 0; }
+  9%, 38% { opacity: 1; }
+  42%, 100% { opacity: 0; }
+}
+
+@keyframes mentor-idea {
+  0%, 39% { opacity: 0; transform: scale(0.35); }
+  46% { opacity: 1; transform: scale(1); }
+  80% { opacity: 1; transform: scale(1); }
+  86%, 100% { opacity: 0; transform: scale(0.8); }
+}
+
+@keyframes mentor-rays {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+@keyframes mentor-spark {
+  0%, 42% { opacity: 0; }
+  48% { opacity: 1; }
+  58% { opacity: 0.25; }
+  66% { opacity: 1; }
+  76% { opacity: 0.3; }
+  82%, 100% { opacity: 0; }
 }
 
 /* ── The paper: two halves and a spec strip ───────────────────────────── */
@@ -1411,8 +1393,15 @@
   animation: climb-prize 13s cubic-bezier(0.2, 0.9, 0.3, 1.2) infinite;
 }
 
-.climb__tablet { fill: var(--gold); }
-.climb__screen { fill: var(--navy); }
+.climb__capBoard { fill: var(--gold); }
+.climb__capHead { fill: var(--orange); }
+
+.climb__tassel {
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+}
 
 /*
  * Opacity only, never transform. A CSS `transform` on an SVG child overrides
@@ -1535,18 +1524,6 @@
   to { transform: translateY(0); opacity: 1; }
 }
 
-@keyframes card-in {
-  from { transform: translateY(16px) scale(0.985); opacity: 0; }
-  to { transform: translateY(0) scale(1); opacity: 1; }
-}
-
-@keyframes shake {
-  10%, 90% { transform: translateX(-2px); }
-  20%, 80% { transform: translateX(3px); }
-  30%, 50%, 70% { transform: translateX(-5px); }
-  40%, 60% { transform: translateX(5px); }
-}
-
 @keyframes live-pulse {
   0% { box-shadow: 0 0 0 0 rgba(46, 196, 182, 0.55); }
   70% { box-shadow: 0 0 0 9px rgba(46, 196, 182, 0); }
@@ -1563,11 +1540,6 @@
   to { transform: rotate(360deg); }
 }
 
-@keyframes float-y {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
-}
-
 /* ── Narrow screens ───────────────────────────────────────────────────── */
 
 @media (max-width: 860px) {
@@ -1580,7 +1552,6 @@
   .hero__title { max-width: none; font-size: clamp(2.3rem, 11vw, 3.4rem); }
   .hero__actions { flex-direction: column; align-items: stretch; }
   .hero__actions .btn-sun { justify-content: space-between; }
-  .btn-dusk { justify-content: center; }
   .countdown__cell { flex: 1 1 0; min-width: 0; padding: 9px 6px; }
   .countdown__num { font-size: 1.5rem; }
   /* Two by two, with the dividers dropped — a single divider left hanging at
@@ -1597,7 +1568,6 @@
   .climb__caption { font-size: 0.78rem; }
   .rung { padding: 18px; }
   .ladder__rules { padding: 22px 20px; }
-  .taster__head { flex-wrap: wrap; }
   .steps li { padding-left: 54px; }
   .steps li::before { width: 36px; height: 36px; font-size: 1.05rem; }
 }
@@ -1616,7 +1586,6 @@
   .hero-star,
   .finale__seal,
   .hero__sparkle,
-  .prize__phone,
   .pill,
   .pill__dot,
   .hero__sub,
@@ -1625,10 +1594,6 @@
   .hero__facts,
   .hero__line > span,
   .hero__line--lit > span,
-  .taster__card,
-  .taster--result,
-  .taster__after,
-  .taster__option.is-wrong,
   .finale::before {
     animation: none !important;
   }
@@ -1649,6 +1614,35 @@
   .climb__prize { opacity: 1; transform: none; }
   .climb__glow { opacity: 1; }
   .climb__hand { opacity: 0; }
+
+  /* The lesson holds on the frame it exists to show: the working finished,
+     the tick in, the bulb lit and the boy's arms up. */
+  .mentor__chalk,
+  .mentor__tick,
+  .mentor__pose--rest,
+  .mentor__pose--teach,
+  .mentor__pose--write,
+  .mentor__pose--cheer,
+  .mentor__pointer,
+  .mentor__doubt,
+  .mentor__idea,
+  .mentor__rays,
+  .mentor__spark {
+    animation: none !important;
+  }
+
+  .mentor__chalk,
+  .mentor__tick { stroke-dashoffset: 0; }
+  .mentor__pose--rest { opacity: 0; }
+  .mentor__pose--teach { opacity: 1; }
+  .mentor__pose--write { opacity: 0; }
+  .mentor__pose--cheer { opacity: 1; }
+  .mentor__pointer { opacity: 0.9; }
+  .mentor__doubt { opacity: 0; }
+  .mentor__idea { opacity: 1; transform: none; }
+  .mentor__spark { opacity: 1; }
+
+  .pill--prize::after { display: none; }
 
   .hero-star { opacity: var(--star-peak, 0.26); }
   .sunrise__disc { transform: translate(-50%, 62%); }

@@ -1,19 +1,20 @@
 import type { Metadata, Viewport } from 'next';
-import { PAPER, TEST_FEE_PAISE } from '@jee/shared/config';
+import { MENTORSHIP, PAPER, TEST_FEE_PAISE } from '@jee/shared/config';
 import './globals.css';
 import { ArrowIcon } from '../components/PosterMarks';
-import { PRIZE_PHOTO_CREDIT } from '../components/PrizeDevices';
 import { TEST_DATE_SHORT, TEST_WHEN } from '../lib/testDate';
 
 const RUPEES = TEST_FEE_PAISE / 100;
+const WORTH = MENTORSHIP.worthRupees.toLocaleString('en-IN');
 
 export const metadata: Metadata = {
-  title: 'All-India JEE Mock — top 1% takes an iPad',
+  title: `All-India JEE Mock — top 1% wins ${MENTORSHIP.months} months of IIT Bombay mentorship`,
   description:
     `One full JEE paper, sat on the same morning across India: ${PAPER.totalCount} questions `
-    + `in three hours for ${PAPER.maxMarks} marks, ₹${RUPEES} to enter. Try five real questions `
-    + 'before you pay. Finish in the top 1% of the rank list and take home an iPad or an '
-    + 'iPhone; the next two percentile bands take JEE Society mentorship. '
+    + `in three hours for ${PAPER.maxMarks} marks, ₹${RUPEES} to enter. `
+    + `Finish in the top 1% of the rank list and win ${MENTORSHIP.months} months `
+    + `of one-to-one mentorship from ${MENTORSHIP.mentors}, a ₹${WORTH} seat, free; the next two `
+    + 'percentile bands take a shorter seat and a half-price one. '
     + TEST_WHEN,
 };
 
@@ -28,7 +29,8 @@ export const viewport: Viewport = {
  * Pages, and next/font would make every build depend on reaching Google.
  */
 const TICKER = [
-  'Top 1% takes home an iPad',
+  `Top 1% wins ${MENTORSHIP.months} months of IIT Bombay mentorship`,
+  `A ₹${WORTH} seat, free`,
   `₹${RUPEES} to sit the paper`,
   'One all-India rank list',
   `${PAPER.totalCount} questions, ${PAPER.maxMarks} marks`,
@@ -97,27 +99,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <footer className="foot">
           <div className="wrap">
             Questions about your test? Quote your receipt number when you write to us.
-            {/* CC BY-SA 4.0 requires this credit to stay visible. */}
             <p className="foot__credit">
-              Prize photographs:{' '}
-              {PRIZE_PHOTO_CREDIT.map((credit, index) => (
-                <span key={credit.what}>
-                  {index > 0 ? '; ' : ''}
-                  {credit.what} by {credit.author},{' '}
-                  <a href={credit.href} rel="noopener noreferrer" target="_blank">
-                    Wikimedia Commons
-                  </a>
-                </span>
-              ))}
-              , licensed{' '}
-              <a
-                href="https://creativecommons.org/licenses/by-sa/4.0/"
-                rel="license noopener noreferrer"
-                target="_blank"
-              >
-                CC BY-SA 4.0
-              </a>
-              . JEE Society is not affiliated with or endorsed by Apple Inc.
+              Mentorship seats are awarded on the published rank list, to the registered
+              student, one per student, and are not exchangeable for cash.
             </p>
           </div>
         </footer>

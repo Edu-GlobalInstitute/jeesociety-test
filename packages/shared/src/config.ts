@@ -24,6 +24,28 @@ export const MCQ_MARKS = {
 export const TEST_FEE_PAISE = 30_000;
 
 /**
+ * The one thing being given away: a seat in the mentorship programme.
+ *
+ * Every mention of it on the landing page — the headline, the ticker, the
+ * reward ladder, the metadata — reads these fields, so the programme's length,
+ * its price and who teaches it cannot drift apart across the site.
+ */
+export const MENTORSHIP = {
+  /** The full programme, and what the top band wins outright. */
+  months: 6,
+  /** What a seat costs anyone who buys one, in rupees. */
+  worthRupees: 10_000,
+  /** What the shorter runner-up seat is, in months. */
+  runnerUpMonths: 3,
+  /** Who teaches it. Quoted verbatim, so it stays accurate. */
+  mentors: 'IIT Bombay students',
+  /** Half price, for the third band. Derived so the two can never disagree. */
+  get halfPriceRupees() {
+    return this.worthRupees / 2;
+  },
+} as const;
+
+/**
  * Reward bands, by percentile in this test's own rank list.
  *
  * The bands do not overlap — a 99.2 percentile student is in the first band
@@ -32,9 +54,21 @@ export const TEST_FEE_PAISE = 30_000;
  * percentile rather than a projection: each band is one student in a hundred.
  */
 export const REWARD_BANDS = [
-  { floor: 99, label: 'An iPad or an iPhone', share: 'top 1 in 100' },
-  { floor: 98, label: 'Mentorship worth ₹10,000', share: 'the next 1 in 100' },
-  { floor: 97, label: 'Half off that mentorship', share: 'the next 1 in 100' },
+  {
+    floor: 99,
+    label: `${MENTORSHIP.months} months of mentorship, free`,
+    share: 'top 1 in 100',
+  },
+  {
+    floor: 98,
+    label: `${MENTORSHIP.runnerUpMonths} months of mentorship, free`,
+    share: 'the next 1 in 100',
+  },
+  {
+    floor: 97,
+    label: `Half off the ${MENTORSHIP.months}-month seat`,
+    share: 'the next 1 in 100',
+  },
 ] as const;
 
 /**

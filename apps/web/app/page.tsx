@@ -1,6 +1,7 @@
 import {
   CLIENT_TIMING,
   MCQ_MARKS,
+  MENTORSHIP,
   PAPER,
   REWARD_BANDS,
   TEST_FEE_PAISE,
@@ -8,30 +9,28 @@ import {
 import './landing.css';
 import { Countdown } from '../components/Countdown';
 import { HeroStars } from '../components/HeroStars';
+import { MentorScene } from '../components/MentorScene';
 import { ArrowIcon, Seal, Sparkle } from '../components/PosterMarks';
-import { PrizeDevices } from '../components/PrizeDevices';
 import { RescueLadder } from '../components/RescueLadder';
 import { Reveal } from '../components/Reveal';
 import { Sunrise } from '../components/Sunrise';
-import { TryQuestions } from '../components/TryQuestions';
-import { TASTER_QUESTIONS, TASTER_SOURCE } from '../lib/tasterQuestions';
 import { TEST_DATE_SHORT, TEST_TIME_LABEL, TEST_WEEKDAY } from '../lib/testDate';
 
 /**
  * The landing page.
  *
  * Written for a seventeen-year-old deciding whether ₹300 is worth it on a
- * Tuesday night, so it is built as one argument in six moves:
+ * Tuesday night, so it is built as one argument in five moves:
  *
  *   1. the night sky and the sun coming up — the brand's whole idea, which is
  *      that hope only reads as hope against something dark;
- *   2. five real questions they can answer before paying, marked +4 / −1, so
- *      the claim "JEE level" is something they felt rather than read;
- *   3. what the top of the rank list takes home;
- *   4. what the paper actually is;
- *   5. what happens when their connection dies at minute 170 — the question
+ *   2. the mentorship seat and who can reach it — pitched as a morning they
+ *      could win rather than a rank only toppers hold, drawn as the lesson it
+ *      actually is;
+ *   3. what the paper actually is;
+ *   4. what happens when their connection dies at minute 170 — the question
  *      every student in India actually asks;
- *   6. the four steps and the price again.
+ *   5. the four steps and the price again.
  *
  * Every number on this page comes from @jee/shared/config, the same module the
  * payment route and the scoring code read, so the page cannot promise
@@ -43,11 +42,19 @@ const RUPEES = TEST_FEE_PAISE / 100;
 const SYNC_SECONDS = CLIENT_TIMING.syncIntervalMs / 1000;
 const LOBBY_MINUTES = CLIENT_TIMING.lobbyLeadMs / 60_000;
 
+/** ₹10,000 reads better than 10000 everywhere it appears. */
+const WORTH = MENTORSHIP.worthRupees.toLocaleString('en-IN');
+const HALF_WORTH = MENTORSHIP.halfPriceRupees.toLocaleString('en-IN');
+
 /** The prose for each band. The numbers live in @jee/shared; the voice here. */
 const BAND_NOTE: Record<number, string> = {
-  99: 'Your pick of the two, once the final rank list is published.',
-  98: 'A full mentorship seat at JEE Society, paid for by us.',
-  97: 'The same seat at JEE Society, for half the price.',
+  99:
+    `${MENTORSHIP.months} months with ${MENTORSHIP.mentors}, one to one. A ₹${WORTH} seat, `
+    + 'and you pay none of it.',
+  98:
+    `The same mentors and the same programme, ${MENTORSHIP.runnerUpMonths} months of it, `
+    + 'free.',
+  97: `The full ${MENTORSHIP.months} months at half price — ₹${HALF_WORTH} instead of ₹${WORTH}.`,
 };
 
 /** Reads 99 as "99.0 and up", and the closed bands as "98.0 – 98.9". */
@@ -70,6 +77,9 @@ export default function Home() {
                 <span className="pill__dot" aria-hidden="true" />
                 Registration open
               </span>
+              <span className="pill pill--prize">
+                Win {MENTORSHIP.months} months of IIT Bombay mentorship
+              </span>
               <span className="pill">Online · All India</span>
               <span className="pill pill--date">
                 {TEST_WEEKDAY}, {TEST_DATE_SHORT} · {TEST_TIME_LABEL}
@@ -82,23 +92,26 @@ export default function Home() {
             <h1 className="hero__title">
               <span className="hero__line"><span>Three hours.</span></span>
               <span className="hero__line"><span>One all-India rank.</span></span>
-              <span className="hero__line hero__line--lit"><span>Top 1% wins an iPad.</span></span>
+              <span className="hero__line hero__line--lit">
+                <span>Top 1% wins IIT Bombay mentors.</span>
+              </span>
             </h1>
 
             <p className="hero__sub">
               One full-length paper, sat on the same morning by students all over the country.{' '}
               {PAPER.totalCount} questions in three hours for {PAPER.maxMarks} marks, every one of
               them marked <b>+{MCQ_MARKS.correct} / {MCQ_MARKS.wrong}</b> — the JEE Main pattern,
-              end to end. ₹{RUPEES} to enter, once.
+              end to end. ₹{RUPEES} to enter, once. Finish in the top 1% and{' '}
+              <b>
+                {MENTORSHIP.months} months of mentorship from {MENTORSHIP.mentors}
+              </b>{' '}
+              — a ₹{WORTH} seat — costs you nothing.
             </p>
 
             <div className="hero__actions">
               <a className="btn-sun btn-sun--big" href="/signup">
                 Register for ₹{RUPEES}
                 <span className="btn-sun__arrow" aria-hidden="true"><ArrowIcon /></span>
-              </a>
-              <a className="btn-dusk" href="#try">
-                First, try {TASTER_QUESTIONS.length} real questions
               </a>
             </div>
 
@@ -121,50 +134,26 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── 2. The level, felt rather than claimed ──────────────────────── */}
-      <section className="band band--dawn" id="try">
-        <div className="wrap">
-          <Reveal>
-            <p className="band__eyebrow">Before you pay a rupee</p>
-            <h2 className="band__title">
-              Do not take our word for the level. <em>Take five questions.</em>
-            </h2>
-            <p className="band__lede">
-              These are real questions from <b>{TASTER_SOURCE}</b> — a paper that is already
-              public — and they are marked here exactly the way our paper is marked:{' '}
-              +{MCQ_MARKS.correct} for a correct answer, {MCQ_MARKS.wrong} for a wrong one. Forty
-              seconds, no account, no card.
-            </p>
-          </Reveal>
-
-          <Reveal delay={80}>
-            <TryQuestions />
-          </Reveal>
-
-          <Reveal delay={120}>
-            <p className="band__footnote">
-              Two of the five were integer-answer questions in the original paper; we wrote the
-              options so you can answer in one tap. Your paper in November is new questions set at
-              this level — nobody has seen it, and its answer key never leaves our server, not in
-              the page, not in an API response.
-            </p>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ── 3. What the top of the list takes home ──────────────────────── */}
-      <section className="band band--night">
+      {/* ── 2. The seat, and why they could be the one to win it ────────── */}
+      <section className="band band--dawn">
         <div className="wrap">
           <Reveal className="ladder__head">
             <div>
               <p className="band__eyebrow">The reward ladder</p>
-              <h2 className="band__title">What the top of the rank list takes home</h2>
+              <h2 className="band__title">
+                You don&rsquo;t need to be a topper. You need <em>one good morning</em>
+              </h2>
               <p className="band__lede">
-                ₹{RUPEES} to sit the paper. Where you land in this test&rsquo;s own rank list
-                decides what you walk away with.
+                ₹{RUPEES} to sit the paper, and a real shot at {MENTORSHIP.months} months with{' '}
+                {MENTORSHIP.mentors} — the people who sat this exam a year or two ago and got in.
+                Three percentile bands win a seat, and your percentile is your place among the
+                students who sat <em>this</em> paper, not a rank in all of India. Nothing you did
+                before this morning counts, and nothing after it does either. Three hours, a clean
+                slate, and a ₹{WORTH} seat going to whoever has the better morning — which some
+                mornings is the person nobody expected.
               </p>
             </div>
-            <div className="ladder__art"><PrizeDevices /></div>
+            <div className="ladder__art"><MentorScene /></div>
           </Reveal>
 
           <ul className="ladder">
@@ -213,6 +202,11 @@ export default function Home() {
                   Rewards go to the registered student, one per student, not exchangeable for
                   cash.
                 </li>
+                <li>
+                  <b>A seat is {MENTORSHIP.months} months of real contact</b> — weekly one-to-one
+                  sessions, your paper gone through question by question, and a plan for the
+                  months you have left. It is not a recorded course and it is not a PDF.
+                </li>
               </ul>
             </div>
           </Reveal>
@@ -232,7 +226,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── 4. What the paper is ────────────────────────────────────────── */}
+      {/* ── 3. What the paper is ────────────────────────────────────────── */}
       <section className="band band--day">
         <div className="wrap">
           <Reveal>
@@ -282,7 +276,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── 5. The question every student actually asks ─────────────────── */}
+      {/* ── 4. The question every student actually asks ─────────────────── */}
       <section className="band band--day band--quiet">
         <div className="wrap">
           <Reveal>
@@ -328,7 +322,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── 6. Four steps and the price again ───────────────────────────── */}
+      {/* ── 5. Four steps and the price again ───────────────────────────── */}
       <section className="band band--day">
         <div className="wrap">
           <Reveal>
@@ -367,16 +361,16 @@ export default function Home() {
             </p>
             <p className="finale__price tnum">₹{RUPEES}</p>
             <p className="finale__line">
-              One paper. One all-India rank. One shot at the top band — and nothing more to pay,
-              ever.
+              One paper. One all-India rank. One shot at {MENTORSHIP.months} free months with{' '}
+              {MENTORSHIP.mentors} — and nothing more to pay, ever.
             </p>
             <a className="btn-sun btn-sun--big" href="/signup">
               Register for ₹{RUPEES}
               <span className="btn-sun__arrow" aria-hidden="true"><ArrowIcon /></span>
             </a>
             <p className="finale__small">
-              Marks the next morning · final ranks the same week · rewards to the
-              top three percentile bands
+              Marks the next morning · final ranks the same week · {MENTORSHIP.months} free
+              months with {MENTORSHIP.mentors} for the top 1%
             </p>
           </Reveal>
         </div>

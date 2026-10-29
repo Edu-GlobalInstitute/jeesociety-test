@@ -1,10 +1,11 @@
-import { REWARD_BANDS } from '@jee/shared/config';
+import { MENTORSHIP, REWARD_BANDS } from '@jee/shared/config';
 import { SPARKLE_PATH } from './PosterMarks';
 
 /**
  * The hero's moving picture: a student climbs the three-band ladder, cannot
  * reach the next rung on their own, and a hand from JEE Society lifts them
- * from the bottom rung to the top, where the prize is waiting. It loops.
+ * from the bottom rung to the top, where the mentorship seat is waiting. It
+ * loops.
  *
  * How it is built, because the construction is the whole trick:
  *
@@ -33,8 +34,8 @@ import { SPARKLE_PATH } from './PosterMarks';
 /** The rungs, bottom to top, placed on the ladder's three steps. */
 const RUNGS = [
   { y: 344, floor: 97, short: 'Half-price seat' },
-  { y: 254, floor: 98, short: '₹10,000 mentorship' },
-  { y: 164, floor: 99, short: 'iPad or iPhone' },
+  { y: 254, floor: 98, short: `${MENTORSHIP.runnerUpMonths} months free` },
+  { y: 164, floor: 99, short: `${MENTORSHIP.months} months free` },
 ] as const;
 
 /* The picture would be lying if the policy changed under it. */
@@ -83,7 +84,7 @@ export function RescueLadder() {
         aria-label={
           'A student climbs a three-rung ladder labelled 97, 98 and 99 percentile. They cannot '
           + 'reach the next rung, so a hand from JEE Society lifts them from the bottom rung to '
-          + 'the top one, where an iPad is waiting.'
+          + `the top one, where ${MENTORSHIP.months} free months of mentorship are waiting.`
         }
       >
       {/* Layer 1 — the ladder and its labels. Still. */}
@@ -171,13 +172,18 @@ export function RescueLadder() {
           {/* Above the rails, not on them: a student standing on the top rung
             has their head at y≈98, which is where the prize used to be. */}
         <g transform={`translate(${CENTRE} 58)`}>
-            <rect className="climb__tablet" x="-26" y="-34" width="52" height="68" rx="8" />
-            <rect className="climb__screen" x="-20" y="-28" width="40" height="52" rx="4" />
-            <circle className="climb__screen" cx="0" cy="28" r="3" />
+            {/* A mortarboard: the mortar as a flat diamond, the cap under it,
+                and a tassel hanging off the right corner. */}
+            <path className="climb__capBoard" d="M 0 -30 L 44 -12 L 0 6 L -44 -12 Z" />
+            <path className="climb__capHead" d="M -22 -7 L -22 14 Q 0 28 22 14 L 22 -7 L 0 2 Z" />
+            <path className="climb__tassel" d="M 44 -12 L 44 16" />
+            <circle className="climb__capBoard" cx="44" cy="20" r="5" />
+            {/* Clear of the cap on every side: gold sparkles drawn over a gold
+                mortarboard are invisible. */}
             {[
-              { x: -46, y: -28, size: 18, delay: '0s' },
-              { x: 36, y: -14, size: 14, delay: '0.5s' },
-              { x: -34, y: 24, size: 11, delay: '1.1s' },
+              { x: -66, y: -22, size: 18, delay: '0s' },
+              { x: 60, y: -36, size: 14, delay: '0.5s' },
+              { x: -52, y: 32, size: 11, delay: '1.1s' },
             ].map((spark) => (
               <path
                 key={`${spark.x},${spark.y}`}

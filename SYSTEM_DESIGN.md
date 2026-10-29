@@ -1173,8 +1173,8 @@ rank list is what the reward bands are defined against.
 
 **Needs a human decision:** the tie-break rule. With a 300-mark objective paper
 and 10,000 students, ties at the top are not a corner case — they are
-near-certain, and the first three percentile bands carry an iPad, an iPhone and
-mentorship. Decide it before publishing, not after someone contests it. The
+near-certain, and the first three percentile bands carry mentorship seats worth
+₹10,000, ₹10,000 and ₹5,000. Decide it before publishing, not after someone contests it. The
 usual JEE rules (fewer wrong answers first, then subject-wise, then age) are the
 obvious precedent and all of them are computable from what is already stored.
 
