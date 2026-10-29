@@ -30,10 +30,23 @@ services:
     # the workspace: protocol differently, producing a tree that builds and
     # then fails at runtime. --frozen-lockfile makes a drifted lockfile a build
     # failure rather than a silent version change.
+    #
+    # Two things here are deliberate and both were failures first:
+    #
+    #   npx pnpm@9.15.4, not `corepack enable && pnpm`. Corepack has to write a
+    #   shim into the Node install directory, which fails on a build image
+    #   where that path is not writable -- and it fails at the first command,
+    #   so nothing after it runs. npx fetches the same pinned version and needs
+    #   no write access.
+    #
+    #   NODE_ENV=development for the install only. tsc is a devDependency, and
+    #   pnpm omits devDependencies when NODE_ENV=production -- which is exactly
+    #   what this service sets, so the compiler would be missing from the one
+    #   command that needs it. The runtime still runs as production: NODE_ENV
+    #   is read from the service environment at boot, not from this line.
     buildCommand: >-
-      corepack enable &&
-      pnpm install --frozen-lockfile &&
-      pnpm -r --filter @jee/shared --filter @jee/db --filter @jee/api build
+      NODE_ENV=development npx --yes pnpm@9.15.4 install --frozen-lockfile &&
+      npx --yes pnpm@9.15.4 -r --filter @jee/shared --filter @jee/db --filter @jee/api build
     startCommand: node apps/api/dist/server.js
 
     # Touches the database: an API that cannot reach Postgres is not ready to
