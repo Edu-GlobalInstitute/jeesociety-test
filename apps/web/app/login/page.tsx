@@ -47,7 +47,11 @@ export default function Login() {
     setBusy(true);
     setError(null);
     try {
-      await signIn(email, password);
+      const result = await signIn(email, password);
+      if (result.twoFactorRedirect) {
+        window.location.href = '/two-factor';
+        return;
+      }
       window.location.href = nextStepFor(await getProfile());
     } catch (caught) {
       setBusy(false);

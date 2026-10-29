@@ -23,7 +23,7 @@ export function signUp(input: SignUpInput) {
 }
 
 export function signIn(email: string, password: string) {
-  return api('/auth/sign-in/email', {
+  return api<{ twoFactorRedirect?: boolean }>('/auth/sign-in/email', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });

@@ -22,6 +22,7 @@ const TABS = [
   { href: '/admin/leads', label: 'Sales CRM' },
   { href: '/admin/designer', label: 'Test designer' },
   { href: '/admin/review', label: 'Review queue' },
+  { href: '/admin/security', label: 'Security' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

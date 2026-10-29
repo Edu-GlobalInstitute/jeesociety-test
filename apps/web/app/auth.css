@@ -211,6 +211,16 @@
 
 .auth__alt a { font-weight: 600; }
 
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .auth__fine {
   margin: 22px auto 0;
   max-width: 460px;

@@ -1,5 +1,6 @@
 import { betterAuth } from 'better-auth';
 import { fromNodeHeaders } from 'better-auth/node';
+import { twoFactor } from 'better-auth/plugins';
 import type { IncomingHttpHeaders } from 'node:http';
 import type { Pool } from '@jee/db';
 import type { Env } from './env.js';
@@ -94,6 +95,40 @@ export function createAuth(env: Env, pool: Pool) {
       window: 60,
       max: 20,
     },
+    /**
+     * Two-factor authentication, for admins.
+     *
+     * Enabled for the whole instance because the plugin has to own the sign-in
+     * path to work: when a user with 2FA signs in, it deletes the session it
+     * would have created and returns `{ twoFactorRedirect: true }` with a
+     * ten-minute cookie instead. No session exists until the code is verified,
+     * which is what makes a stolen admin password insufficient rather than
+     * merely inconvenient.
+     *
+     * Students are unaffected. Nothing turns 2FA on for an account except that
+     * account calling /auth/two-factor/enable with its own password, and the
+     * portal only offers it to admins. A student who wants it may have it.
+     *
+     * TOTP only -- no email OTP. `otpOptions.sendOTP` is deliberately not
+     * configured: this deployment has no email sending at all, so an OTP route
+     * would be a code path that silently never delivers. The authenticator app
+     * needs no infrastructure and keeps working if email ever breaks.
+     */
+    plugins: [
+      twoFactor({
+        // What the authenticator app shows beside the six digits.
+        issuer: 'JEE Society Admin',
+        backupCodeOptions: {
+          // Ten codes, shown once. Enough that losing a phone is recoverable
+          // without them becoming a password list someone leaves in a drawer.
+          amount: 10,
+          length: 10,
+        },
+        // The code must be verified before the flag is set, so an admin cannot
+        // lock themselves out by enabling 2FA against a mistyped secret.
+        skipVerificationOnEnable: false,
+      }),
+    ],
   });
 }
 

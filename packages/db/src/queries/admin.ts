@@ -145,3 +145,222 @@ export async function liveStats(testId: number, db?: Queryable): Promise<LiveSta
     flagged: Number(row?.flagged ?? 0),
   };
 }
+
+/* -------------------------------------------------------------------------- */
+/* Admin security                                                             */
+/* -------------------------------------------------------------------------- */
+
+export interface AdminStandingRow {
+  is_admin: boolean;
+  require_2fa: boolean;
+  /** True once the grace period for setting up 2FA has passed. */
+  grace_expired: boolean;
+  /** From "user"."twoFactorEnabled": whether a second factor is set up. */
+  two_factor_enabled: boolean;
+  granted_by: string | null;
+  granted_at: Date | null;
+  mfa_grace_until: Date | null;
+}
+
+/**
+ * Everything requireAdmin needs, in one query.
+ *
+ * One round trip rather than three, because this runs on every single admin
+ * request — and because reading the admin row and the 2FA flag separately
+ * leaves a window in which they disagree.
+ *
+ * `isAdmin` above is kept: the review and event-console routes only ever asked
+ * the yes-or-no question, and widening it would make every caller carry fields
+ * it does not use.
+ */
+export async function adminStanding(
+  userId: string,
+  db?: Queryable,
+): Promise<AdminStandingRow> {
+  const row = await one<AdminStandingRow>(
+    `SELECT
+       true AS is_admin,
+       a.require_2fa,
+       -- NULL grace reads as expired: a row with no grace period is one that
+       -- was never granted one, and the safe reading of that is "no grace".
+       (a.mfa_grace_until IS NULL OR a.mfa_grace_until <= now()) AS grace_expired,
+       COALESCE(u."twoFactorEnabled", false) AS two_factor_enabled,
+       a.granted_by,
+       a.created_at AS granted_at,
+       a.mfa_grace_until
+     FROM admins a
+     JOIN "user" u ON u."id" = a.user_id
+     WHERE a.user_id = $1`,
+    [userId],
+    db,
+  );
+
+  return (
+    row ?? {
+      is_admin: false,
+      require_2fa: true,
+      grace_expired: true,
+      two_factor_enabled: false,
+      granted_by: null,
+      granted_at: null,
+      mfa_grace_until: null,
+    }
+  );
+}
+
+/**
+ * Records an attempt to reach an admin route, granted or refused.
+ *
+ * Append-only. Refusals are the point: an attempt that changes nothing writes
+ * no admin_audit row, so without this there is no trace of someone trying an
+ * admin account repeatedly and failing.
+ *
+ * Never throws. This is instrumentation on the authorisation path, and a
+ * logging failure must not be able to lock an admin out of their own portal —
+ * so a broken insert is swallowed rather than propagated.
+ */
+export async function logAdminAccess(
+  params: {
+    userId: string | null;
+    email: string | null;
+    outcome: 'granted' | 'no_session' | 'not_admin' | 'mfa_required' | 'mfa_stale';
+    path: string | null;
+    ip: string | null;
+    userAgent: string | null;
+  },
+  db?: Queryable,
+): Promise<void> {
+  try {
+    await rows(
+      `INSERT INTO admin_access_log
+         (user_id, email, outcome, path, ip, user_agent)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        params.userId,
+        params.email,
+        params.outcome,
+        params.path,
+        params.ip,
+        params.userAgent?.slice(0, 500) ?? null,
+      ],
+      db,
+    );
+  } catch {
+    // Deliberately silent. See the note above.
+  }
+}
+
+export interface AccessLogRow {
+  id: number;
+  email: string | null;
+  outcome: string;
+  path: string | null;
+  ip: string | null;
+  user_agent: string | null;
+  at: Date;
+}
+
+/** Recent admin access attempts, newest first. Drives the security screen. */
+export function recentAdminAccess(
+  options: { refusedOnly?: boolean; limit?: number } = {},
+  db?: Queryable,
+): Promise<AccessLogRow[]> {
+  const limit = Math.min(options.limit ?? 100, 500);
+  return rows<AccessLogRow>(
+    `SELECT id, email, outcome, path, ip::text AS ip, user_agent, at
+       FROM admin_access_log
+      ${options.refusedOnly ? `WHERE outcome <> 'granted'` : ''}
+      ORDER BY at DESC, id DESC
+      LIMIT $1`,
+    [limit],
+    db,
+  );
+}
+
+/** The admin list, for the security screen. */
+export function listAdminAccounts(
+  db?: Queryable,
+): Promise<
+  {
+    user_id: string;
+    name: string | null;
+    email: string;
+    note: string | null;
+    require_2fa: boolean;
+    two_factor_enabled: boolean;
+    mfa_grace_until: Date | null;
+    granted_by_email: string | null;
+    created_at: Date;
+  }[]
+> {
+  return rows(
+    `SELECT a.user_id, u."name", u."email", a.note, a.require_2fa,
+            COALESCE(u."twoFactorEnabled", false) AS two_factor_enabled,
+            a.mfa_grace_until,
+            g."email" AS granted_by_email,
+            a.created_at
+       FROM admins a
+       JOIN "user" u ON u."id" = a.user_id
+       LEFT JOIN "user" g ON g."id" = a.granted_by
+      ORDER BY a.created_at`,
+    [],
+    db,
+  );
+}
+
+/**
+ * Grants admin access by email address.
+ *
+ * Returns null when no such account exists, which is the common case rather
+ * than an error: admin is granted to someone who has already signed up, and
+ * there is no row in "user" to reference until they have. Creating a shell
+ * account here would mean an admin row whose password nobody set.
+ *
+ * The new admin gets their own grace period from the column default, because
+ * they have to be able to sign in before they can set up an authenticator.
+ */
+export async function grantAdmin(
+  params: { email: string; note: string; grantedBy: string },
+  db?: Queryable,
+): Promise<{ user_id: string } | null> {
+  return one<{ user_id: string }>(
+    `INSERT INTO admins (user_id, note, granted_by)
+     SELECT u."id", $2, $3 FROM "user" u WHERE lower(u."email") = lower($1)
+     ON CONFLICT (user_id) DO UPDATE SET
+       note = excluded.note,
+       granted_by = excluded.granted_by
+     RETURNING user_id`,
+    [params.email, params.note, params.grantedBy],
+    db,
+  );
+}
+
+/**
+ * Removes admin access, unless doing so would leave nobody who can get in.
+ *
+ * "Nobody who can get in" means no remaining admin with a second factor
+ * actually set up — not merely no remaining admin row. An admin whose grace
+ * period has expired without setting up an authenticator is refused by
+ * requireAdmin, so counting them as a survivor would be counting someone who
+ * is already locked out.
+ *
+ * The guard is a condition on the DELETE rather than a check before it, so two
+ * admins revoking each other at the same instant cannot both pass a
+ * pre-flight read and leave zero.
+ */
+export async function revokeAdmin(userId: string, db?: Queryable): Promise<boolean> {
+  const deleted = await rows<{ user_id: string }>(
+    `DELETE FROM admins
+      WHERE user_id = $1
+        AND EXISTS (
+          SELECT 1 FROM admins a
+          JOIN "user" u ON u."id" = a.user_id
+          WHERE a.user_id <> $1
+            AND COALESCE(u."twoFactorEnabled", false)
+        )
+      RETURNING user_id`,
+    [userId],
+    db,
+  );
+  return deleted.length > 0;
+}

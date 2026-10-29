@@ -14,6 +14,7 @@ import { profileRoutes } from './routes/profile.js';
 import { paymentRoutes } from './routes/payments.js';
 import { adminRoutes } from './routes/admin.js';
 import { adminCrmRoutes } from './routes/admin-crm.js';
+import { adminSecurityRoutes } from './routes/admin-security.js';
 import { adminTestRoutes } from './routes/admin-tests.js';
 import { adminUploadRoutes } from './routes/admin-uploads.js';
 import { paperRoutes } from './routes/papers.js';
@@ -148,6 +149,14 @@ export function createApp({ env, pool, log, auth }: AppDeps): BuiltApp {
   app.use('/admin', adminTestRoutes({ pool, auth: authInstance, log: logger }));
   app.use('/admin', adminCrmRoutes({ pool, auth: authInstance }));
   app.use('/admin/uploads', adminUploadRoutes({ pool, auth: authInstance }));
+
+  // Mounted on its own prefix, NOT under /admin, because one of its routes has
+  // to stay reachable by an admin that requireAdmin is currently refusing --
+  // the one that tells them 2FA is why. See routes/admin-security.ts.
+  app.use(
+    '/admin-security',
+    adminSecurityRoutes({ pool, auth: authInstance, log: logger }),
+  );
 
   /**
    * Development only. The encrypted paper is a CDN object in production (D-009)
