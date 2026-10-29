@@ -54,6 +54,60 @@ export function statusRoutes({ pool, auth }: { pool: Pool; auth: Auth }): Router
   });
 
   /**
+   * GET /test/list — every published test, with this student's standing in each.
+   *
+   * What the dashboard renders. The scholarship test appears for everyone, as
+   * it is the thing being sold; `canEnter` is what differs, and it is false
+   * until the student has paid. Mocks are free and `canEnter` is true for any
+   * signed-in student once they are live.
+   *
+   * `canEnter` is computed here for the UI, but it is not the lock: every one
+   * of those conditions is re-checked by POST /attempt/register, which is the
+   * only place that admits anyone. This endpoint decides what a button looks
+   * like, not who gets in.
+   */
+  router.get('/list', requireUser(auth), async (req, res) => {
+    const me = currentUser(req);
+    const published = await tests.listPublishedTests(pool);
+
+    const rows = await Promise.all(
+      published.map(async (test) => {
+        const [paid, attempt] = await Promise.all([
+          // Only asked when it can matter: a free mock needs no payment lookup.
+          test.requires_payment
+            ? payments.hasPaid(me.id, test.id, pool)
+            : Promise.resolve(true),
+          attempts.getAttemptForUser(me.id, test.id, pool),
+        ]);
+
+        return {
+          testId: test.id,
+          name: test.name,
+          kind: test.kind,
+          requiresPayment: test.requires_payment,
+          durationMinutes: test.duration_minutes,
+          startsAt: test.starts_at.getTime(),
+          endsAt: test.ends_at.getTime(),
+          lobbyOpensAt: test.lobby_opens_at.getTime(),
+          examOpen: isExamOpen(test.status),
+          paid,
+          canEnter: isExamOpen(test.status) && paid,
+          attempt: attempt
+            ? {
+                id: attempt.id,
+                status: attempt.status,
+                submittedAt: attempt.submitted_at?.toISOString() ?? null,
+                receipt: attempt.receipt,
+              }
+            : null,
+        };
+      }),
+    );
+
+    res.json({ serverTime: Date.now(), tests: rows });
+  });
+
+  /**
    * Unauthenticated clock reference. The exam client re-reads this every few
    * minutes to correct for drift, and it must not require a session: a student
    * whose session is being refreshed should never see their timer jump.

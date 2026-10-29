@@ -48,7 +48,11 @@ export function paymentRoutes({
   /* ---------------------------------------------------------------------- */
   router.post('/order', express.json(), requireUser(auth), async (req, res) => {
     const me = currentUser(req);
-    const test = await tests.getCurrentTest(pool);
+    // The scholarship test by name, not whichever test is soonest. Now that
+    // mock tests exist, getCurrentTest can return a free mock opening tomorrow
+    // — and an order created against it would charge a student for something
+    // that is not for sale.
+    const test = await tests.getScholarshipTest(pool);
     if (!test) throw notFound('no_test', 'There is no scheduled test.');
 
     if (await payments.hasPaid(me.id, test.id, pool)) {
@@ -177,7 +181,8 @@ export function paymentRoutes({
   /* ---------------------------------------------------------------------- */
   router.get('/status', requireUser(auth), async (req, res) => {
     const me = currentUser(req);
-    const test = await tests.getCurrentTest(pool);
+    // Same reason as /order: "have I paid" means the scholarship test.
+    const test = await tests.getScholarshipTest(pool);
     if (!test) throw notFound('no_test', 'There is no scheduled test.');
     res.json({ paid: await payments.hasPaid(me.id, test.id, pool), testId: test.id });
   });

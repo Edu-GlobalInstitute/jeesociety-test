@@ -7,3 +7,6 @@ export * as jobs from './queries/jobs.js';
 export * as payments from './queries/payments.js';
 export * as admin from './queries/admin.js';
 export * as profiles from './queries/profiles.js';
+export * as questions from './queries/questions.js';
+export * as leads from './queries/leads.js';
+export * as metrics from './queries/metrics.js';

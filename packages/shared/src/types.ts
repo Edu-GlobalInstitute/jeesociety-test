@@ -33,6 +33,16 @@ export function hasExamOpened(status: TestStatus): boolean {
 export type PaymentStatus = 'created' | 'paid' | 'failed' | 'refunded';
 
 /**
+ * What a test is for.
+ *
+ * `mock` is free practice, open to any signed-in student. `scholarship` is the
+ * paid event. Authorisation does not read this: it reads
+ * `tests.requires_payment`, so that a free re-run of a scholarship paper (a
+ * centre that lost power, a pilot) needs no lie about what kind of test it is.
+ */
+export type TestKind = 'mock' | 'scholarship';
+
+/**
  * The two question types. `scq` is single-correct-option; `integer` takes a
  * numeric value typed by the student. Both are marked by comparison against
  * `tests.answer_key` — see scoring.ts.

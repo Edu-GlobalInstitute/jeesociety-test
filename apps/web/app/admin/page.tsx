@@ -2,239 +2,326 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
+import { SignupPaidChart, type DayPoint } from '../../components/SignupPaidChart';
 
 /**
- * The during-test dashboard.
+ * The business dashboard: signups, paid conversions and where both are going.
  *
- * One number on this page matters more than the rest: **stale syncs**. It
- * answers "is sync working across the whole cohort" with a count rather than a
- * guess, and it is the signal that something is wrong while there is still time
- * to act on it.
+ * This replaced the live event console on `/admin`, which now lives at
+ * `/admin/live`. The reason is how often each is read: the console matters for
+ * three hours on one morning, and this is the screen the team opens every day.
+ *
+ * Every KPI carries the preceding equal window beside it, because a bare number
+ * is not information — "412 signups" says nothing that "412, up from 260" does
+ * not say better.
  */
 
-interface Dashboard {
-  testId: number;
-  test: { name: string; status: string; paperPublished: boolean } | null;
-  stats: {
-    registered: number;
-    inProgress: number;
-    submitted: number;
-    autoSubmitted: number;
-    syncsLastMinute: number;
-    syncsLast5Minutes: number;
-    staleOver4Minutes: number;
-    flagged: number;
-  };
-  jobs: { job: string; status: string; run_after: string; error: string | null }[];
-  serverTime: number;
+interface KpiWindow {
+  days: number;
+  signups: number;
+  paid: number;
+  revenuePaise: number;
+  previousSignups: number;
+  previousPaid: number;
+  previousRevenuePaise: number;
 }
 
-const JOBS = ['auto_submit', 'mcq_score', 'compute_flags'];
+interface Metrics {
+  last7Days: KpiWindow;
+  last30Days: KpiWindow;
+  series: DayPoint[];
+  funnel: {
+    signups: number;
+    profilesComplete: number;
+    ordersCreated: number;
+    paid: number;
+    abandoned: number;
+  };
+  referrals: { source: string; signups: number; paid: number }[];
+  cohorts: { class: string; target_year: number; signups: number; paid: number }[];
+  stages: { stage: string; count: number }[];
+  generatedAt: string;
+}
+
+const STAGE_LABELS: Record<string, string> = {
+  new: 'New',
+  contacted: 'Contacted',
+  interested: 'Interested',
+  not_interested: 'Not interested',
+  lost: 'Lost',
+};
 
 export default function AdminDashboard() {
-  const [data, setData] = useState<Dashboard | null>(null);
+  const [data, setData] = useState<Metrics | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [range, setRange] = useState<7 | 30>(30);
 
-  const load = () =>
-    api<Dashboard>('/admin/dashboard')
+  useEffect(() => {
+    api<Metrics>('/admin/metrics')
       .then((next) => {
         setData(next);
         setError(null);
       })
-      .catch(() => setError('Admin access is required.'));
-
-  useEffect(() => {
-    void load();
-    // Ten seconds: frequent enough to watch a cohort, infrequent enough that
-    // the dashboard itself is not load during the event.
-    const timer = setInterval(() => void load(), 10_000);
-    return () => clearInterval(timer);
+      .catch((caught) =>
+        setError(
+          caught instanceof Error && 'status' in caught && (caught as { status: number }).status === 403
+            ? 'Admin access is required. Ask for your account to be added to the admins table.'
+            : 'Could not load the dashboard.',
+        ),
+      );
   }, []);
-
-  /**
-   * The go-live switch. A typed reason is required because it is written to
-   * admin_audit, and the confirmation names the consequence rather than asking
-   * "are you sure" — this is the control that decides whether 10,000 students
-   * can get in.
-   */
-  async function setTestStatus(next: 'scheduled' | 'live') {
-    setMessage(null);
-    const reason = window.prompt(
-      next === 'live'
-        ? 'Going live opens the lobby, the paper key and sync for every paid student. Why?'
-        : 'Locking puts every student back on the coming-soon screen. Why?',
-    );
-    if (!reason || reason.trim().length < 3) {
-      setMessage('A reason of at least three characters is required. Nothing was changed.');
-      return;
-    }
-    try {
-      await api('/admin/test-status', {
-        method: 'POST',
-        body: JSON.stringify({ status: next, reason: reason.trim() }),
-      });
-      setMessage(next === 'live' ? 'The test is live.' : 'The test is locked.');
-      void load();
-    } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : 'Could not change the status.');
-    }
-  }
-
-  async function runJob(job: string) {
-    setMessage(null);
-    try {
-      await api('/admin/run-job', { method: 'POST', body: JSON.stringify({ job }) });
-      setMessage(`${job} is queued. The worker picks it up within a few seconds.`);
-      void load();
-    } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : 'Could not queue that job.');
-    }
-  }
 
   if (error) {
     return (
-      <main className="wrap" style={{ paddingTop: 48 }}>
-        <div className="notice">{error}</div>
+      <main className="ap">
+        <p className="msg msg--bad">{error}</p>
       </main>
     );
   }
   if (!data) {
     return (
-      <main className="wrap" style={{ paddingTop: 48 }}>
-        <p className="muted">Loading…</p>
+      <main className="ap">
+        <p className="empty">Loading…</p>
       </main>
     );
   }
 
-  const { stats } = data;
-  // Shown as a share, because 40 stale out of 60 sitting is a crisis and 40 out
-  // of 9,000 is a normal afternoon.
-  const stalePercent = stats.inProgress
-    ? Math.round((stats.staleOver4Minutes / stats.inProgress) * 100)
-    : 0;
+  const window = range === 7 ? data.last7Days : data.last30Days;
+  // The 7-day view is the tail of the same 30 points, so the chart and the
+  // tiles can never disagree about a day they share.
+  const series = range === 7 ? data.series.slice(-7) : data.series;
+
+  const conversion = window.signups > 0 ? (window.paid / window.signups) * 100 : 0;
 
   return (
-    <main className="wrap" style={{ paddingTop: 40, paddingBottom: 64 }}>
-      <h1 style={{ fontSize: '1.5rem', margin: '0 0 4px' }}>Test {data.testId}</h1>
-      <p className="muted" style={{ marginTop: 0 }}>
-        Updated {new Date(data.serverTime).toLocaleTimeString()} · refreshes every 10 seconds ·{' '}
-        <a href="/admin/review">review queue ({stats.flagged})</a>
-      </p>
-
-      {message ? (
-        <p className="muted" style={{ marginTop: 0 }}>
-          {message}
-        </p>
-      ) : null}
-
-      {stats.inProgress > 0 && stalePercent >= 1 ? (
-        <div className="notice">
-          {stats.staleOver4Minutes} of {stats.inProgress} students in progress ({stalePercent}%)
-          have not synced in over four minutes. Check the API error rate and database
-          connections before changing anything.
+    <main className="ap">
+      <div className="ap__head">
+        <div>
+          <h1>Dashboard</h1>
+          <p className="ap__sub">
+            Updated {new Date(data.generatedAt).toLocaleTimeString('en-IN')} ·{' '}
+            <a href="/admin/live">live event console</a>
+          </p>
         </div>
-      ) : null}
-
-      <div className="spec" style={{ marginBottom: 16 }}>
-        <div className="spec__cell">
-          <span className="spec__value tnum">{stats.inProgress}</span>
-          <span className="spec__label">in progress</span>
-        </div>
-        <div className="spec__cell">
-          <span className="spec__value tnum">{stats.staleOver4Minutes}</span>
-          <span className="spec__label">stale over 4 min</span>
-        </div>
-        <div className="spec__cell">
-          <span className="spec__value tnum">{stats.syncsLastMinute}</span>
-          <span className="spec__label">syncs last minute</span>
-        </div>
-        <div className="spec__cell">
-          <span className="spec__value tnum">{stats.submitted + stats.autoSubmitted}</span>
-          <span className="spec__label">submitted</span>
+        <div className="row">
+          <button
+            type="button"
+            className={range === 7 ? 'btn btn--sm btn--go' : 'btn btn--sm'}
+            onClick={() => setRange(7)}
+          >
+            7 days
+          </button>
+          <button
+            type="button"
+            className={range === 30 ? 'btn btn--sm btn--go' : 'btn btn--sm'}
+            onClick={() => setRange(30)}
+          >
+            30 days
+          </button>
         </div>
       </div>
 
-      <section className="panel">
-        <h2 style={{ fontSize: '1rem', marginTop: 0 }}>Access</h2>
-        <p className="muted" style={{ marginTop: 0 }}>
-          {data.test?.status === 'live'
-            ? 'The test is live. Paid students can enter the lobby, open the paper and sync.'
-            : data.test?.status === 'scheduled'
-              ? 'The test is on sale and locked. Registration and payment work; every student '
-                + 'sees the coming-soon screen instead of a lobby.'
-              : `The test is ${data.test?.status ?? 'unknown'}. The worker owns this status; it `
-                + 'cannot be switched from here.'}
-        </p>
-        {data.test?.status === 'scheduled' && !data.test.paperPublished ? (
-          <div className="notice">
-            No paper is published for this test, so it cannot go live. Upload it with
-            tools/build-paper first.
-          </div>
-        ) : null}
-        {data.test?.status === 'scheduled' ? (
-          <button
-            className="btn"
-            disabled={!data.test.paperPublished}
-            onClick={() => void setTestStatus('live')}
-          >
-            Go live
-          </button>
-        ) : data.test?.status === 'live' ? (
-          <button className="btn btn--ghost" onClick={() => void setTestStatus('scheduled')}>
-            Lock the test again
-          </button>
-        ) : null}
+      <div className="grid grid--kpi" style={{ marginBottom: 16 }}>
+        <Kpi
+          label={`Signups · last ${window.days} days`}
+          value={window.signups}
+          previous={window.previousSignups}
+        />
+        <Kpi
+          label={`Paid · last ${window.days} days`}
+          value={window.paid}
+          previous={window.previousPaid}
+        />
+        <Kpi
+          label={`Revenue · last ${window.days} days`}
+          value={window.revenuePaise}
+          previous={window.previousRevenuePaise}
+          money
+        />
+        <div className="card">
+          <p className="kpi__label">Conversion</p>
+          <div className="kpi__value">{conversion.toFixed(1)}%</div>
+          <p className="kpi__foot">
+            of this window’s signups have paid
+          </p>
+        </div>
+      </div>
+
+      <section className="card" style={{ marginBottom: 16 }}>
+        <h2>Signups vs paid · last {range} days</h2>
+        <SignupPaidChart data={series} />
       </section>
 
-      <section className="panel">
-        <h2 style={{ fontSize: '1rem', marginTop: 0 }}>Cohort</h2>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-          <tbody>
-            {[
-              ['Registered', stats.registered],
-              ['In progress', stats.inProgress],
-              ['Submitted by the student', stats.submitted],
-              ['Finalised automatically', stats.autoSubmitted],
-              ['Synced in the last 5 minutes', stats.syncsLast5Minutes],
-              ['Flagged for review', stats.flagged],
-            ].map(([label, value]) => (
-              <tr key={label as string} style={{ borderBottom: '1px solid var(--rule)' }}>
-                <td style={{ padding: '7px 0' }}>{label}</td>
-                <td className="tnum" style={{ textAlign: 'right' }}>
-                  {value as number}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+      <div className="grid grid--2">
+        <section className="card">
+          <h2>Funnel · all time</h2>
+          <table className="t">
+            <tbody>
+              <FunnelRow label="Signed up" value={data.funnel.signups} of={data.funnel.signups} />
+              <FunnelRow
+                label="Profile completed"
+                value={data.funnel.profilesComplete}
+                of={data.funnel.signups}
+              />
+              <FunnelRow
+                label="Started a payment"
+                value={data.funnel.ordersCreated}
+                of={data.funnel.signups}
+              />
+              <FunnelRow label="Paid" value={data.funnel.paid} of={data.funnel.signups} />
+            </tbody>
+          </table>
+          {data.funnel.abandoned > 0 ? (
+            <p className="msg msg--warn" style={{ marginTop: 12, marginBottom: 0 }}>
+              <strong>{data.funnel.abandoned}</strong> student
+              {data.funnel.abandoned === 1 ? '' : 's'} reached the payment page and did not
+              finish. They are the warmest leads you have —{' '}
+              <a href="/admin/leads?payment=unpaid">work that list</a>.
+            </p>
+          ) : null}
+        </section>
 
-      <section className="panel">
-        <h2 style={{ fontSize: '1rem', marginTop: 0 }}>Jobs</h2>
-        <p className="muted" style={{ marginTop: 0 }}>
-          Queuing a job writes a row. The worker claims it on its next poll — nothing runs
-          inside this request.
-        </p>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-          <tbody>
-            {JOBS.map((job) => {
-              const run = data.jobs.find((candidate) => candidate.job === job);
-              return (
-                <tr key={job} style={{ borderBottom: '1px solid var(--rule)' }}>
-                  <td style={{ padding: '8px 0' }}>{job.replace(/_/g, ' ')}</td>
-                  <td className="muted">{run?.status ?? 'not scheduled'}</td>
-                  <td style={{ textAlign: 'right' }}>
-                    <button className="btn btn--ghost" onClick={() => void runJob(job)}>
-                      Queue
-                    </button>
+        <section className="card">
+          <h2>Pipeline</h2>
+          <table className="t">
+            <tbody>
+              {data.stages.map((stage) => (
+                <tr key={stage.stage}>
+                  <td>
+                    <a href={`/admin/leads?stage=${stage.stage}`}>
+                      {STAGE_LABELS[stage.stage] ?? stage.stage}
+                    </a>
+                  </td>
+                  <td className="tnum nowrap" style={{ textAlign: 'right', width: 90 }}>
+                    {stage.count.toLocaleString('en-IN')}
                   </td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </section>
+              ))}
+            </tbody>
+          </table>
+        </section>
+
+        <section className="card">
+          <h2>Where they heard about it</h2>
+          {data.referrals.length === 0 ? (
+            <p className="empty">Nothing yet.</p>
+          ) : (
+            <table className="t">
+              <thead>
+                <tr>
+                  <th>Source</th>
+                  <th style={{ textAlign: 'right' }}>Signups</th>
+                  <th style={{ textAlign: 'right' }}>Paid</th>
+                  <th style={{ textAlign: 'right' }}>Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.referrals.map((row) => (
+                  <tr key={row.source}>
+                    <td>{row.source.replace(/_/g, ' ')}</td>
+                    <td className="tnum" style={{ textAlign: 'right' }}>{row.signups}</td>
+                    <td className="tnum" style={{ textAlign: 'right' }}>{row.paid}</td>
+                    <td className="tnum muted-cell" style={{ textAlign: 'right' }}>
+                      {row.signups ? `${Math.round((row.paid / row.signups) * 100)}%` : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+
+        <section className="card">
+          <h2>Class and target year</h2>
+          {data.cohorts.length === 0 ? (
+            <p className="empty">Nothing yet.</p>
+          ) : (
+            <table className="t">
+              <thead>
+                <tr>
+                  <th>Class</th>
+                  <th>Target</th>
+                  <th style={{ textAlign: 'right' }}>Signups</th>
+                  <th style={{ textAlign: 'right' }}>Paid</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.cohorts.map((row) => (
+                  <tr key={`${row.class}-${row.target_year}`}>
+                    <td>{row.class === 'dropper' ? 'Dropper' : `Class ${row.class}`}</td>
+                    <td className="tnum">{row.target_year}</td>
+                    <td className="tnum" style={{ textAlign: 'right' }}>{row.signups}</td>
+                    <td className="tnum" style={{ textAlign: 'right' }}>{row.paid}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+      </div>
     </main>
+  );
+}
+
+/**
+ * A stat tile: the value, and the same window before it.
+ *
+ * The trend carries an arrow as well as a colour — a red/green pair alone is
+ * the most common form of colour blindness, and this is read at a glance.
+ */
+function Kpi({
+  label,
+  value,
+  previous,
+  money = false,
+}: {
+  label: string;
+  value: number;
+  previous: number;
+  money?: boolean;
+}) {
+  const shown = money ? `₹${(value / 100).toLocaleString('en-IN')}` : value.toLocaleString('en-IN');
+  const change = previous === 0 ? null : Math.round(((value - previous) / previous) * 100);
+  const direction = value > previous ? 'up' : value < previous ? 'down' : 'flat';
+
+  return (
+    <div className="card">
+      <p className="kpi__label">{label}</p>
+      <div className="kpi__value">{shown}</div>
+      <p className="kpi__foot">
+        <span className={`trend trend--${direction}`}>
+          {direction === 'up' ? '▲' : direction === 'down' ? '▼' : '—'}
+          {change === null ? '' : ` ${Math.abs(change)}%`}
+        </span>
+        <span>
+          vs {money ? `₹${(previous / 100).toLocaleString('en-IN')}` : previous.toLocaleString('en-IN')}{' '}
+          previous
+        </span>
+      </p>
+    </div>
+  );
+}
+
+/** A funnel step with a meter: a ratio against a limit, same-ramp track. */
+function FunnelRow({ label, value, of }: { label: string; value: number; of: number }) {
+  const share = of > 0 ? (value / of) * 100 : 0;
+  return (
+    <tr>
+      <td style={{ width: '45%' }}>
+        {label}
+        <div className="progress">
+          <div
+            className={share >= 99 ? 'progress__fill' : 'progress__fill progress__fill--part'}
+            style={{ width: `${Math.max(1, share)}%` }}
+          />
+        </div>
+      </td>
+      <td className="tnum nowrap" style={{ textAlign: 'right' }}>
+        {value.toLocaleString('en-IN')}
+      </td>
+      <td className="tnum muted-cell nowrap" style={{ textAlign: 'right', width: 60 }}>
+        {share.toFixed(0)}%
+      </td>
+    </tr>
   );
 }

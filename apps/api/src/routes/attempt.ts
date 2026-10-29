@@ -98,7 +98,11 @@ export function attemptRoutes({ pool, auth, log }: AttemptRouteDeps): Router {
     if (now >= test.starts_at.getTime()) {
       throw forbidden('registration_closed', 'Registration closed when the test began.');
     }
-    if (!(await payments.hasPaid(me.id, test.id, pool))) {
+    // Mock tests are free and open to any signed-in student; the scholarship
+    // test is the paid one. The flag is read rather than `kind` so that a free
+    // re-run of a scholarship paper needs no exception here — see the column
+    // comment in 006_admin_portal.sql.
+    if (test.requires_payment && !(await payments.hasPaid(me.id, test.id, pool))) {
       throw forbidden('not_paid', 'Complete payment to enter the test.');
     }
 

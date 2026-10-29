@@ -13,6 +13,10 @@ import { statusRoutes } from './routes/status.js';
 import { profileRoutes } from './routes/profile.js';
 import { paymentRoutes } from './routes/payments.js';
 import { adminRoutes } from './routes/admin.js';
+import { adminCrmRoutes } from './routes/admin-crm.js';
+import { adminTestRoutes } from './routes/admin-tests.js';
+import { adminUploadRoutes } from './routes/admin-uploads.js';
+import { paperRoutes } from './routes/papers.js';
 
 export interface AppDeps {
   env: Env;
@@ -121,10 +125,29 @@ export function createApp({ env, pool, log, auth }: AppDeps): BuiltApp {
     }),
   );
 
+  // Public, unauthenticated, cacheable: the encrypted paper and the question
+  // figures. Mounted before the authenticated routers because none of it needs
+  // a session — see routes/papers.ts for why that is safe.
+  app.use('/papers', paperRoutes({ pool }));
+
   app.use('/test', statusRoutes({ pool, auth: authInstance }));
   app.use('/profile', profileRoutes({ pool, auth: authInstance, log: logger }));
   app.use('/attempt', attemptRoutes({ pool, auth: authInstance, log: logger }));
+  // The admin surface, in four routers rather than one.
+  //
+  // adminRoutes is the event console — live sync health, the review queue,
+  // going live — and is the only one of the four that is read during the test.
+  // The others are the business portal: they run arbitrary filtered scans over
+  // every student, and keeping them on separate routers means a slow CRM query
+  // is never mounted on the path the event dashboard polls.
+  //
+  // Order matters. adminTestRoutes owns /admin/tests/* and adminCrmRoutes owns
+  // /admin/leads/*, so neither can shadow the other; the uploads router is
+  // mounted deeper still.
   app.use('/admin', adminRoutes({ pool, auth: authInstance, log: logger }));
+  app.use('/admin', adminTestRoutes({ pool, auth: authInstance, log: logger }));
+  app.use('/admin', adminCrmRoutes({ pool, auth: authInstance }));
+  app.use('/admin/uploads', adminUploadRoutes({ pool, auth: authInstance }));
 
   /**
    * Development only. The encrypted paper is a CDN object in production (D-009)
@@ -134,7 +157,10 @@ export function createApp({ env, pool, log, auth }: AppDeps): BuiltApp {
   if (env.SERVE_LOCAL_PAPERS && env.NODE_ENV !== 'production') {
     const papers = new URL('../../../tools/build-paper/out/', import.meta.url);
     app.use(
-      '/papers',
+      // Not '/papers': that path now serves compiled papers out of the database
+      // for every environment, and a static mount on the same prefix would
+      // shadow it. This stays for papers built by the CLI, which writes files.
+      '/papers-local',
       express.static(papers.pathname, {
         setHeaders: (res) => {
           res.setHeader('Access-Control-Allow-Origin', '*');
