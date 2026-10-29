@@ -22,7 +22,9 @@ export default function TwoFactorPage() {
         body: JSON.stringify({ code: code.replace(/\s/g, '') }),
       });
       const profile = await getProfile();
-      window.location.href = nextStepFor(profile, '/admin');
+      const requested = new URLSearchParams(window.location.search).get('next');
+      const safeNext = requested?.startsWith('/') && !requested.startsWith('//') ? requested : null;
+      window.location.href = safeNext ?? nextStepFor(profile);
     } catch (caught) {
       setBusy(false);
       setError(

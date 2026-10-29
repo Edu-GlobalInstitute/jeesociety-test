@@ -25,13 +25,18 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState(true);
 
+  function requestedDestination(): string | null {
+    const next = new URLSearchParams(window.location.search).get('next');
+    return next?.startsWith('/') && !next.startsWith('//') ? next : null;
+  }
+
   // A student who is already signed in should not be shown a sign-in form.
   useEffect(() => {
     let live = true;
     void (async () => {
       try {
         const profile = await getProfile();
-        if (live && profile) window.location.href = nextStepFor(profile);
+        if (live && profile) window.location.href = requestedDestination() ?? nextStepFor(profile);
         else if (live) setChecking(false);
       } catch {
         if (live) setChecking(false);
@@ -49,10 +54,13 @@ export default function Login() {
     try {
       const result = await signIn(email, password);
       if (result.twoFactorRedirect) {
-        window.location.href = '/two-factor';
+        const next = requestedDestination();
+        window.location.href = next
+          ? `/two-factor?next=${encodeURIComponent(next)}`
+          : '/two-factor';
         return;
       }
-      window.location.href = nextStepFor(await getProfile());
+      window.location.href = requestedDestination() ?? nextStepFor(await getProfile());
     } catch (caught) {
       setBusy(false);
       if (caught instanceof ApiError && caught.status === 429) {

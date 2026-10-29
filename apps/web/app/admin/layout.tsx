@@ -1,6 +1,8 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { getProfile } from '../../lib/auth';
 import './admin.css';
 
 /**
@@ -27,6 +29,39 @@ const TABS = [
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [access, setAccess] = useState<'checking' | 'ready' | 'error'>('checking');
+
+  useEffect(() => {
+    let live = true;
+    void getProfile()
+      .then((profile) => {
+        if (!live) return;
+        if (!profile) {
+          const next = `${window.location.pathname}${window.location.search}`;
+          window.location.replace(`/login?next=${encodeURIComponent(next)}`);
+          return;
+        }
+        setAccess('ready');
+      })
+      .catch(() => {
+        if (live) setAccess('error');
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  if (access !== 'ready') {
+    return (
+      <main className="ap" role="status" aria-live="polite">
+        {access === 'error' ? (
+          <p className="msg msg--bad">Could not reach the sign-in service. Check your connection and reload.</p>
+        ) : (
+          <p className="empty">Checking your sign-in…</p>
+        )}
+      </main>
+    );
+  }
 
   return (
     <div className="admin">
