@@ -102,6 +102,7 @@ export function profileRoutes({
     }
 
     const isMinor = input.dob ? isMinorOn(input.dob, examDate) : false;
+    const consenting = isMinor && input.guardianConsent === true;
 
     try {
       const saved = await profiles.upsertProfile(
@@ -114,11 +115,14 @@ export function profileRoutes({
           state: input.state ?? null,
           city: input.city ?? null,
           school: input.school ?? null,
-          guardianName: input.guardianName ?? null,
-          guardianPhone,
-          // Only a minor's consent is recorded. Storing a timestamp for an
-          // adult who happened to tick a box would misstate the record.
-          guardianConsent: isMinor && input.guardianConsent === true,
+          // Both are sent only for a minor who ticked the box, and both are
+          // nulled otherwise. upsertProfile derives guardian_consent_at from
+          // their presence, so this one condition decides whether consent is
+          // recorded -- there is no separate flag that could disagree with the
+          // fields beside it. An adult who somehow ticked the box records
+          // nothing, which is the truthful outcome.
+          guardianName: consenting ? input.guardianName ?? null : null,
+          guardianPhone: consenting ? guardianPhone : null,
           referralSource: input.referralSource ?? null,
         },
         pool,

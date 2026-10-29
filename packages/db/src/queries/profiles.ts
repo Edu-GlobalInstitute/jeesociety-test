@@ -60,9 +60,12 @@ export interface UpsertProfileParams {
   city: string | null;
   school: string | null;
   guardianName: string | null;
+  /**
+   * Null unless the student is a minor who ticked the consent box -- the route
+   * enforces that before calling this. Consent is derived from these two being
+   * present, so there is no separate boolean to disagree with them.
+   */
   guardianPhone: string | null;
-  /** True only when the student is a minor and ticked the box. */
-  guardianConsent: boolean;
   referralSource: string | null;
 }
 
@@ -87,8 +90,25 @@ export async function upsertProfile(
     `INSERT INTO student_profiles
        (user_id, phone, class, target_year, dob, state, city, school,
         guardian_name, guardian_phone, guardian_consent_at, referral_source)
+     -- guardian_consent_at is derived from whether a guardian is present,
+     -- not taken from the caller, because the three fields have to agree:
+     -- guardian_fields_together CHECKs the proposed row before ON CONFLICT is
+     -- considered, so an inconsistent row fails here rather than in the
+     -- UPDATE. A minor re-saving to fix their city sends the guardian's name
+     -- and number without re-ticking the box, which under a caller-supplied
+     -- timestamp would propose name + phone + NULL and raise a 500 on an
+     -- ordinary correction.
+     --
+     -- The route is what makes this honest: it only sends guardianName and
+     -- guardianPhone for a student who is a minor AND ticked the box, and
+     -- nulls both otherwise. A guardian arriving here therefore means consent
+     -- was given. now() is only a placeholder for a first save -- the UPDATE
+     -- below restores the original timestamp, so re-saving never re-dates it.
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-             CASE WHEN $11::boolean THEN now() ELSE NULL END, $12)
+             CASE
+               WHEN $9::text IS NULL OR $10::text IS NULL THEN NULL
+               ELSE now()
+             END, $11)
      ON CONFLICT (user_id) DO UPDATE SET
        phone = excluded.phone,
        class = excluded.class,
@@ -102,8 +122,21 @@ export async function upsertProfile(
        -- Consent is kept once given: re-saving the form to fix a typo in the
        -- city must not quietly withdraw it, and re-timestamping it would
        -- misdate the record.
-       guardian_consent_at = COALESCE(student_profiles.guardian_consent_at,
-                                      excluded.guardian_consent_at),
+       --
+       -- But only while there is still a guardian on the row. A student who
+       -- first saved as a minor and then corrects their date of birth to an
+       -- adult one sends no guardian fields, and carrying the old timestamp
+       -- across leaves consent_at set with no name or number beside it --
+       -- which violates guardian_fields_together and surfaces as a 500 on an
+       -- ordinary correction. Keeping consent only when a guardian remains
+       -- also states the truth: consent belongs to a named person, so with
+       -- the person gone the timestamp is not a record of anything.
+       guardian_consent_at = CASE
+         WHEN excluded.guardian_name IS NULL OR excluded.guardian_phone IS NULL
+           THEN NULL
+         ELSE COALESCE(student_profiles.guardian_consent_at,
+                       excluded.guardian_consent_at)
+       END,
        referral_source = excluded.referral_source
      RETURNING user_id, phone, class, target_year, dob, state, city, school,
                guardian_name, guardian_phone, guardian_consent_at, referral_source,
@@ -119,7 +152,6 @@ export async function upsertProfile(
       params.school,
       params.guardianName,
       params.guardianPhone,
-      params.guardianConsent,
       params.referralSource,
     ],
     db,
