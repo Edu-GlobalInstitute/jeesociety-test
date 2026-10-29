@@ -208,3 +208,59 @@ evidence of anything.
   `2026-11-10`, which is twelve days away. This has been asked several times and
   not yet answered; if it is wrong, the landing page countdown, the test row and
   the minor-consent calculation are all wrong together.
+
+## If the admin login returns 401
+
+A 401 from the admin sign-in form is Better Auth answering
+`INVALID_EMAIL_OR_PASSWORD` on `/auth/sign-in/email`. It means exactly one
+thing: **the email and password pair does not match a credential account**. It
+is not a CORS problem, not a missing migration, and not the 2FA gate — 2FA
+refusals are 403 with code `mfa_required`, and a missing session on an admin
+route is a 401 from `requireAdmin` on `/admin/*`, not from `/auth/*`.
+
+Better Auth deliberately returns the same message whether the account is absent
+or the password is wrong, so the response cannot tell you which. Find out with
+`diagnose-admin-401.sql`-style query in the Neon SQL editor:
+
+```sql
+SELECT u."email", u."twoFactorEnabled",
+       (SELECT string_agg(a."providerId", ', ')
+          FROM "account" a WHERE a."userId" = u."id") AS providers,
+       (SELECT count(*) FROM "account" a
+         WHERE a."userId" = u."id" AND a."providerId" = 'credential'
+           AND a."password" IS NOT NULL)              AS has_password,
+       EXISTS (SELECT 1 FROM admins ad WHERE ad.user_id = u."id") AS is_admin
+  FROM "user" u
+ WHERE lower(u."email") = 'jeesocietydev@gmail.com';
+```
+
+Read it like this:
+
+| What you see | What it means | Fix |
+|---|---|---|
+| No row at all | The account does not exist | First-time setup, below |
+| `has_password = 0` | Google-only account; there is no password to check | Set one, below |
+| `has_password = 1` | The password is simply wrong | Set a new one, below |
+| `is_admin = false` | It can sign in but has no admin access | `INSERT INTO admins` |
+
+### Setting the password
+
+There is no email sending in this deployment, so the built-in reset flow has no
+way to deliver a link. Generate the hash with Better Auth's own hasher — never
+by hand, and never a plaintext password into the column:
+
+```bash
+cd "D:/Orvinex Software Solution/testseries"
+node apps/api/scripts/make-admin-password.mjs 'your-new-password'
+```
+
+It prints the SQL to run, and round-trips the hash through `verifyPassword`
+before printing so a bad format cannot reach the database. Run the printed
+`UPDATE`; if it reports 0 rows, run the `INSERT` beneath it instead.
+
+### First-time setup
+
+`GET /admin-bootstrap/status` says whether the one-time setup route is still
+open. It currently answers `{"available":false}`, which means
+`jeesocietydev@gmail.com` **already exists** — so setup is closed and the
+password path above is the way in.
