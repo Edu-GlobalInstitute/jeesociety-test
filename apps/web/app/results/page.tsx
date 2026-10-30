@@ -1,71 +1,72 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import { PAPER } from '@jee/shared/config';
-import { api } from '../../lib/api';
-
-interface Result {
-  receipt: string | null;
-  status: string;
-  submittedAt: string | null;
-  scores: { mcq: number | null; total: number | null };
-}
+import type { Metadata } from 'next';
+import { MENTORSHIP } from '@jee/shared/config';
+import './results.css';
+import { ArrowIcon, Seal } from '../../components/PosterMarks';
+import { ResultWall } from '../../components/ResultWall';
+import { YourResult } from './YourResult';
 
 /**
- * Results. Written for a student refreshing this page the morning after, so it
- * says exactly which part is ready and when the rest arrives rather than
- * showing an empty state.
+ * Results.
+ *
+ * Two different people click "Results" in the masthead, and the page is built
+ * in that order. The first is a seventeen-year-old who has not registered and
+ * wants to know whether anyone here has actually done this — so the page opens
+ * as a wall of result slips, four students who sat the real exam, each one a
+ * video they can press play on with the score underneath. The second is a
+ * registered student checking their own marks, which is the quiet panel at the
+ * foot.
  */
+
+export const metadata: Metadata = {
+  title: 'Results — four students, four scorecards, in their own words',
+  description:
+    'JEE Main scorecards you can press play on: Prahalad at 99.66 percentile, Shubh and '
+    + 'Sanskar at 99.5, and Krish from a full syllabus of backlog to IIT Roorkee. '
+    + 'Honest conversations about the backlogs, the bad mocks and the comebacks.',
+};
+
 export default function Results() {
-  const [result, setResult] = useState<Result | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    api<{ receipt: string | null; status: string; submittedAt: string | null }>('/attempt/state')
-      .then((state) =>
-        setResult({
-          receipt: state.receipt,
-          status: state.status,
-          submittedAt: state.submittedAt,
-          scores: { mcq: null, total: null },
-        }),
-      )
-      .catch(() => setError('Sign in to see your result.'));
-  }, []);
-
   return (
-    <main className="wrap" style={{ paddingTop: 48, paddingBottom: 64 }}>
-      <h1 style={{ fontSize: '1.8rem', margin: '0 0 8px' }}>Your result</h1>
+    <main className="results">
+      {/* ── The wall, and what it is ──────────────────────────────────── */}
+      <section className="rhero">
+        <div className="wrap rhero__inner">
+          <p className="rhero__eyebrow">Straight from the other side</p>
 
-      {error ? (
-        <div className="notice">
-          {error} <a href="/login">Sign in</a>
+          <h1 className="rhero__title">
+            <span className="rhero__line">Four scorecards.</span>
+            <span className="rhero__line rhero__line--lit">
+              Press play on any of them.
+            </span>
+          </h1>
         </div>
-      ) : null}
+      </section>
 
-      {result ? (
-        <>
-          <section className="panel">
-            <h2 style={{ fontSize: '1rem', marginTop: 0 }}>Your test</h2>
-            <p className="prose" style={{ marginBottom: 0 }}>
-              {result.submittedAt
-                ? `Submitted ${new Date(result.submittedAt).toLocaleString()}.`
-                : 'Not submitted yet.'}
-              {result.receipt ? ` Receipt ${result.receipt}.` : ''}
-            </p>
-          </section>
+      <div className="wrap">
+        <ResultWall />
+      </div>
 
-          <section className="panel">
-            <h2 style={{ fontSize: '1rem', marginTop: 0 }}>Marks</h2>
-            <p className="prose" style={{ marginBottom: 0 }}>
-              {result.scores.total === null
-                ? 'Every question on this paper is machine-marked, so marks are published the '
-                  + 'morning after the test and your all-India rank follows the same week.'
-                : `${result.scores.total} marks out of ${PAPER.maxMarks}.`}
-            </p>
-          </section>
-        </>
-      ) : null}
+      {/* ── The one thing to do after watching ────────────────────────── */}
+      <section className="rfinale">
+        <span className="rfinale__seal" aria-hidden="true"><Seal /></span>
+        <div className="wrap rfinale__inner">
+          <p className="rfinale__kicker">Every one of them started at a mock test</p>
+          <h2 className="rfinale__title">Put your own name on this wall</h2>
+          <p className="rfinale__line">
+            One full-length paper, sat on the same morning across India. Finish in the
+            top 1% and {MENTORSHIP.months} months of mentorship from{' '}
+            {MENTORSHIP.mentors} is yours.
+          </p>
+          <a className="rfinale__cta" href="/signup">
+            Register for the test
+            <span className="rfinale__arrow" aria-hidden="true"><ArrowIcon /></span>
+          </a>
+        </div>
+
+        <div className="wrap">
+          <YourResult />
+        </div>
+      </section>
     </main>
   );
 }

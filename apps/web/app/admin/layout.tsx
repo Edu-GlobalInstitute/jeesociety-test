@@ -9,9 +9,8 @@ import './admin.css';
  * The admin portal's own chrome.
  *
  * A nested layout rather than the root one: the root layout is the public
- * site's, with a marketing ticker, a Register call to action and the prize
- * photo credits. None of that belongs around a sales pipeline, and the ticker
- * animates forever behind a screen staff keep open all day.
+ * site's, with a Register call to action and the prize photo credits. None of
+ * that belongs around a sales pipeline.
  *
  * It cannot be replaced outright — a nested layout renders inside the root —
  * so `admin.css` hides the public chrome for these routes instead. That is one
@@ -70,7 +69,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="admin">
       <header className="admin__bar">
         <div className="admin__brand">
-          JEE Society <span>admin</span>
+          JEE PENULTIMATE <span>admin</span>
         </div>
         <nav className="admin__tabs">
           {TABS.map((tab) => {

@@ -72,11 +72,11 @@ export const REWARD_BANDS = [
 ] as const;
 
 /**
- * When the paper opens. ISO-8601 with an explicit offset so the landing
- * page's countdown and the server agree regardless of where either is run.
- * This must match `tests.starts_at` in the database for the test being sold.
+ * When the paper opens. ISO-8601 with an explicit offset so every label on the
+ * site and the server agree regardless of where either is run. This must match
+ * `tests.starts_at` in the database for the test being sold.
  */
-export const TEST_STARTS_AT = '2026-11-10T09:00:00+05:30';
+export const TEST_STARTS_AT = '2026-11-30T09:00:00+05:30';
 
 /**
  * The paper's shape, in one place.
@@ -108,6 +108,37 @@ export const PAPER = {
     return this.totalCount * MCQ_MARKS.correct;
   },
 } as const;
+
+/**
+ * Who the paper is written for, and what a student walks away with.
+ *
+ * The offer, in three numbers. The paper is for students still scoring below
+ * `entryCeilingMarks`; the report that follows it is written to be worth
+ * `liftMarks`; and `webinarHost` is who takes the class through that report
+ * afterwards. All three are read by the landing page and by the ladder in its
+ * hero, so they are stated once here rather than typed into the poster.
+ */
+export const DIAGNOSTIC = {
+  /** The paper is for students still under this, out of PAPER.maxMarks. */
+  entryCeilingMarks: 150,
+  /** What the report and the webinar are built to add to that score. */
+  liftMarks: 100,
+  /**
+   * Who runs the webinar after the paper. The bare noun, without an article,
+   * so a sentence can put "an" in front of it and a label can stand it on its
+   * own. Quoted verbatim, so it stays accurate.
+   */
+  webinarHost: 'IIT Bombay mentor',
+} as const;
+
+/* The offer has to be arithmetically possible: a student sitting right at the
+   ceiling must still have `liftMarks` left on the paper to win. */
+if (DIAGNOSTIC.entryCeilingMarks + DIAGNOSTIC.liftMarks > PAPER.maxMarks) {
+  throw new Error(
+    `DIAGNOSTIC promises ${DIAGNOSTIC.liftMarks} marks on top of `
+    + `${DIAGNOSTIC.entryCeilingMarks}, but the whole paper is worth ${PAPER.maxMarks}.`,
+  );
+}
 
 export const CLIENT_TIMING = {
   /** IndexedDB write debounce. The student's protection against a refresh. */

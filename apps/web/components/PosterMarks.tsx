@@ -58,8 +58,15 @@ export function Seal() {
       </defs>
       <path className="seal__disc" d={SEAL} fill="currentColor" />
       <text className="seal__text">
-        <textPath href="#seal-arc" startOffset="0">
-          {`JEE SOCIETY · ALL-INDIA MOCK · ${TEST_DATE_SHORT.toUpperCase()} · `}
+        {/* textLength is the arc's circumference (2π × 38, less a hair), so the
+            legend fits the ring exactly however long the date reads. */}
+        <textPath
+          href="#seal-arc"
+          startOffset="0"
+          textLength="236"
+          lengthAdjust="spacingAndGlyphs"
+        >
+          {`JEE PENULTIMATE · ALL-INDIA MOCK · ${TEST_DATE_SHORT.toUpperCase()} · `}
         </textPath>
       </text>
       <circle cx="60" cy="60" r="21" className="seal__hub" />

@@ -72,8 +72,12 @@ describe('HeroStars', () => {
   });
 
   it('never reaches an opacity that would compete with the type', () => {
+    // The ceiling is 0.7, not the 0.4 it was while the hero was a night sky:
+    // these are motes of light on pale cream now, and a mote at 0.4 on cream
+    // is not visible at all. What the test is really guarding is the gap
+    // between them and the type, which the previous case checks directly.
     const markup = renderToStaticMarkup(<HeroStars />);
     const peaks = [...markup.matchAll(/--star-peak:([\d.]+)/g)].map((m) => Number(m[1]));
-    expect(Math.max(...peaks)).toBeLessThanOrEqual(0.4);
+    expect(Math.max(...peaks)).toBeLessThanOrEqual(0.7);
   });
 });

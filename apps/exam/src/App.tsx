@@ -260,7 +260,7 @@ export function App() {
     case 'signed-out':
       return (
         <main className="page">
-          <img className="page__logo" src="/logo.jpeg" alt="JEE Society" width={44} height={44} />
+          <img className="page__logo" src="/logo.jpeg" alt="JEE PENULTIMATE" width={44} height={44} />
           <h1 className="page__title">Sign in to reach your test</h1>
           <p className="page__lede">
             This is the page you sit the paper on. Sign in with the email you registered with,

@@ -117,7 +117,7 @@ export function createAuth(env: Env, pool: Pool) {
     plugins: [
       twoFactor({
         // What the authenticator app shows beside the six digits.
-        issuer: 'JEE Society Admin',
+        issuer: 'JEE PENULTIMATE Admin',
         backupCodeOptions: {
           // Ten codes, shown once. Enough that losing a phone is recoverable
           // without them becoming a password list someone leaves in a drawer.

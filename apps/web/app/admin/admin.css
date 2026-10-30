@@ -15,13 +15,11 @@
 /*
  * Hide the public chrome on admin routes.
  *
- * The root layout wraps every page, and its ticker, masthead and footer are
- * written for a student arriving from an advert. The marquee also animates
- * forever, behind a screen that stays open all day. A nested layout cannot
- * remove them, so they are hidden here.
+ * The root layout wraps every page, and its masthead and footer are written
+ * for a student arriving from an advert. A nested layout cannot remove them,
+ * so they are hidden here.
  */
 .admin ~ *,
-body:has(.admin) > .ticker-strip,
 body:has(.admin) > .masthead,
 body:has(.admin) > .foot {
   display: none !important;
@@ -61,13 +59,17 @@ body:has(.admin) > .foot {
 
 /* ── Top bar ──────────────────────────────────────────────────────────── */
 
+/* White, like the rest of the portal: the bar is told apart from the page
+   under it by its hairline and its shadow, not by going dark. */
 .admin__bar {
   display: flex;
   align-items: center;
   gap: 24px;
   padding: 0 20px;
-  background: var(--navy-deep);
-  color: #fff;
+  background: var(--admin-panel);
+  color: var(--admin-ink);
+  border-bottom: 1px solid var(--admin-line);
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.05);
   position: sticky;
   top: 0;
   z-index: 20;
@@ -80,8 +82,9 @@ body:has(.admin) > .foot {
   padding: 14px 0;
   white-space: nowrap;
 }
+/* The darkened gold: the raw one is invisible on white. */
 .admin__brand span {
-  color: var(--gold);
+  color: var(--orange-deep);
   font-weight: 600;
 }
 
@@ -94,7 +97,7 @@ body:has(.admin) > .foot {
 
 .admin__tab {
   padding: 15px 14px 13px;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--admin-muted);
   text-decoration: none;
   font-weight: 600;
   font-size: 0.85rem;
@@ -102,21 +105,21 @@ body:has(.admin) > .foot {
   border-bottom: 2px solid transparent;
 }
 .admin__tab:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.06);
+  color: var(--admin-ink);
+  background: rgba(27, 42, 73, 0.05);
 }
 .admin__tab--on {
-  color: #fff;
+  color: var(--admin-ink);
   border-bottom-color: var(--orange);
 }
 
 .admin__exit {
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--admin-faint);
   text-decoration: none;
   font-size: 0.8rem;
   white-space: nowrap;
 }
-.admin__exit:hover { color: #fff; }
+.admin__exit:hover { color: var(--admin-ink); }
 .admin__logout {
   border: 0;
   padding: 0;

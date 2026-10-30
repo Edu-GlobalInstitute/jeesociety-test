@@ -204,7 +204,6 @@ evidence of anything.
 - **Make the GitHub repo private** — it is currently public.
 - **Privacy policy and terms pages** — required to publish Google's consent
   screen, and required under the DPDP Act since most candidates are minors.
-- **The exam date.** `packages/shared/src/config.ts` still says
-  `2026-11-10`, which is twelve days away. This has been asked several times and
-  not yet answered; if it is wrong, the landing page countdown, the test row and
-  the minor-consent calculation are all wrong together.
+- **The exam date is now `2026-11-30`** in `packages/shared/src/config.ts`.
+  The test row in the database must say the same thing, or the site and the
+  exam disagree about when the paper opens.

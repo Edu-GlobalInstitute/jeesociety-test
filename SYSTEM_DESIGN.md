@@ -743,6 +743,50 @@ come from outside this system.
 through D-027 are the arguments to re-read rather than reinvent — they are kept
 in place, marked superseded, for exactly that reason.
 
+### D-039: The offer's three conditions are a scroll, not a list
+
+**Decision, 2026-10-30.** The gate (under 150), the report (+100 marks) and
+the webinar (an IIT Bombay mentor) are said again between the hero and the
+mentor's note, as three cards thrown in from the left one at a time while the
+section stays pinned to the window — each one cut by a blade as it lands.
+`components/SliceCards.tsx`.
+**Alternatives considered:** A static three-column band, which is what the page
+had room for; and a carousel the student clicks through.
+**Why:** These three sentences are the three reasons a student does or does not
+belong on this paper, and a row of three equal columns is read as one block or
+skipped as one block. Giving each its own beat of scroll is the cheapest way to
+make all three actually land, and the throw is what makes a student watch
+rather than scan. A carousel was rejected for the usual reason: it hides two
+thirds of what it is paid to say behind a control most people never touch.
+**How it is built, because the shape of it is load-bearing:**
+
+- Everything that moves is a function of one number, `--k`, written per card:
+  0 is off-stage left, 1 is landed. The scroll offset writes it on a wide
+  window; a transition writes it on a phone. The stylesheet describes the toss
+  once and never asks which mode it is in.
+- A card is two boxes: the cell that holds its place in the row, and the layer
+  inside it that flies. They are split because the phone mode triggers on an
+  observer watching the card reach the viewport, and an observer measures an
+  element where its transform has put it — a card that flew itself off-screen
+  to wait for its cue would be waiting for a cue it had just made impossible.
+- The cut is the card's surface drawn twice and masked to either side of one
+  line; the words sit above both and exist once, so a screen reader hears each
+  card once. The masks, the scar left behind and the blade that makes it are
+  all written from a single angle, `--cut`, rather than from a polygon's
+  percentages, so none of them has to be re-aimed when the card changes shape.
+- The scroll is never hijacked. The section is genuinely as tall as the travel
+  it needs and the browser scrolls it normally; the component only reads the
+  offset, so the keyboard, the scrollbar, find-in-page and a trackpad fling
+  all behave as the student expects.
+
+**Cost accepted:** The page is about two and a half windows longer, and the
+section is a third mode of behaviour on the landing page alongside `Reveal` and
+the hero's own loops. The modes are decided after mount and re-decided on every
+resize, which is a `resize` listener the page did not have before.
+**Revisit if:** A fourth condition is added — the section's height comes from
+the card count already, but three cards is also the most a row can hold before
+the pinned mode has to stop being a row.
+
 ## 3. File map
 
 | Path | Responsibility | Notes |
@@ -799,6 +843,7 @@ in place, marked superseded, for exactly that reason.
 | `apps/web/app/page.tsx` | The landing page: hero, taster, reward ladder, paper, safety net, steps | Every number on it is read from `@jee/shared/config`; the date from `lib/testDate`. |
 | `apps/web/app/landing.css` | Landing-only styles: the sunrise, the bands, the taster | Imported by the page, not by the layout, so the quiet pages stay light. |
 | `apps/web/components/RescueLadder.tsx` | The hero's looping picture: climb, stall, a hand up, the prize | Four SVG layers; only the layers are transformed, and one 13s clock keeps them in step. |
+| `apps/web/components/SliceCards.tsx` | The three conditions of the offer, thrown in from the left as the student scrolls | One number, `--k`, drives the whole toss; pinned on a wide window, observed on a phone, still in the markup with no JavaScript at all (D-039). Covered by tests. |
 | `apps/web/components/TryQuestions.tsx` | Five past-paper questions, marked live | `tally` applies `MCQ_MARKS`; the copy never scolds a low score. Covered by tests. |
 | `apps/web/lib/tasterQuestions.ts` | The taster's questions, keys and one-line solutions | Public past paper, never our own. Keys pinned by tests. |
 | `apps/web/lib/testDate.ts` | `TEST_STARTS_AT` as words | Parsed by hand, so a static build cannot bake in the build machine's locale. |

@@ -1,11 +1,17 @@
-import { MENTORSHIP, REWARD_BANDS } from '@jee/shared/config';
+import { DIAGNOSTIC, PAPER } from '@jee/shared/config';
 import { SPARKLE_PATH } from './PosterMarks';
 
 /**
- * The hero's moving picture: a student climbs the three-band ladder, cannot
- * reach the next rung on their own, and a hand from JEE Society lifts them
- * from the bottom rung to the top, where the mentorship seat is waiting. It
+ * The hero's moving picture: a student climbs the three steps of the offer —
+ * the paper, the report, the webinar — cannot reach the second one on their
+ * own, and a hand from JEE PENULTIMATE lifts them from the bottom step to the
+ * top, where the {@link DIAGNOSTIC.liftMarks} they came for is waiting. It
  * loops.
+ *
+ * The steps are the argument, in order, which is why they are a ladder and not
+ * a list: a student under {@link DIAGNOSTIC.entryCeilingMarks} does the one
+ * thing they can do unaided — sit the paper — and the two steps that actually
+ * move their score are the ones they are carried up.
  *
  * How it is built, because the construction is the whole trick:
  *
@@ -27,24 +33,52 @@ import { SPARKLE_PATH } from './PosterMarks';
  *    percentages of it (app/landing.css), so the grab happens on the frame the
  *    hand arrives and nothing can drift out of sync.
  *
- * The rungs are labelled from REWARD_BANDS, so the picture cannot promise a
- * band the reward policy does not have.
+ * Every number in the labels comes from @jee/shared/config, so the picture
+ * cannot promise a step the offer does not have.
  */
 
-/** The rungs, bottom to top, placed on the ladder's three steps. */
-const RUNGS = [
-  { y: 344, floor: 97, short: 'Half-price seat' },
-  { y: 254, floor: 98, short: `${MENTORSHIP.runnerUpMonths} months free` },
-  { y: 164, floor: 99, short: `${MENTORSHIP.months} months free` },
+/** The steps, bottom to top, placed on the ladder's three rungs. */
+const STEPS = [
+  {
+    step: 1,
+    title: 'The paper',
+    sub: `3 hours, ${PAPER.maxMarks} marks`,
+  },
+  {
+    step: 2,
+    title: 'Your report',
+    sub: `+${DIAGNOSTIC.liftMarks} marks, mapped`,
+  },
+  {
+    step: 3,
+    title: 'The webinar',
+    sub: `${DIAGNOSTIC.webinarHost}, live`,
+  },
 ] as const;
 
-/* The picture would be lying if the policy changed under it. */
-if (RUNGS.length !== REWARD_BANDS.length) {
-  throw new Error('RescueLadder draws one rung per reward band; REWARD_BANDS has changed.');
+/** Rung heights, bottom to top. One per step, in the viewBox's units. */
+const RUNG_Y = [344, 254, 164] as const;
+
+/* The picture would be lying if a step were added and never drawn. */
+if (STEPS.length !== RUNG_Y.length) {
+  throw new Error('RescueLadder draws one rung per step; STEPS and RUNG_Y have come apart.');
 }
 
-const RAIL_LEFT = 90;
-const RAIL_RIGHT = 170;
+/*
+ * The ladder sits hard right in the viewBox, with the step labels filling the
+ * left half. Two things decided that, and they pull the same way:
+ *
+ *  - each rung now carries a name and a line of detail, and those need roughly
+ *    half the width to stay readable when the whole picture is 320px wide on a
+ *    phone;
+ *  - the hand reaches in from off the right-hand edge and crosses whatever is
+ *    beside the ladder on its way to the student. Beside the ladder is now
+ *    empty, so it crosses nothing. The words it used to sweep over are the
+ *    offer itself, which is the one thing in the picture that has to stay
+ *    legible on every frame.
+ */
+const RAIL_LEFT = 250;
+const RAIL_RIGHT = 330;
 /** Where a figure's feet sit: the middle of the ladder. */
 const CENTRE = (RAIL_LEFT + RAIL_RIGHT) / 2;
 const GROUND = 392;
@@ -82,37 +116,49 @@ export function RescueLadder() {
         className="climb__stage"
         role="img"
         aria-label={
-          'A student climbs a three-rung ladder labelled 97, 98 and 99 percentile. They cannot '
-          + 'reach the next rung, so a hand from JEE Society lifts them from the bottom rung to '
-          + `the top one, where ${MENTORSHIP.months} free months of mentorship are waiting.`
+          'A student climbs a three-step ladder: the paper, then their report, then the live '
+          + `webinar with an ${DIAGNOSTIC.webinarHost}. They cannot reach the second step on `
+          + 'their own, so a hand from JEE PENULTIMATE lifts them from the bottom step to the '
+          + `top one, where ${DIAGNOSTIC.liftMarks} more marks are waiting.`
         }
       >
       {/* Layer 1 — the ladder and its labels. Still. */}
         <svg className="climb__layer" viewBox="0 0 420 420" aria-hidden="true">
-          <line className="climb__ground" x1="44" y1={GROUND} x2="256" y2={GROUND} />
+          <line className="climb__ground" x1="206" y1={GROUND} x2="416" y2={GROUND} />
 
           <line className="climb__rail" x1={RAIL_LEFT} y1="120" x2={RAIL_LEFT} y2={GROUND} />
           <line className="climb__rail" x1={RAIL_RIGHT} y1="120" x2={RAIL_RIGHT} y2={GROUND} />
 
-          {RUNGS.map((rung) => (
-            <g key={rung.floor}>
-              <line className="climb__rung" x1={RAIL_LEFT} y1={rung.y} x2={RAIL_RIGHT} y2={rung.y} />
-              <text className="climb__floor" x="192" y={rung.y + 9}>
-                {rung.floor}
-              </text>
-              <text className="climb__prizeWord" x="238" y={rung.y + 6}>
-                {rung.short}
-              </text>
-            </g>
-          ))}
+          {STEPS.map((item, index) => {
+            const y = RUNG_Y[index]!;
+            return (
+              <g key={item.step}>
+                <line className="climb__rung" x1={RAIL_LEFT} y1={y} x2={RAIL_RIGHT} y2={y} />
+                <text className="climb__step" x="6" y={y + 10}>
+                  {item.step}
+                </text>
+                {/* The number, then the name on the rung's own line, then the
+                    detail under it — read in that order, left to right into
+                    the rung it belongs to. Two lines fit the words the offer
+                    actually needs, where one line would have run off the
+                    stage. */}
+                <text className="climb__stepName" x="44" y={y - 3}>
+                  {item.title}
+                </text>
+                <text className="climb__stepSub" x="44" y={y + 18}>
+                  {item.sub}
+                </text>
+              </g>
+            );
+          })}
 
           {/* The top rung lights up once the student is standing on it. */}
           <line
             className="climb__glow"
             x1={RAIL_LEFT - 6}
-            y1={RUNGS[2]!.y}
+            y1={RUNG_Y[2]}
             x2={RAIL_RIGHT + 6}
-            y2={RUNGS[2]!.y}
+            y2={RUNG_Y[2]}
           />
         </svg>
 
@@ -135,20 +181,30 @@ export function RescueLadder() {
         <svg className="climb__layer climb__hand" viewBox="0 0 420 420" aria-hidden="true">
           <g
           className="climb__rider"
-          transform={`translate(${CENTRE} ${RUNGS[0]!.y}) rotate(-7) scale(1.22)`}
+          transform={`translate(${CENTRE} ${RUNG_Y[0]}) rotate(-7) scale(1.22)`}
         >
             <Student pose="carried" />
           </g>
 
-          <g transform={`translate(${CENTRE + 52} ${RUNGS[0]!.y - 44}) rotate(-16)`}>
+          <g transform={`translate(${CENTRE + 52} ${RUNG_Y[0] - 44}) rotate(-16)`}>
             {/* The forearm, rotated away from the palm so the hand reads as
                 reaching in from off the page. */}
             <g transform="rotate(-30)">
               <rect className="climb__sleeve" x="12" y="-24" width="124" height="48" rx="11" />
               <rect className="climb__cuff" x="18" y="-26" width="13" height="52" rx="5" />
-              {/* Two lines: one would run off the end of the sleeve. */}
+              {/* Two lines: one would run off the end of the sleeve. The
+                  longer word is fitted to the sleeve's width so it cannot
+                  spill past the cuff. */}
               <text className="climb__brand" x="44" y="-3">JEE</text>
-              <text className="climb__brand" x="44" y="13">SOCIETY</text>
+              <text
+                className="climb__brand"
+                x="44"
+                y="13"
+                textLength="86"
+                lengthAdjust="spacingAndGlyphs"
+              >
+                PENULTIMATE
+              </text>
             </g>
             <ellipse className="climb__palm" cx="0" cy="0" rx="26" ry="20" />
             <rect className="climb__palm" x="-50" y="-19" width="31" height="10" rx="5" />
@@ -167,23 +223,27 @@ export function RescueLadder() {
           </g>
         </svg>
 
-        {/* Layer 4 — the prize, above the top rung. It pops in once they land. */}
+        {/* Layer 4 — the prize, above the top rung: the marks the three steps
+            are for, which is the one number the whole hero is arguing. It pops
+            in once they land. */}
         <svg className="climb__layer climb__prize" viewBox="0 0 420 420" aria-hidden="true">
-          {/* Above the rails, not on them: a student standing on the top rung
-            has their head at y≈98, which is where the prize used to be. */}
-        <g transform={`translate(${CENTRE} 58)`}>
-            {/* A mortarboard: the mortar as a flat diamond, the cap under it,
-                and a tassel hanging off the right corner. */}
-            <path className="climb__capBoard" d="M 0 -30 L 44 -12 L 0 6 L -44 -12 Z" />
-            <path className="climb__capHead" d="M -22 -7 L -22 14 Q 0 28 22 14 L 22 -7 L 0 2 Z" />
-            <path className="climb__tassel" d="M 44 -12 L 44 16" />
-            <circle className="climb__capBoard" cx="44" cy="20" r="5" />
-            {/* Clear of the cap on every side: gold sparkles drawn over a gold
-                mortarboard are invisible. */}
+          {/* Above the rails, not on them. */}
+        <g transform={`translate(${CENTRE} 42)`}>
+            {/* A student standing on the top rung has the top of their head at
+                y≈86, so the plaque stops at 71 and the two never touch. */}
+            <rect className="climb__plaque" x="-64" y="-31" width="128" height="60" rx="17" />
+            <text className="climb__plaqueNum" x="0" y="-1">
+              +{DIAGNOSTIC.liftMarks}
+            </text>
+            <text className="climb__plaqueWord" x="0" y="20">
+              MARKS
+            </text>
+            {/* Clear of the plaque on every side: gold sparkles drawn over a
+                gold plaque are invisible. */}
             {[
-              { x: -66, y: -22, size: 18, delay: '0s' },
-              { x: 60, y: -36, size: 14, delay: '0.5s' },
-              { x: -52, y: 32, size: 11, delay: '1.1s' },
+              { x: -86, y: -18, size: 18, delay: '0s' },
+              { x: 82, y: -30, size: 14, delay: '0.5s' },
+              { x: -74, y: 36, size: 11, delay: '1.1s' },
             ].map((spark) => (
               <path
                 key={`${spark.x},${spark.y}`}
@@ -198,7 +258,7 @@ export function RescueLadder() {
         </div>
 
         <p className="climb__caption">
-          You do the climbing. The top three bands get a hand up.
+          You sit the paper. We take you up the other two steps.
         </p>
     </div>
   );

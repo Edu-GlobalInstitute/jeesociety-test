@@ -363,7 +363,7 @@ export default function CompleteProfile() {
                     aria-invalid={errors.guardianConsent ? 'true' : undefined}
                   />
                   <span>
-                    I am the parent or guardian, and I consent to JEE Society processing this
+                    I am the parent or guardian, and I consent to JEE PENULTIMATE processing this
                     student&rsquo;s details for this test.
                   </span>
                 </label>

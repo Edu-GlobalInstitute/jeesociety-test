@@ -1,0 +1,167 @@
+/*
+ * The checkout box.
+ *
+ * Built on top of auth.css rather than beside it: this is the same object as
+ * the sign-up form — one narrow cream card, one warm button — so it borrows
+ * .auth__panel, .field and .auth__fine and only adds the parts a receipt has
+ * that a form does not: a line item, a coupon row, and the sums.
+ */
+
+.checkout {
+  min-height: 72vh;
+  padding: 44px 20px 72px;
+  display: flex;
+  justify-content: center;
+}
+
+.checkout__card {
+  width: 100%;
+  max-width: 460px;
+}
+
+/* ── The line item ────────────────────────────────────────────────────── */
+
+.checkout__item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 18px;
+}
+
+.checkout__item-name {
+  font-size: 0.98rem;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+
+.checkout__item-note {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.checkout__item-price {
+  font-size: 1.05rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── The coupon ───────────────────────────────────────────────────────── */
+
+.checkout__coupon .field { margin-bottom: 0; }
+
+.checkout__coupon-row {
+  display: flex;
+  gap: 8px;
+}
+
+.checkout__coupon-row input {
+  flex: 1;
+  min-width: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.checkout__coupon-row input::placeholder {
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink-faint);
+}
+
+.checkout__coupon-row .btn { flex: none; }
+
+/* Applied: the field is replaced by its own result, so the card never shows
+   both a code to enter and a code already in effect. */
+.checkout__coupon-on {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 13px;
+  border: 1px solid var(--answered);
+  border-radius: var(--radius);
+  background: #ddeadf;
+  font-size: 0.9rem;
+}
+
+.checkout__coupon-on .link-button {
+  margin-left: auto;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+
+.checkout__tick {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--answered);
+  color: #fff;
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+/* ── The sums ─────────────────────────────────────────────────────────── */
+
+.checkout__sums {
+  margin: 20px 0 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule);
+  display: grid;
+  gap: 8px;
+}
+
+.checkout__sum {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  font-size: 0.93rem;
+  color: var(--ink-soft);
+}
+
+.checkout__sum dt,
+.checkout__sum dd { margin: 0; }
+
+.checkout__sum--off { color: var(--teal-deep); font-weight: 600; }
+
+.checkout__sum--total {
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+  font-size: 1rem;
+  color: var(--ink);
+}
+
+.checkout__sum--total dd {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+
+/* The old price stays on screen beside the new one: the discount is the whole
+   point of the coupon, and a number that simply changed would not show it. */
+.checkout__sum--total s {
+  color: var(--ink-faint);
+  font-weight: 400;
+  font-size: 0.95rem;
+}
+
+.checkout__sum--total strong {
+  font-family: var(--display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.checkout__stub {
+  margin: 14px 0 0;
+  font-size: 0.86rem;
+  color: var(--ink-soft);
+  text-align: center;
+}

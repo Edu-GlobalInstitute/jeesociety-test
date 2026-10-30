@@ -1,14 +1,17 @@
 /*
  * Public site — shared chrome and the quiet pages.
  *
- * The palette is the Penultimate JEE Program's Sunrise palette, used for the
- * reason the palette guide gives: hope only reads as hope against something
- * dark. So the site is a night that turns into a morning. The chrome (ticker,
- * masthead, footer) is the deep navy base; the landing page rises out of it
- * into orange and gold (app/landing.css); and every page a registered student
- * then touches — register, results, admin — is the soft cream daylight side,
- * quiet and legible, with the warm accents used only on the one control that
- * has to be pressed.
+ * The palette is the Penultimate JEE Program's Sunrise palette, and the site
+ * is daylight the whole way through: the morning has already arrived rather
+ * than being waited for. The chrome (masthead, footer) is cream with navy
+ * type; the landing page is the sun fully up (app/landing.css); and every page
+ * a registered student then touches — register, results, admin — is the same
+ * soft cream, quiet and legible, with the warm accents used only on the one
+ * control that has to be pressed.
+ *
+ * Navy is kept, but as ink and as the handful of small dark controls on a
+ * light page rather than as a surface: it still carries the brand's
+ * seriousness without ever putting the student in the dark.
  *
  *   Deep navy    #1B2A49   base, night, seriousness
  *   Warm orange  #FF8C42   primary accent, energy
@@ -23,11 +26,13 @@
 :root {
   /* ── Sunrise palette, straight from the brand guide ─────────────────── */
   --navy: #1b2a49;
-  /* Below the base, for the gradient the night sky is painted with and for
-     the strips that sit above and below the page. */
+  /* The darker and lighter navies. They are ink and small dark chips now (the
+     nav arrow, the step numerals), never whole bands. */
   --navy-deep: #0e1830;
   --navy-lift: #243a63;
-  --navy-line: rgba(255, 244, 224, 0.16);
+  /* Hairlines on the light chrome: navy at low alpha, not cream — cream on
+     cream is nothing. */
+  --navy-line: rgba(27, 42, 73, 0.14);
 
   --orange: #ff8c42;
   /* The same hue darkened until it carries as text on cream (4.6:1). */
@@ -42,10 +47,16 @@
   --teal: #2ec4b6;
   --teal-deep: #0f6f66;
 
-  /* Type on the night side. Cream rather than white — warmer on navy. */
-  --on-night: #fff4e0;
-  --on-night-soft: rgba(255, 244, 224, 0.74);
-  --on-night-faint: rgba(255, 244, 224, 0.52);
+  /*
+   * Type on the hero and on the two drawn scenes. These were cream-on-navy
+   * while those surfaces were night; they are ink-on-cream now and point
+   * straight at the daylight values below. That is how every rule written
+   * against them — here, in landing.css, and inside both SVG scenes — came
+   * over to the light at once rather than being rewritten one line at a time.
+   */
+  --on-night: #17233c;
+  --on-night-soft: #4a5670;
+  --on-night-faint: #7c8699;
 
   /* ── The daylight side: every page after registration ───────────────── */
   --paper: #fbf5ea;
@@ -82,9 +93,9 @@
 
 * { box-sizing: border-box; }
 
-/* Over-scroll at either end of the page shows the night, not white. */
+/* Over-scroll at either end of the page shows the page's own paper. */
 html {
-  background: var(--navy-deep);
+  background: var(--paper);
 }
 
 body {
@@ -106,83 +117,52 @@ a { color: var(--accent); }
 .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
 .wrap--narrow { max-width: 880px; }
 
-/* ── Ticker ───────────────────────────────────────────────────────────── */
-
-.ticker-strip {
-  background: var(--navy-deep);
-  padding: 14px 20px 0;
-}
-
-/* The one place both warm accents appear at full strength, as the first thing
-   on the page: a strip of sunrise above the night. */
-.ticker {
-  background: linear-gradient(90deg, var(--orange) 0%, var(--gold) 52%, var(--orange) 100%);
-  color: var(--navy);
-  overflow: hidden;
-  padding: 9px 0;
-  border-radius: 999px;
-  max-width: 1280px;
-  margin-inline: auto;
-}
-
-.ticker__track {
-  display: flex;
-  width: max-content;
-  animation: ticker 42s linear infinite;
-}
-
-.ticker__group { display: flex; flex-shrink: 0; }
-
-.ticker__item {
-  font-family: var(--poster);
-  font-weight: 800;
-  font-stretch: 86%;
-  font-size: 0.8rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  padding: 0 22px;
-}
-
-/* The separator is a dot between items, not part of the words. */
-.ticker__item::after {
-  content: '·';
-  margin-left: 22px;
-  opacity: 0.5;
-}
-
-@keyframes ticker {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
-
 /* ── Masthead ─────────────────────────────────────────────────────────── */
 
-/* Navy, like the hero below it, so the two read as one sky with no seam. */
+/*
+ * One cream band, with no surface of its own inside it: the bar carries the
+ * same cream as the page below, so the chrome reads as
+ * part of the page rather than as a panel laid over it. The bar sticks, so it
+ * stays with the student down the page.
+ */
 .masthead {
-  background: var(--navy-deep);
+  position: sticky;
+  top: 0;
+  z-index: 60;
   color: var(--on-night);
+  /* The top padding is the row's clearance from the top of the window. */
+  padding: 12px 20px 14px;
+  /* Solid cream, not a fade and nothing translucent: the bar overlays the page
+     as it scrolls, and anything see-through here reads as a haze over whatever
+     has passed under it. Solid also means no seam with the hero below, which is
+     this same cream. */
+  background: var(--cream);
 }
 
 .masthead__inner {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  /* padding-block, not the `padding` shorthand: this element also carries
-     .wrap, and a shorthand here would zero the side gutter .wrap sets. */
-  padding-block: 15px;
-  max-width: 1280px;
+  gap: 14px;
+  /* Wider than the quiet pages' .wrap is narrow: the row has no surface of its
+     own, so it is free to sit out to the page's own measure and let the
+     wordmark and the nav breathe apart. */
+  max-width: 1040px;
+  margin-inline: auto;
+  /* No side padding: without a panel there is no inset to keep, and the side
+     gutter belongs to .masthead. The vertical padding is the bar's height. */
+  padding: 8px 0;
 }
 
 .masthead__name {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   font-family: var(--poster);
   font-weight: 800;
   font-stretch: 86%;
-  font-size: 1.4rem;
+  font-size: 1.08rem;
   text-transform: uppercase;
   letter-spacing: -0.015em;
   white-space: nowrap;
@@ -194,83 +174,185 @@ a { color: var(--accent); }
    transparent wordmark — so it is set as a mark beside the name rather than
    used as the name. */
 .masthead__logo {
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius);
-  box-shadow: 0 0 0 1px var(--navy-line);
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  box-shadow:
+    0 0 0 1px rgba(27, 42, 73, 0.14),
+    0 6px 16px -8px rgba(27, 42, 73, 0.45);
   object-fit: cover;
+  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.3, 1), box-shadow 220ms ease;
+}
+
+.masthead__name:hover .masthead__logo {
+  transform: translateY(-1px) rotate(-2deg);
+  box-shadow:
+    0 0 0 1px rgba(201, 86, 13, 0.45),
+    0 8px 20px -8px rgba(27, 42, 73, 0.5);
 }
 
 .masthead__nav {
   display: flex;
   align-items: center;
-  gap: 20px;
-  font-size: 0.92rem;
+  gap: 2px;
+  font-size: 0.88rem;
 }
 
-.masthead__nav a { color: var(--on-night); text-decoration: none; font-weight: 600; }
-.masthead__nav a:hover { color: var(--gold); }
+.masthead__nav a {
+  color: var(--on-night);
+  text-decoration: none;
+  font-weight: 600;
+  white-space: nowrap;
+}
 
-/* The nav CTA: warm accent on the dark bar, which is the palette's whole
-   instruction. The rule above is more specific than any .btn, so this sets
-   its colour explicitly rather than relying on inheritance. */
+/* The links are their own small pills, so a hover lights a shape rather than
+   only recolouring a word. :not(.nav-cta) keeps the register button out of it;
+   it has its own, louder treatment below. */
+.masthead__nav a:not(.nav-cta) {
+  position: relative;
+  padding: 8px 13px;
+  border-radius: 999px;
+  color: var(--on-night-soft);
+  transition: color 160ms ease, background 160ms ease;
+}
+
+.masthead__nav a:not(.nav-cta):hover {
+  color: var(--on-night);
+  background: rgba(27, 42, 73, 0.07);
+  box-shadow: inset 0 0 0 1px rgba(27, 42, 73, 0.1);
+}
+
+/* The nav CTA: the one filled, warm thing on the bar, so it is still what the
+   eye lands on now that the bar itself is light. The rule above is more
+   specific than any .btn, so this sets its colour explicitly rather than
+   relying on inheritance. */
 .nav-cta,
 .masthead__nav .nav-cta {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  padding: 6px 6px 6px 18px;
+  gap: 9px;
+  margin-left: 4px;
+  padding: 5px 5px 5px 16px;
   border-radius: 999px;
-  background: var(--gold);
+  background: linear-gradient(135deg, var(--gold) 0%, #ffb224 52%, var(--orange) 100%);
   color: var(--navy);
   font-family: var(--poster);
   font-weight: 800;
   font-stretch: 88%;
-  font-size: 0.9rem;
+  font-size: 0.84rem;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   text-decoration: none;
-  transition: background 160ms ease, transform 160ms ease;
+  box-shadow:
+    0 8px 22px -10px rgba(255, 140, 66, 0.75),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  transition: box-shadow 200ms ease, transform 200ms cubic-bezier(0.2, 0.8, 0.3, 1);
 }
 
 .masthead__nav .nav-cta:hover {
-  background: var(--orange);
   color: var(--navy);
-  transform: translateY(-1px);
+  transform: translateY(-1.5px);
+  box-shadow:
+    0 14px 30px -10px rgba(255, 140, 66, 0.9),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
 }
+
+.masthead__nav .nav-cta:active { transform: translateY(0); }
 
 .nav-cta__arrow {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 27px;
+  height: 27px;
   border-radius: 999px;
   background: var(--navy);
   color: var(--cream);
+  transition: transform 200ms cubic-bezier(0.2, 0.8, 0.3, 1);
 }
 
-.nav-cta__arrow svg { width: 15px; height: 15px; }
+.masthead__nav .nav-cta:hover .nav-cta__arrow { transform: translateX(2px); }
 
-/* On a phone the bar has to hold a wordmark, two links and the register pill
-   inside 390px, so everything in it tightens rather than anything wrapping. */
-@media (max-width: 620px) {
-  .masthead__inner { padding-block: 12px; gap: 10px; }
-  .masthead__name { font-size: 1.05rem; gap: 8px; }
-  .masthead__logo { width: 28px; height: 28px; }
-  .masthead__nav { gap: 13px; font-size: 0.82rem; }
+.nav-cta__arrow svg { width: 14px; height: 14px; }
+
+/* Anchors would otherwise land under the bar, which now overlays the page. */
+html { scroll-padding-top: 78px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .masthead__logo,
+  .nav-cta,
+  .masthead__nav .nav-cta,
+  .nav-cta__arrow { transition: none; }
+
+  .masthead__name:hover .masthead__logo,
+  .masthead__nav .nav-cta:hover,
+  .masthead__nav .nav-cta:hover .nav-cta__arrow { transform: none; }
+}
+
+/* On a phone the bar has to hold a wordmark, three links and the register
+   pill, so everything in it tightens rather than anything wrapping. The
+   breakpoint is 700px rather than a phone width because that is where the
+   full-size bar stops fitting, measured, not guessed. */
+@media (max-width: 700px) {
+  html { scroll-padding-top: 72px; }
+
+  .masthead { padding: 10px 12px 12px; }
+
+  .masthead__inner {
+    gap: 8px;
+    padding: 6px 0;
+  }
+
+  /* The wordmark is the longest thing in the bar, so it is the part that
+     gives way: smaller and tighter than on a laptop, so the nav keeps its
+     pills on one line. */
+  .masthead__name { font-size: 0.92rem; gap: 6px; letter-spacing: -0.03em; }
+  .masthead__logo { width: 26px; height: 26px; border-radius: 9px; }
+  .masthead__nav { gap: 1px; font-size: 0.8rem; }
+  .masthead__nav a:not(.nav-cta) { padding: 7px 9px; }
 
   .nav-cta,
   .masthead__nav .nav-cta {
-    gap: 8px;
-    padding: 5px 5px 5px 13px;
-    font-size: 0.78rem;
+    gap: 6px;
+    margin-left: 2px;
+    padding: 4px 4px 4px 12px;
+    font-size: 0.76rem;
   }
 
-  .nav-cta__arrow { width: 26px; height: 26px; }
-  .nav-cta__arrow svg { width: 13px; height: 13px; }
+  .nav-cta__arrow { width: 24px; height: 24px; }
+  .nav-cta__arrow svg { width: 12px; height: 12px; }
+}
 
-  .ticker__item { font-size: 0.74rem; padding: 0 16px; }
-  .ticker__item::after { margin-left: 16px; }
+/*
+ * Under about 520px the wordmark, three links and the register pill no longer
+ * fit on one line, and this bar must not wrap. The name is the part that can
+ * go: the logo beside it carries the brand and already links home. It is
+ * hidden the accessible way rather than with display:none, so the mark keeps
+ * its name for a screen reader.
+ */
+@media (max-width: 520px) {
+  .masthead__wordmark {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .masthead__name { gap: 0; }
+}
+
+/*
+ * Narrower still, and even the mark, three links and the pill are too much.
+ * Home is the one to drop, because the mark beside it already goes home.
+ */
+@media (max-width: 400px) {
+  .masthead__home { display: none; }
+
+  .masthead__nav a:not(.nav-cta) { padding: 8px 8px; }
 }
 
 /* ── Buttons on the quiet pages ───────────────────────────────────────── */
@@ -371,16 +453,19 @@ a { color: var(--accent); }
 /* ── Footer ───────────────────────────────────────────────────────────── */
 
 .foot {
-  background: var(--navy-deep);
-  color: var(--on-night-soft);
+  background: var(--cream);
+  color: var(--ink-soft);
+  border-top: 1px solid var(--navy-line);
   padding: 32px 0 44px;
   font-size: 0.88rem;
 }
 
-.foot a { color: var(--gold); }
+/* The darkened gold, not the gold: raw gold is not readable as text on
+   cream. */
+.foot a { color: var(--orange-deep); }
 
 .foot__credit {
   margin: 12px 0 0;
   font-size: 0.78rem;
-  color: var(--on-night-faint);
+  color: var(--ink-faint);
 }

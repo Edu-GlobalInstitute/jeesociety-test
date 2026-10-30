@@ -288,10 +288,10 @@ production. So, two manual steps against the **direct** Neon URL:
 ```sql
 -- The real test row. IST times converted to UTC: 09:00 IST = 03:30 UTC.
 INSERT INTO tests (name, starts_at, ends_at, lobby_opens_at, status)
-VALUES ('JEE Society Scholarship Test',
-        '2026-11-10 03:30:00+00',
-        '2026-11-10 06:30:00+00',
-        '2026-11-10 03:00:00+00',
+VALUES ('JEE PENULTIMATE Scholarship Test',
+        '2026-11-30 03:30:00+00',
+        '2026-11-30 06:30:00+00',
+        '2026-11-30 03:00:00+00',
         'scheduled')
 RETURNING id;
 ```

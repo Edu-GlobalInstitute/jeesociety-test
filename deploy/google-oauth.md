@@ -16,7 +16,7 @@ be a total sign-in outage, and the event cannot be retried.
    **Create**. Wait for it to switch to the new project.
 3. Left menu → **APIs & Services** → **OAuth consent screen**.
    - User type: **External** → **Create**.
-   - App name: `JEE Society`. User support email: your address.
+   - App name: `JEE PENULTIMATE`. User support email: your address.
    - Upload the logo if you want the Google screen branded (optional).
    - **App domain** → Application home page: `https://test.jeesociety.in`.
    - Privacy policy link and Terms link: these are **required before you can
