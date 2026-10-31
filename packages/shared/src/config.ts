@@ -76,7 +76,7 @@ export const REWARD_BANDS = [
  * site and the server agree regardless of where either is run. This must match
  * `tests.starts_at` in the database for the test being sold.
  */
-export const TEST_STARTS_AT = '2026-11-30T09:00:00+05:30';
+export const TEST_STARTS_AT = '2026-11-29T09:00:00+05:30';
 
 /**
  * The paper's shape, in one place.
@@ -112,15 +112,23 @@ export const PAPER = {
 /**
  * Who the paper is written for, and what a student walks away with.
  *
- * The offer, in three numbers. The paper is for students still scoring below
- * `entryCeilingMarks`; the report that follows it is written to be worth
- * `liftMarks`; and `webinarHost` is who takes the class through that report
- * afterwards. All three are read by the landing page and by the ladder in its
- * hero, so they are stated once here rather than typed into the poster.
+ * The offer, in numbers. The paper is for students still scoring below
+ * `entryCeilingMarks`, or still short of `syllabusCeilingPercent` of the
+ * syllabus — either one is enough, because a student can be under the
+ * ceiling for either reason. The report that follows is written to be worth
+ * `liftMarks`, and `webinarHost` is who takes the class through that report
+ * afterwards. Every one of them is read by the landing page and by the ladder
+ * in its hero, so they are stated once here rather than typed into the
+ * poster.
  */
 export const DIAGNOSTIC = {
   /** The paper is for students still under this, out of PAPER.maxMarks. */
   entryCeilingMarks: 150,
+  /**
+   * The other way in: a student who has not finished more than this much of
+   * the syllabus. Marks are not the only reason to be behind.
+   */
+  syllabusCeilingPercent: 60,
   /** What the report and the webinar are built to add to that score. */
   liftMarks: 100,
   /**

@@ -4,7 +4,7 @@ import { SPARKLE_PATH } from './PosterMarks';
 /**
  * The hero's moving picture: a student climbs the three steps of the offer —
  * the paper, the report, the webinar — cannot reach the second one on their
- * own, and a hand from JEE PENULTIMATE lifts them from the bottom step to the
+ * own, and a hand from JEEsociety lifts them from the bottom step to the
  * top, where the {@link DIAGNOSTIC.liftMarks} they came for is waiting. It
  * loops.
  *
@@ -47,7 +47,7 @@ const STEPS = [
   {
     step: 2,
     title: 'Your report',
-    sub: `+${DIAGNOSTIC.liftMarks} marks, mapped`,
+    sub: `+${DIAGNOSTIC.liftMarks} marks, personalised`,
   },
   {
     step: 3,
@@ -118,7 +118,7 @@ export function RescueLadder() {
         aria-label={
           'A student climbs a three-step ladder: the paper, then their report, then the live '
           + `webinar with an ${DIAGNOSTIC.webinarHost}. They cannot reach the second step on `
-          + 'their own, so a hand from JEE PENULTIMATE lifts them from the bottom step to the '
+          + 'their own, so a hand from JEEsociety lifts them from the bottom step to the '
           + `top one, where ${DIAGNOSTIC.liftMarks} more marks are waiting.`
         }
       >
@@ -192,18 +192,16 @@ export function RescueLadder() {
             <g transform="rotate(-30)">
               <rect className="climb__sleeve" x="12" y="-24" width="124" height="48" rx="11" />
               <rect className="climb__cuff" x="18" y="-26" width="13" height="52" rx="5" />
-              {/* Two lines: one would run off the end of the sleeve. The
-                  longer word is fitted to the sleeve's width so it cannot
-                  spill past the cuff. */}
-              <text className="climb__brand" x="44" y="-3">JEE</text>
+              {/* Fitted to the sleeve's width so the name cannot spill past
+                  the cuff. */}
               <text
                 className="climb__brand"
                 x="44"
-                y="13"
+                y="5"
                 textLength="86"
                 lengthAdjust="spacingAndGlyphs"
               >
-                PENULTIMATE
+                JEEsociety
               </text>
             </g>
             <ellipse className="climb__palm" cx="0" cy="0" rx="26" ry="20" />
@@ -256,10 +254,6 @@ export function RescueLadder() {
           </g>
           </svg>
         </div>
-
-        <p className="climb__caption">
-          You sit the paper. We take you up the other two steps.
-        </p>
     </div>
   );
 }

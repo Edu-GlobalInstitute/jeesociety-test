@@ -1,4 +1,4 @@
-import { DIAGNOSTIC, MENTORSHIP, PAPER } from '@jee/shared/config';
+import { DIAGNOSTIC, MENTORSHIP } from '@jee/shared/config';
 import './landing.css';
 import { HeroStars } from '../components/HeroStars';
 import { MentorNote } from '../components/MentorNote';
@@ -50,38 +50,38 @@ export default function Home() {
 
         <div className="wrap hero__inner">
           <div className="hero__copy">
-            {/* Who it is for, before anything is promised. A student over the
-                ceiling should stop reading; a student under it has just been
-                told the page is about them. */}
-            <p className="hero__gate">
-              <span className="hero__gate-dot" aria-hidden="true" />
-              {/* One span, not three text nodes: loose text inside a flex
-                  container becomes separate items that cannot wrap into each
-                  other, and this sentence is wider than a phone. */}
+            {/* The morning itself, before the promise: a student scanning the
+                page decides first whether they are free that day. One span,
+                not three text nodes — loose text inside a flex container
+                becomes separate items that cannot wrap into each other. */}
+            <p className="hero__when">
+              <span className="hero__when-dot" aria-hidden="true" />
               <span>
-                Only for students under{' '}
-                <b>{DIAGNOSTIC.entryCeilingMarks}</b> of {PAPER.maxMarks}
+                <b>{TEST_WEEKDAY}, {TEST_DATE_SHORT}</b> · {TEST_TIME_LABEL}
               </span>
             </p>
 
-            {/* Three beats, in the order the ladder beside them climbs: the
-                paper, the report, the mentor — and the number they are all
-                for. Two elements per line on purpose: the outer one carries
-                the slow float that never stops, the inner one the entrance it
-                arrives on. One element cannot do both — they would fight over
-                `transform`. */}
+            {/* One sentence, broken over three beats, with the number lit in
+                the middle of it — the headline says the thing the student is
+                actually buying: marks on the attempt that counts. Two elements
+                per line on purpose: the outer one carries the slow float that
+                never stops, the inner one the entrance it arrives on. One
+                element cannot do both — they would fight over `transform`. */}
             <h1 className="hero__title">
-              <span className="hero__line"><span>One test.</span></span>
-              <span className="hero__line"><span>One report. One IITian.</span></span>
+              <span className="hero__line"><span>A chance to add</span></span>
               <span className="hero__line hero__line--lit">
-                <span>+{DIAGNOSTIC.liftMarks} marks.</span>
+                <span>+{DIAGNOSTIC.liftMarks} marks</span>
               </span>
+              <span className="hero__line"><span>to your January attempt.</span></span>
             </h1>
 
             <p className="hero__sub">
-              One full JEE Main paper, a report showing exactly where your{' '}
-              <b>{DIAGNOSTIC.liftMarks} marks</b> are hiding, and a live webinar where{' '}
-              <b>an {DIAGNOSTIC.webinarHost}</b> shows you how to take them. ₹{LIST_PRICE}, once.
+              The right test if you are scoring under{' '}
+              <b>{DIAGNOSTIC.entryCeilingMarks}</b>, or have not finished more than{' '}
+              <b>{DIAGNOSTIC.syllabusCeilingPercent}%</b> of the syllabus. You get a
+              detailed report on where you are actually losing marks, and workshops
+              where <b>an {DIAGNOSTIC.webinarHost}</b> turns it into{' '}
+              <b>+{DIAGNOSTIC.liftMarks} marks</b> in your January attempt.
             </p>
 
             <div className="hero__actions">
@@ -139,10 +139,6 @@ export default function Home() {
               Register
               <span className="btn-sun__arrow" aria-hidden="true"><ArrowIcon /></span>
             </a>
-            <p className="finale__small">
-              Marks the next morning · final ranks the same week · {MENTORSHIP.months} free
-              months with {MENTORSHIP.mentors} for the top 1%
-            </p>
           </Reveal>
         </div>
       </section>

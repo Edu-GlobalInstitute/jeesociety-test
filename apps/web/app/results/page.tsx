@@ -3,18 +3,14 @@ import { MENTORSHIP } from '@jee/shared/config';
 import './results.css';
 import { ArrowIcon, Seal } from '../../components/PosterMarks';
 import { ResultWall } from '../../components/ResultWall';
-import { YourResult } from './YourResult';
 
 /**
  * Results.
  *
- * Two different people click "Results" in the masthead, and the page is built
- * in that order. The first is a seventeen-year-old who has not registered and
- * wants to know whether anyone here has actually done this — so the page opens
- * as a wall of result slips, four students who sat the real exam, each one a
- * video they can press play on with the score underneath. The second is a
- * registered student checking their own marks, which is the quiet panel at the
- * foot.
+ * Written for a seventeen-year-old who has not registered and wants to know
+ * whether anyone here has actually done this — so the page is a wall of result
+ * slips, four students who sat the real exam, each one a video they can press
+ * play on with the score underneath, and one invitation at the foot.
  */
 
 export const metadata: Metadata = {
@@ -34,10 +30,8 @@ export default function Results() {
           <p className="rhero__eyebrow">Straight from the other side</p>
 
           <h1 className="rhero__title">
-            <span className="rhero__line">Four scorecards.</span>
-            <span className="rhero__line rhero__line--lit">
-              Press play on any of them.
-            </span>
+            <span className="rhero__line">Students who trust</span>
+            <span className="rhero__line rhero__line--lit">JEEsociety.</span>
           </h1>
         </div>
       </section>
@@ -61,10 +55,6 @@ export default function Results() {
             Register for the test
             <span className="rfinale__arrow" aria-hidden="true"><ArrowIcon /></span>
           </a>
-        </div>
-
-        <div className="wrap">
-          <YourResult />
         </div>
       </section>
     </main>

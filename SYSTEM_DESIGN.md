@@ -601,7 +601,7 @@ make it categorical and need a validated palette per series.
 
 ### D-035: The public site is a night that becomes a morning
 
-**Decision:** `apps/web` is built on the Penultimate JEE Program's Sunrise
+**Decision:** `apps/web` is built on JEEsociety's Sunrise
 palette — deep navy base, warm orange and golden yellow accents, soft cream for
 breathing space, teal used sparingly — and the landing page is sequenced as a
 sunrise: a navy hero with a star field and a rising sun, sections that brighten

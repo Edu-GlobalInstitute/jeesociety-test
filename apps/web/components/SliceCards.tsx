@@ -1,17 +1,16 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { DIAGNOSTIC, PAPER, TEST_FEE_PAISE } from '@jee/shared/config';
+import { DIAGNOSTIC } from '@jee/shared/config';
 
 /**
  * The three conditions of the offer, thrown across the screen one at a time.
  *
  * The section holds one horizontal row of three cards, and the row is empty
  * when it arrives: each card is tossed in from the left on an arc as the
- * student scrolls, spinning as it flies, and a blade falls across it the
- * moment it lands — the card splits along the cut, shudders, and settles back
- * together with a couple of drops thrown off the edge. Three cards, three
- * tosses, one section. Scrolling is the throwing hand.
+ * student scrolls, spinning as it flies, and settles onto its place in the
+ * row. Three cards, three tosses, one section. Scrolling is the throwing
+ * hand.
  *
  * It says the three things a student has to know before they pay, in the order
  * they matter: the paper is only for students under
@@ -41,8 +40,8 @@ import { DIAGNOSTIC, PAPER, TEST_FEE_PAISE } from '@jee/shared/config';
  *    driven by the scroll offset.
  *
  * Both moving modes drive the same single custom property, `--k` (0 = still
- * off-stage left, 1 = landed), and share the one `is-cut` class that plays the
- * blade. The stylesheet therefore describes the toss exactly once.
+ * off-stage left, 1 = landed), so the stylesheet describes the toss exactly
+ * once and neither mode carries a flight of its own.
  */
 
 /** Viewports of scroll each card is given while the stage is pinned. */
@@ -57,9 +56,6 @@ const FLIGHT = 0.7;
  */
 const TAIL = 0.45;
 
-/** How far through a toss the blade falls. The card is nearly home by then. */
-const CUT = 0.62;
-
 /**
  * How long a toss takes in `enter` mode, where there is no scroll offset to
  * read and the flight is a transition. Handed to the stylesheet as
@@ -73,37 +69,33 @@ const MIN_HEIGHT = 560;
 
 type Mode = 'plain' | 'pinned' | 'enter';
 
-const RUPEES = TEST_FEE_PAISE / 100;
-
 /**
- * The three cards. `stat` is the number the eye lands on first, so it is kept
- * to a couple of glyphs; the title is the claim and the text is the proof.
+ * The three cards. `stat` is what the eye lands on first, so it is kept to a
+ * word or a number; the title is the claim and the text is the proof.
  */
 const CARDS = [
   {
     kicker: 'Who it is for',
-    stat: `Under ${DIAGNOSTIC.entryCeilingMarks}`,
-    title: 'This paper is only for students still under '
-      + `${DIAGNOSTIC.entryCeilingMarks} marks`,
-    text: `Out of ${PAPER.maxMarks}. If your last attempt was above that, this is not your `
-      + 'test — every question on it, and every line of the report after it, is aimed at the '
-      + 'marks a student under the ceiling is still leaving on the table.',
+    stat: 'Struggling',
+    title: `Students still under ${DIAGNOSTIC.entryCeilingMarks} marks`,
+    text: `If you have still not covered ${DIAGNOSTIC.syllabusCeilingPercent}% of the `
+      + `syllabus, and you are not scoring more than ${DIAGNOSTIC.entryCeilingMarks} marks, `
+      + 'this test is a life saver for you.',
   },
   {
-    kicker: 'What lands after',
+    kicker: 'The benefit',
     stat: `+${DIAGNOSTIC.liftMarks}`,
-    title: `A report that maps your next ${DIAGNOSTIC.liftMarks} marks`,
-    text: 'Not a score. The chapters you are losing, the mistakes you keep making and the '
-      + `minutes they cost — named one by one, so the ${DIAGNOSTIC.liftMarks} marks nearest `
-      + 'your reach stop being a guess.',
+    title: `A personalised report that adds ${DIAGNOSTIC.liftMarks} marks to your `
+      + 'January attempt',
+    text: 'Every loophole in your preparation, named one by one — the chapters quietly '
+      + 'bleeding marks, the mistakes you repeat, the minutes you burn.',
   },
   {
     kicker: 'Who turns up',
-    stat: 'Live',
-    title: `An ${DIAGNOSTIC.webinarHost} takes the paper apart`,
-    text: 'A webinar after the results, not a recording: the same paper you sat, solved in '
-      + 'front of you by someone who has already done what you are trying to do, and the exact '
-      + 'way to turn your report into marks.',
+    stat: DIAGNOSTIC.webinarHost,
+    title: 'Workshops to implement the strategy and be consistent',
+    text: 'Live, on the paper you just sat: the exact analysis an IITian runs after every '
+      + 'mock. Copy that one habit and your score stops swinging.',
   },
 ] as const;
 
@@ -147,7 +139,6 @@ export function SliceCards() {
     for (const card of cardRefs.current) {
       if (!card) continue;
       card.style.removeProperty('--k');
-      card.classList.remove('is-cut');
     }
   };
 
@@ -178,10 +169,6 @@ export function SliceCards() {
         if (!card) return;
         const k = Math.min(1, Math.max(0, (progress - index) / FLIGHT));
         card.style.setProperty('--k', k.toFixed(4));
-        // The blade plays from a class rather than from `--k`, because it is a
-        // flash and a shudder rather than a position — and because toggling a
-        // class is what lets it play again when a student scrolls back up.
-        card.classList.toggle('is-cut', k >= CUT);
       });
     };
 
@@ -212,21 +199,12 @@ export function SliceCards() {
     // the HTML would stay hidden for a visitor whose JS never arrives.
     for (const card of cards) card.style.setProperty('--k', '0');
 
-    const timers = new Set<number>();
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
           if (!entry.isIntersecting) continue;
           const card = entry.target as HTMLLIElement;
           card.style.setProperty('--k', '1');
-          // The blade falls when the card is nearly home, which is the same
-          // instant the pinned mode cuts at — there, read off the scroll;
-          // here, counted out against the transition.
-          const timer = window.setTimeout(() => {
-            card.classList.add('is-cut');
-            timers.delete(timer);
-          }, Math.round(TOSS_MS * CUT));
-          timers.add(timer);
           observer.unobserve(card);
         }
       },
@@ -236,7 +214,6 @@ export function SliceCards() {
     for (const card of cards) observer.observe(card);
     return () => {
       observer.disconnect();
-      for (const timer of timers) window.clearTimeout(timer);
       clearCards();
     };
   }, [mode]);
@@ -254,10 +231,8 @@ export function SliceCards() {
     >
       <div ref={stageRef} className="slice__stage">
         <div className="wrap">
-          <p className="band__eyebrow">Before you pay ₹{RUPEES}, three things</p>
           <h2 className="band__title slice__title">
-            Your next {DIAGNOSTIC.liftMarks} marks, mapped —{' '}
-            <em>and an {DIAGNOSTIC.webinarHost} who takes you through them</em>
+            Now read this carefully
           </h2>
 
           <ul className="slice__row">
@@ -271,28 +246,24 @@ export function SliceCards() {
               >
                 {/* The cell above never moves; everything below it flies. */}
                 <div className="slice-card__fly">
-                  {/*
-                    The card's surface, drawn twice and masked to either side of
-                    the cut, so the blade has two halves to part, and the scar
-                    that is left along the join. The text sits on top of all
-                    three and is never duplicated — one copy of every word, for
-                    the page and for a screen reader.
-                  */}
-                  <span className="slice-card__half slice-card__half--top" aria-hidden="true" />
-                  <span className="slice-card__half slice-card__half--low" aria-hidden="true" />
-                  <span className="slice-card__seam" aria-hidden="true" />
+                  {/* The layer that never stops floating, separate from the one
+                      that flies because a single element cannot carry both
+                      transforms — they would fight over the property. */}
+                  <div className="slice-card__bob">
+                    {/*
+                      The card's surface: one layer behind the words rather than
+                      a box around them, so the panel keeps its own shadow and
+                      rounding while the text above it inherits neither.
+                    */}
+                    <span className="slice-card__face" aria-hidden="true" />
 
-                  <div className="slice-card__body">
-                    <p className="slice-card__kicker">{card.kicker}</p>
-                    <p className="slice-card__stat tnum">{card.stat}</p>
-                    <h3 className="slice-card__title">{card.title}</h3>
-                    <p className="slice-card__text">{card.text}</p>
+                    <div className="slice-card__body">
+                      <p className="slice-card__kicker">{card.kicker}</p>
+                      <p className="slice-card__stat tnum">{card.stat}</p>
+                      <h3 className="slice-card__title">{card.title}</h3>
+                      <p className="slice-card__text">{card.text}</p>
+                    </div>
                   </div>
-
-                  <span className="slice-card__blade" aria-hidden="true" />
-                  <span className="slice-card__juice" aria-hidden="true">
-                    <i /><i /><i />
-                  </span>
                 </div>
               </li>
             ))}

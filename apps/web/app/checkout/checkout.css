@@ -23,7 +23,7 @@
 
 .checkout__item {
   display: flex;
-  align-items: flex-start;
+  align-items: baseline;
   justify-content: space-between;
   gap: 18px;
   padding-bottom: 18px;
@@ -34,11 +34,12 @@
 .checkout__item-name {
   font-size: 0.98rem;
   font-weight: 600;
-  margin: 0 0 4px;
+  line-height: 1.4;
+  margin: 0;
 }
 
 .checkout__item-note {
-  margin: 0;
+  margin: 6px 0 0;
   font-size: 0.86rem;
   line-height: 1.5;
   color: var(--ink-soft);

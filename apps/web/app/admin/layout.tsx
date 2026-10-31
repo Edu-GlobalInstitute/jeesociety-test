@@ -69,7 +69,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="admin">
       <header className="admin__bar">
         <div className="admin__brand">
-          JEE PENULTIMATE <span>admin</span>
+          JEEsociety <span>admin</span>
         </div>
         <nav className="admin__tabs">
           {TABS.map((tab) => {

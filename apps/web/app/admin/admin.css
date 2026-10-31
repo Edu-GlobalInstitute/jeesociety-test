@@ -15,13 +15,12 @@
 /*
  * Hide the public chrome on admin routes.
  *
- * The root layout wraps every page, and its masthead and footer are written
- * for a student arriving from an advert. A nested layout cannot remove them,
- * so they are hidden here.
+ * The root layout wraps every page, and its masthead is written for a student
+ * arriving from an advert. A nested layout cannot remove it, so it is hidden
+ * here.
  */
 .admin ~ *,
-body:has(.admin) > .masthead,
-body:has(.admin) > .foot {
+body:has(.admin) > .masthead {
   display: none !important;
 }
 

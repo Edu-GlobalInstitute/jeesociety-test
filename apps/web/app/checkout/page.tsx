@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { DIAGNOSTIC, PAPER } from '@jee/shared/config';
+import { DIAGNOSTIC } from '@jee/shared/config';
 import {
   COUPON_PRICE,
   COUPON_SAVING,
@@ -62,17 +62,22 @@ export default function Checkout() {
       <div className="checkout__card">
         <h1 className="auth__title">Checkout</h1>
         <p className="auth__sub">
-          One payment, nothing after it. {TEST_WHEN}.
+          Your chance to add {DIAGNOSTIC.liftMarks} marks to your January attempt.{' '}
+          {TEST_WHEN}.
         </p>
 
         <section className="auth__panel">
           {/* ── What is being bought ──────────────────────────────────── */}
           <div className="checkout__item">
             <div>
-              <h2 className="checkout__item-name">JEE Main full paper + report</h2>
+              <h2 className="checkout__item-name">
+                JEE Main full paper + report + IITian workshop
+              </h2>
               <p className="checkout__item-note">
-                {PAPER.maxMarks}-mark paper, an all-India rank, and a report showing where
-                your {DIAGNOSTIC.liftMarks} marks are hiding.
+                Your last chance to add {DIAGNOSTIC.liftMarks} marks to your January
+                attempt. Just sit this one test: the report after it shows you the
+                loopholes you are losing marks to, and an IITian mentor helps you fix
+                them.
               </p>
             </div>
             <span className="checkout__item-price tnum">₹{LIST_PRICE}</span>
@@ -158,11 +163,6 @@ export default function Checkout() {
             </p>
           ) : null}
         </section>
-
-        <p className="auth__fine">
-          Only for students scoring under {DIAGNOSTIC.entryCeilingMarks} of {PAPER.maxMarks}.
-          One payment, no renewals, nothing more to pay later.
-        </p>
       </div>
     </main>
   );

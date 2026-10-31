@@ -66,7 +66,7 @@ export function Seal() {
           textLength="236"
           lengthAdjust="spacingAndGlyphs"
         >
-          {`JEE PENULTIMATE · ALL-INDIA MOCK · ${TEST_DATE_SHORT.toUpperCase()} · `}
+          {`JEESOCIETY · ALL-INDIA MOCK · ${TEST_DATE_SHORT.toUpperCase()} · `}
         </textPath>
       </text>
       <circle cx="60" cy="60" r="21" className="seal__hub" />

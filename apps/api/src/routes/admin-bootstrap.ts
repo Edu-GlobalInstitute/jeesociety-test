@@ -89,9 +89,9 @@ export function adminBootstrapRoutes({
         headers: {
           'content-type': 'application/json',
           origin: req.headers.origin ?? env.WEB_ORIGIN,
-          'user-agent': req.headers['user-agent'] ?? 'JEE PENULTIMATE admin bootstrap',
+          'user-agent': req.headers['user-agent'] ?? 'JEEsociety admin bootstrap',
         },
-        body: JSON.stringify({ name: 'JEE PENULTIMATE Admin', email: ADMIN_EMAIL, password: body.password }),
+        body: JSON.stringify({ name: 'JEEsociety Admin', email: ADMIN_EMAIL, password: body.password }),
       }),
     );
     const result = await authResponse.json().catch(() => ({})) as {

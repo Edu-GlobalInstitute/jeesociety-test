@@ -127,7 +127,7 @@ export function Lobby({ status, clock, onReady }: LobbyProps) {
 
   return (
     <main className="page">
-      <img className="page__logo" src="/logo.jpeg" alt="JEE PENULTIMATE" width={44} height={44} />
+      <img className="page__logo" src="/logo.jpeg" alt="JEEsociety" width={44} height={44} />
       <h1 className="page__title">{status.name}</h1>
       <p className="page__lede">
         Stay on this page. The test opens automatically when the countdown reaches zero — you do

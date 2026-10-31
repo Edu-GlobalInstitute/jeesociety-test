@@ -1,6 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Every route is written as its own directory with an index.html inside
+  // (out/checkout/index.html, not out/checkout.html). Without this, a static
+  // host has to guess that /checkout means checkout.html — Cloudflare Pages
+  // does, a plain file server does not, and the link 404s there. A directory
+  // index is what every static host resolves, so the export works wherever it
+  // is served from.
+  trailingSlash: true,
   // Deployed to Cloudflare Pages, not Vercel — Vercel's free tier forbids
   // commercial use, and this portal charges students (D-003).
   output: 'export',

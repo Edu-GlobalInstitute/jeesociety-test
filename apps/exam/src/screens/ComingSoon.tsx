@@ -27,7 +27,7 @@ export function ComingSoon({ status }: ComingSoonProps) {
 
   return (
     <main className="page">
-      <img className="page__logo" src="/logo.jpeg" alt="JEE PENULTIMATE" width={44} height={44} />
+      <img className="page__logo" src="/logo.jpeg" alt="JEEsociety" width={44} height={44} />
       <h1 className="page__title">{status.name}</h1>
       <p className="page__lede">
         {status.paid

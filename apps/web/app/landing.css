@@ -85,7 +85,9 @@
  */
 @media (min-width: 980px) {
   .hero__inner {
-    grid-template-columns: minmax(0, 1.18fr) minmax(280px, 0.82fr);
+    /* The copy carries a 24-character headline line, so it takes the wider
+       share of the row; the ladder stays comfortable down to 280px. */
+    grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
     gap: 30px;
     align-items: center;
   }
@@ -93,7 +95,7 @@
   /* These two are written as `.hero .x` on purpose. A media query adds no
      specificity, and the base rules for both sit further down this file, so
      the plain selectors would lose the cascade to them. */
-  .hero .hero__title { font-size: clamp(2.5rem, 3.75vw, 3.4rem); }
+  .hero .hero__title { font-size: clamp(2.2rem, 4.3vw, 2.85rem); }
 }
 
 .hero__art {
@@ -207,15 +209,14 @@
 /* ── Hero content ─────────────────────────────────────────────────────── */
 
 /*
- * The gate: who the paper is for, in a line above the headline.
+ * The date, in a pill above the headline.
  *
- * It is a quiet navy outline rather than a warm badge on purpose. The gold and
- * the orange on this page are rationed to the things a student is being
- * offered — the price, the button, the marks on the ladder — and an
- * eligibility rule is not one of them. Only the number inside it is warm,
- * because the number is the part that has to be read.
+ * A quiet navy outline rather than a warm badge: the gold and the orange on
+ * this page are rationed to the things a student is being offered — the
+ * price, the button, the marks on the ladder — and the date is not one of
+ * them. Only the day itself is warm, because that is the part being read.
  */
-.hero__gate {
+.hero__when {
   display: inline-flex;
   align-items: center;
   gap: 9px;
@@ -234,30 +235,37 @@
   animation: fade-up 700ms cubic-bezier(0.2, 0.8, 0.3, 1) 60ms both;
 }
 
-.hero__gate b {
+.hero__when b {
   font-weight: 800;
   color: var(--orange-deep);
-  font-feature-settings: 'tnum';
-  font-variant-numeric: tabular-nums;
 }
 
-/* Alive, like a light that is on: the pill is the one piece of the hero that
-   is addressed to the reader personally. */
-.hero__gate-dot {
+/* Alive, like a light that is on: the morning is still ahead. */
+.hero__when-dot {
   flex: none;
   width: 7px;
   height: 7px;
   border-radius: 999px;
   background: var(--teal);
   box-shadow: 0 0 0 3px rgba(46, 196, 182, 0.2);
-  animation: gate-pulse 2.8s ease-in-out infinite;
+  animation: when-pulse 2.8s ease-in-out infinite;
 }
 
-@keyframes gate-pulse {
+@keyframes when-pulse {
   0%, 100% { box-shadow: 0 0 0 3px rgba(46, 196, 182, 0.2); }
   50% { box-shadow: 0 0 0 6px rgba(46, 196, 182, 0.08); }
 }
 
+/*
+ * Three beats, three lines, at every width. Each <span> is one line of the
+ * headline, so the only thing that can add a fourth is a beat too wide for
+ * its column wrapping inside itself — which is what every font-size below is
+ * sized to prevent. The longest beat sets the ceiling: it is about 13.1em
+ * wide at this weight and width, so a column of W pixels can carry a font of
+ * W / 13.1 and no more. Each size below is that limit with a few per cent of
+ * slack. There is no `max-width` any more: the beats decide the breaks, so a
+ * measure in `ch` could only cut a line in half.
+ */
 .hero__title {
   font-family: var(--poster);
   font-weight: 900;
@@ -267,7 +275,6 @@
   letter-spacing: -0.028em;
   text-transform: uppercase;
   margin: 0 0 22px;
-  max-width: 26ch;
 }
 
 /*
@@ -294,6 +301,11 @@
  * is cut from the darkened half of the palette — raw gold on cream is a
  * headline nobody can read — and the gleam sweeps a lighter orange through it
  * rather than a near-white.
+ *
+ * It carries two animations, so it has to restate its entrance delay: the
+ * shorthand below resets the one the nth-child rule above would have given
+ * it. The 240ms is the second line's slot, which is where the lit line sits —
+ * move the modifier to another line and this moves with it.
  */
 .hero__line--lit > span {
   background: linear-gradient(96deg, var(--orange-deep) 0%, #e8821a 26%, var(--gold-deep) 58%, var(--orange-deep) 100%);
@@ -302,7 +314,7 @@
   background-clip: text;
   color: transparent;
   animation:
-    line-up 860ms cubic-bezier(0.16, 0.84, 0.3, 1) 380ms both,
+    line-up 860ms cubic-bezier(0.16, 0.84, 0.3, 1) 240ms both,
     gleam 7s ease-in-out 1.6s infinite;
 }
 
@@ -464,29 +476,22 @@
  *    off-stage to the left, mid-flight; 1 is landed. The component writes it
  *    from the scroll offset on a wide window and transitions it on a phone,
  *    and this file never needs to know which.
- *  - The card is two boxes, not one: the cell, which holds its place in the
- *    row and never moves, and the layer inside it that flies. They are split
- *    because on a phone the toss is triggered by an observer watching the card
- *    reach the viewport — and an observer measures an element where its
- *    transform has put it, so a card that flew itself off-screen to wait for
- *    its cue would be waiting for a cue it had just made impossible.
+ *  - The card is three boxes, not one: the cell, which holds its place in the
+ *    row and never moves; the layer inside it that flies; and inside that, the
+ *    layer that floats. The cell is split from the rest because on a phone the
+ *    toss is triggered by an observer watching the card reach the viewport —
+ *    and an observer measures an element where its transform has put it, so a
+ *    card that flew itself off-screen to wait for its cue would be waiting for
+ *    a cue it had just made impossible. The float is split from the flight for
+ *    a plainer reason: one element has one `transform`, and the two would
+ *    fight over it.
  *  - `--k` is registered, so it has a real initial value and can be
  *    transitioned. The initial value is 1 — at rest — which is what makes the
  *    section readable with no JavaScript at all: the server's markup is three
  *    cards sitting where they belong.
- *  - The cut is two copies of the card's *surface*, masked to either side of
- *    one diagonal; the words are a third layer above both and exist once.
- *    Everything that has to agree about where the cut runs — the two masks,
- *    the scar it leaves and the blade that makes it — is written from a single
- *    angle, `--cut`, so none of them has to be re-aimed when a card changes
- *    shape. Masks rather than clip paths for exactly that reason: a gradient's
- *    angle is an angle, while a polygon's corners are percentages of a box and
- *    drift apart from a rotated blade the moment the box is not the shape it
- *    was drawn for.
- *  - The blade and the shudder play from the `is-cut` class rather than from
- *    `--k`, because a flash is not a position. A class can also be taken away
- *    and given back, which is what lets the cut play again when a student
- *    scrolls back up through the section.
+ *  - The card's surface is a layer of its own behind the words, not a box
+ *    around them, so the panel keeps its shadow and its rounding while the
+ *    text above it inherits neither.
  */
 
 /* Inherited, so the component can write it on the card the observer watches
@@ -562,15 +567,6 @@
 
 /* The cell: it holds the card's place in the row and never moves itself. */
 .slice-card {
-  /*
-   * Which way the cut runs, as the direction of the gradient that makes it.
-   * CSS measures that direction clockwise from straight up, and the cut itself
-   * is the perpendicular to it: 156° here puts the cut 24° above the
-   * horizontal, rising to the right. The blade below is a horizontal bar, so
-   * it turns by `--cut - 180deg` — the same 24°, counter-clockwise — and the
-   * two therefore cannot disagree.
-   */
-  --cut: 156deg;
   position: relative;
   display: flex;
   color: var(--ink);
@@ -586,11 +582,13 @@
 /* The layer that flies. */
 .slice-card__fly {
   position: relative;
-  /* So the surface halves, which sit at a negative z-index, stay behind this
+  /* So the surface, which sits at a negative z-index, stays behind this
      card's own words and not behind the band. */
   isolation: isolate;
   flex: 1;
-  padding: clamp(20px, 2.1vw, 28px);
+  /* A flex row of one, so the floating layer inside stretches to the height
+     the tallest card in the row sets rather than to its own text. */
+  display: flex;
   /* It spins about a point low in the card, the way a thrown thing turns about
      its mass rather than its middle. */
   transform-origin: 46% 72%;
@@ -610,72 +608,47 @@
   opacity: clamp(0, calc(var(--k) * 3), 1);
 }
 
-/* The card's surface, drawn twice and masked to either side of the cut. The
-   two masks are one gradient and its negative, so at rest they tile the card
-   exactly and it reads as one unbroken panel. */
-.slice-card__half {
-  position: absolute;
-  inset: 0;
-  border-radius: 16px;
-  border: 1px solid var(--navy-line);
-  background: linear-gradient(174deg, #fff 0%, #fffaf1 62%, #fff6e6 100%);
-  box-shadow: 0 22px 44px -28px rgba(27, 42, 73, 0.55);
-}
-
-/* The half the cut leaves on the upper side of the line, and the half it
-   leaves below. The hard stop is a hair before the halfway mark on one and a
-   hair after it on the other, so neither edge is antialiased into the other;
-   the scar is drawn over the join either way. */
-.slice-card__half--top {
-  z-index: -2;
-  -webkit-mask-image: linear-gradient(var(--cut), #000 49.9%, transparent 50%);
-  mask-image: linear-gradient(var(--cut), #000 49.9%, transparent 50%);
-}
-
-.slice-card__half--low {
-  z-index: -3;
-  -webkit-mask-image: linear-gradient(var(--cut), transparent 49.9%, #000 50%);
-  mask-image: linear-gradient(var(--cut), transparent 49.9%, #000 50%);
+/*
+ * The float: the one movement on this section that never finishes. It is a
+ * few pixels of rise and fall and about a third of a degree of tilt — enough
+ * that the row is never quite still, not enough to read as a wobble while
+ * somebody is trying to read the card.
+ *
+ * It also carries the card's padding, because a transformed element is the
+ * containing block for anything absolutely positioned inside it: the surface
+ * below is `inset: 0` against this box, so this is the box that has to be the
+ * whole card.
+ */
+.slice-card__bob {
+  position: relative;
+  flex: 1;
+  padding: clamp(20px, 2.1vw, 28px);
+  animation: card-float 6.8s ease-in-out infinite;
 }
 
 /*
- * The scar. The same angle and the same halfway mark as the two masks, so the
- * line lands on the join at any card size, and clipped to the card's own
- * rounded corners by the radius it carries.
+ * Three cards rising and falling in step would read as one object. Each gets
+ * its own period, and a negative delay so it begins already somewhere in the
+ * middle of its own cycle rather than all three starting from the floor.
  */
-.slice-card__seam {
+.slice-card:nth-child(1) .slice-card__bob { animation-duration: 6.4s; animation-delay: -0.9s; }
+.slice-card:nth-child(2) .slice-card__bob { animation-duration: 7.6s; animation-delay: -3.2s; }
+.slice-card:nth-child(3) .slice-card__bob { animation-duration: 6.9s; animation-delay: -5.1s; }
+
+@keyframes card-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-9px) rotate(-0.35deg); }
+}
+
+/* The card's surface. One panel, behind the words. */
+.slice-card__face {
   position: absolute;
   inset: 0;
   z-index: -1;
   border-radius: 16px;
-  pointer-events: none;
-  /* A card in the air has not been cut yet. The animation below leaves it at
-     full strength once the blade has been through. */
-  opacity: 0;
-  background: linear-gradient(
-    var(--cut),
-    transparent calc(50% - 1px),
-    rgba(255, 170, 60, 0.55) calc(50% - 0.5px),
-    rgba(255, 201, 60, 0.9) 50%,
-    rgba(255, 170, 60, 0.55) calc(50% + 0.5px),
-    transparent calc(50% + 1px)
-  );
-}
-
-/* Where nothing is ever thrown or cut, the scar is simply part of the card:
-   it is the one mark that is a shape rather than a movement, and without it a
-   visitor with no JavaScript would see three cards the blade never reached. */
-.slice__track--plain .slice-card__seam { opacity: 1; }
-
-/* It flares as the blade goes through and settles back to a hairline. */
-.slice-card.is-cut .slice-card__seam {
-  animation: seam 620ms ease-out both;
-}
-
-@keyframes seam {
-  0% { opacity: 0; }
-  14% { opacity: 1; filter: brightness(1.5) drop-shadow(0 0 8px rgba(255, 201, 60, 0.9)); }
-  100% { opacity: 1; filter: none; }
+  border: 1px solid var(--navy-line);
+  background: linear-gradient(174deg, #fff 0%, #fffaf1 62%, #fff6e6 100%);
+  box-shadow: 0 22px 44px -28px rgba(27, 42, 73, 0.55);
 }
 
 .slice-card__body { position: relative; }
@@ -718,127 +691,20 @@
   color: var(--ink-soft);
 }
 
-/* ── The cut ──────────────────────────────────────────────────────────── */
-
-/*
- * The blade: one streak, longer than the card, laid along the line the two
- * halves share — see `--cut` above for why that is `--cut - 180deg`.
- */
-.slice-card__blade {
-  position: absolute;
-  left: -36%;
-  right: -36%;
-  top: 48%;
-  height: 2px;
-  z-index: 2;
-  opacity: 0;
-  pointer-events: none;
-  border-radius: 2px;
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.92) 22%,
-    var(--gold) 52%,
-    rgba(255, 140, 66, 0.9) 74%,
-    rgba(255, 140, 66, 0) 100%
-  );
-  filter: drop-shadow(0 0 7px rgba(255, 201, 60, 0.95));
-  transform: rotate(calc(var(--cut) - 180deg)) scaleX(0);
-}
-
-.slice-card.is-cut .slice-card__blade {
-  animation: blade 540ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
-}
-
-@keyframes blade {
-  0% { opacity: 0; transform: rotate(calc(var(--cut) - 180deg)) translateX(-24%) scaleX(0.18); }
-  18% { opacity: 1; }
-  58% { opacity: 1; transform: rotate(calc(var(--cut) - 180deg)) translateX(4%) scaleX(1); }
-  100% { opacity: 0; transform: rotate(calc(var(--cut) - 180deg)) translateX(22%) scaleX(1); }
-}
-
-/* The shudder: the two halves part along the cut and come straight back. The
-   whole thing is over in half a second — any longer and the card reads as
-   broken rather than as cut. */
-.slice-card.is-cut .slice-card__half--top {
-  animation: cut-top 560ms cubic-bezier(0.16, 0.86, 0.26, 1) both;
-}
-
-.slice-card.is-cut .slice-card__half--low {
-  animation: cut-low 560ms cubic-bezier(0.16, 0.86, 0.26, 1) both;
-}
-
-@keyframes cut-top {
-  0% { transform: none; }
-  24% { transform: translate(-7px, -7px) rotate(-1deg); }
-  100% { transform: none; }
-}
-
-@keyframes cut-low {
-  0% { transform: none; }
-  24% { transform: translate(7px, 8px) rotate(1deg); }
-  100% { transform: none; }
-}
-
-/* Three drops thrown off the blade's edge. Each carries its own direction, so
-   they do not leave as a fan. */
-.slice-card__juice {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.slice-card__juice i {
-  position: absolute;
-  top: 48%;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 36% 32%, #fff6da 0%, var(--gold) 46%, var(--orange) 100%);
-}
-
-.slice-card__juice i:nth-child(1) { left: 24%; --dx: -16px; --dy: 30px; }
-.slice-card__juice i:nth-child(2) { left: 52%; --dx: 10px; --dy: 40px; }
-.slice-card__juice i:nth-child(3) { left: 74%; --dx: 22px; --dy: 26px; }
-
-.slice-card.is-cut .slice-card__juice { opacity: 1; }
-
-.slice-card.is-cut .slice-card__juice i {
-  animation: juice 620ms cubic-bezier(0.3, 0.62, 0.4, 1) both;
-}
-
-.slice-card.is-cut .slice-card__juice i:nth-child(2) { animation-delay: 60ms; }
-.slice-card.is-cut .slice-card__juice i:nth-child(3) { animation-delay: 30ms; }
-
-@keyframes juice {
-  0% { opacity: 0; transform: translate(0, 0) scale(0.4); }
-  20% { opacity: 1; transform: translate(calc(var(--dx) * 0.4), -8px) scale(1); }
-  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.55); }
-}
-
 /*
  * The setting asks for none of this. The component already drops to `plain`
- * when it is on, so the cards never move — these rules are the belt to that
+ * when it is on, so the cards never move — this rule is the belt to that
  * brace, for the frames before the component has decided.
  */
 @media (prefers-reduced-motion: reduce) {
   .slice-card__fly,
-  .slice-card__half,
-  .slice-card__seam,
-  .slice-card__blade,
-  .slice-card__juice,
-  .slice-card__juice i {
+  .slice-card__bob,
+  .slice-card__face {
     animation: none;
     transition: none;
     transform: none;
     opacity: 1;
   }
-
-  /* The scar stays — it is the one part of the cut that is not motion. */
-  .slice-card__blade,
-  .slice-card__juice { opacity: 0; }
 }
 
 /* ── The mentor's note (components/MentorNote) ────────────────────────── */
@@ -1089,13 +955,6 @@
 
 .finale .btn-sun__arrow { background: var(--gold); color: var(--navy); }
 
-.finale__small {
-  margin: 26px 0 0;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: rgba(27, 42, 73, 0.88);
-}
-
 /* ── The rescue ladder (components/RescueLadder) ──────────────────────── */
 
 /*
@@ -1282,13 +1141,6 @@
   animation: climb-spark 2.6s ease-in-out infinite;
 }
 
-.climb__caption {
-  margin: 10px 0 0;
-  text-align: center;
-  font-size: 0.84rem;
-  color: var(--on-night-faint);
-}
-
 @keyframes climb-kid {
   0% { transform: translateY(0); opacity: 1; }
   5% { transform: translateY(0); }
@@ -1419,13 +1271,12 @@
 }
 
 @media (max-width: 620px) {
-  .hero__title { max-width: none; font-size: clamp(2.3rem, 11vw, 3.4rem); }
+  .hero__title { font-size: min(3.4rem, 6.4vw); }
   .hero__actions { flex-direction: column; align-items: stretch; }
   .hero__actions .btn-sun { justify-content: space-between; }
     /* The rung labels are set in the viewBox, so the whole picture shrinking is
      the labels shrinking. This is as small as they stay comfortable. */
   .hero__art { max-width: 320px; }
-  .climb__caption { font-size: 0.78rem; }
   .note__arrow { display: none; }
   .note__nudge { text-align: center; }
   .note__nudge span { max-width: none; }
@@ -1446,8 +1297,8 @@
   .hero-star,
   .finale__seal,
   .hero__sparkle,
-  .hero__gate,
-  .hero__gate-dot,
+  .hero__when,
+  .hero__when-dot,
   .hero__sub,
   .hero__actions,
   .hero__line > span,

@@ -281,10 +281,10 @@ Neon dashboard → **SQL Editor** → run:
 -- Times are UTC. 09:00 IST = 03:30 UTC (IST is UTC+5:30).
 -- This date must match TEST_STARTS_AT in packages/shared/src/config.ts.
 INSERT INTO tests (name, starts_at, ends_at, lobby_opens_at, status)
-VALUES ('JEE PENULTIMATE Scholarship Test',
-        '2026-11-30 03:30:00+00',   -- 09:00 IST
-        '2026-11-30 06:30:00+00',   -- 12:00 IST (3 hours)
-        '2026-11-30 03:00:00+00',   -- 08:30 IST (lobby, 30 min before)
+VALUES ('JEEsociety Scholarship Test',
+        '2026-11-29 03:30:00+00',   -- 09:00 IST
+        '2026-11-29 06:30:00+00',   -- 12:00 IST (3 hours)
+        '2026-11-29 03:00:00+00',   -- 08:30 IST (lobby, 30 min before)
         'scheduled')
 RETURNING id;
 ```

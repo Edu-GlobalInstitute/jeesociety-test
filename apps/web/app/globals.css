@@ -1,7 +1,7 @@
 /*
  * Public site — shared chrome and the quiet pages.
  *
- * The palette is the Penultimate JEE Program's Sunrise palette, and the site
+ * The palette is JEEsociety's Sunrise palette, and the site
  * is daylight the whole way through: the morning has already arrived rather
  * than being waited for. The chrome (masthead, footer) is cream with navy
  * type; the landing page is the sun fully up (app/landing.css); and every page
@@ -220,6 +220,19 @@ a { color: var(--accent); }
   color: var(--on-night);
   background: rgba(27, 42, 73, 0.07);
   box-shadow: inset 0 0 0 1px rgba(27, 42, 73, 0.1);
+}
+
+/* Sign in sits between the two: an outlined pill rather than a bare link, so a
+   student who already has an account can see there is a way back in, and
+   rather than a filled one, so Register stays the loudest thing on the bar. */
+.masthead__nav a.masthead__signin {
+  color: var(--on-night);
+  box-shadow: inset 0 0 0 1px rgba(27, 42, 73, 0.22);
+}
+
+.masthead__nav a.masthead__signin:hover {
+  background: rgba(27, 42, 73, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(27, 42, 73, 0.38);
 }
 
 /* The nav CTA: the one filled, warm thing on the bar, so it is still what the
@@ -449,23 +462,3 @@ html { scroll-padding-top: 78px; }
 }
 
 .notice--ok { border-color: var(--answered); background: #ddeadf; }
-
-/* ── Footer ───────────────────────────────────────────────────────────── */
-
-.foot {
-  background: var(--cream);
-  color: var(--ink-soft);
-  border-top: 1px solid var(--navy-line);
-  padding: 32px 0 44px;
-  font-size: 0.88rem;
-}
-
-/* The darkened gold, not the gold: raw gold is not readable as text on
-   cream. */
-.foot a { color: var(--orange-deep); }
-
-.foot__credit {
-  margin: 12px 0 0;
-  font-size: 0.78rem;
-  color: var(--ink-faint);
-}

@@ -134,7 +134,7 @@ export default function AdminLoginPage() {
   return (
     <main className="auth">
       <div className="auth__card">
-        <p className="auth__eyebrow">JEE PENULTIMATE · Administration</p>
+        <p className="auth__eyebrow">JEEsociety · Administration</p>
         <h1 className="auth__title">{mode === 'setup' ? 'Set up admin password' : 'Admin sign in'}</h1>
         <p className="auth__sub">
           {mode === 'setup'

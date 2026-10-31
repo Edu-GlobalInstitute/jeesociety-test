@@ -54,11 +54,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <img className="masthead__logo" src="/logo.jpeg" alt="" width={30} height={30} />
               {/* On the narrowest phones the name is taken out of the flow rather
                   than removed, so the mark keeps its accessible name. */}
-              <span className="masthead__wordmark">JEE PENULTIMATE</span>
+              <span className="masthead__wordmark">JEEsociety</span>
             </a>
             <nav className="masthead__nav">
               <a className="masthead__home" href="/">Home</a>
               <a href="/results">Results</a>
+              {/* The way back in for a student who already has an account: an
+                  outlined pill, so it reads as a button without taking the eye
+                  from Register, which is what a first visit is here for. */}
+              <a className="masthead__signin" href="/login">Sign in</a>
               <a className="nav-cta" href="/checkout">
                 Register
                 <span className="nav-cta__arrow" aria-hidden="true">
@@ -69,15 +73,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
         </header>
         {children}
-        <footer className="foot">
-          <div className="wrap">
-            Questions about your test? Quote your receipt number when you write to us.
-            <p className="foot__credit">
-              Mentorship seats are awarded on the published rank list, to the registered
-              student, one per student, and are not exchangeable for cash.
-            </p>
-          </div>
-        </footer>
       </body>
     </html>
   );

@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { DIAGNOSTIC, PAPER } from '@jee/shared/config';
+import { DIAGNOSTIC } from '@jee/shared/config';
 import { SliceCards } from '../components/SliceCards';
 
 /**
@@ -20,7 +20,6 @@ describe('SliceCards', () => {
 
   it('states the entry ceiling, the lift and the host from config', () => {
     expect(markup).toContain(String(DIAGNOSTIC.entryCeilingMarks));
-    expect(markup).toContain(String(PAPER.maxMarks));
     expect(markup).toContain(`+${DIAGNOSTIC.liftMarks}`);
     expect(markup).toContain(DIAGNOSTIC.webinarHost);
   });
@@ -34,18 +33,17 @@ describe('SliceCards', () => {
   });
 
   it('keeps the words on one layer only, so nothing is read out twice', () => {
-    // The cut is two copies of the card's surface, not of its text.
-    // Two surface halves per card, counted by their modifier so the base
-    // class on the same element is not counted twice.
-    expect([...markup.matchAll(/slice-card__half--/g)]).toHaveLength(6);
-    for (const card of ['Who it is for', 'What lands after', 'Who turns up']) {
+    // The surface is drawn behind the words, never around a second copy of
+    // them: one panel per card, and each card's kicker appearing once.
+    expect([...markup.matchAll(/slice-card__face/g)]).toHaveLength(3);
+    for (const card of ['Who it is for', 'The benefit', 'Who turns up']) {
       expect([...markup.matchAll(new RegExp(card, 'g'))]).toHaveLength(1);
     }
   });
 
-  it('keeps the cut and everything it throws out of the accessibility tree', () => {
-    const decoration = [...markup.matchAll(/<span class="slice-card__(seam|blade|juice)"[^>]*>/g)];
-    expect(decoration).toHaveLength(9);
+  it('keeps the surface out of the accessibility tree', () => {
+    const decoration = [...markup.matchAll(/<span class="slice-card__face"[^>]*>/g)];
+    expect(decoration).toHaveLength(3);
     for (const match of decoration) expect(match[0]).toContain('aria-hidden="true"');
   });
 
