@@ -39,7 +39,7 @@ export const TOPPERS: Topper[] = [
     title: 'JEE Main Topper Reveals His Biggest Struggles & Comeback Strategy',
     hook:
       'Lectures he could not follow, maths he could not solve, test marks going the '
-      + 'wrong way all through revision — and 99.66 at the end of it.',
+      + 'wrong way all through revision, and 99.66 at the end of it.',
   },
   {
     link: 'https://youtu.be/I3yAmY7qm4Y',

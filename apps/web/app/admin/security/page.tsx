@@ -203,7 +203,7 @@ export default function SecurityPage() {
               </table>
             </div>
             <p className="ap__sub" style={{ marginTop: 10 }}>
-              To add an admin, the person must sign up on the site first — then grant it by
+              To add an admin, the person must sign up on the site first, then grant it by
               email. You need your own second factor set up before you can grant access to
               anyone else.
             </p>
@@ -259,9 +259,9 @@ export default function SecurityPage() {
                             {OUTCOME_LABELS[entry.outcome] ?? entry.outcome}
                           </span>
                         </td>
-                        <td className="nowrap tnum muted-cell">{entry.ip ?? '—'}</td>
+                        <td className="nowrap tnum muted-cell">{entry.ip ?? '-'}</td>
                         <td className="muted-cell" style={{ fontSize: '0.76rem' }}>
-                          {entry.path ?? '—'}
+                          {entry.path ?? '-'}
                         </td>
                       </tr>
                     ))}

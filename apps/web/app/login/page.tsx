@@ -136,7 +136,7 @@ export default function Login() {
         </div>
 
         <p className="auth__fine">
-          Signed up with Google? Use the Google button — an account created that way has no
+          Signed up with Google? Use the Google button. An account created that way has no
           password to type.
         </p>
       </div>

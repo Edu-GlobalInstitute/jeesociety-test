@@ -355,7 +355,7 @@ export default function LeadsPage() {
                   )}
                 </td>
                 <td className="nowrap">
-                  {lead.class === 'dropper' ? 'Dropper' : lead.class ? `Class ${lead.class}` : '—'}
+                  {lead.class === 'dropper' ? 'Dropper' : lead.class ? `Class ${lead.class}` : '-'}
                   {lead.targetYear ? (
                     <div className="muted-cell tnum" style={{ fontSize: '0.76rem' }}>
                       → {lead.targetYear}
@@ -378,7 +378,7 @@ export default function LeadsPage() {
                     <span className="chip chip--unpaid">unpaid</span>
                   )}
                 </td>
-                <td className="nowrap muted-cell">{lead.ownerName ?? '—'}</td>
+                <td className="nowrap muted-cell">{lead.ownerName ?? '-'}</td>
                 <td className="nowrap">
                   {lead.nextFollowUpAt ? (
                     <span
@@ -392,7 +392,7 @@ export default function LeadsPage() {
                       })}
                     </span>
                   ) : (
-                    <span className="muted-cell">—</span>
+                    <span className="muted-cell">-</span>
                   )}
                 </td>
                 <td className="nowrap">
@@ -597,18 +597,18 @@ function LeadDrawer({
                 </dd>
                 <dt>Class</dt>
                 <dd>
-                  {lead.class === 'dropper' ? 'Dropper' : lead.class ? `Class ${lead.class}` : '—'}
+                  {lead.class === 'dropper' ? 'Dropper' : lead.class ? `Class ${lead.class}` : '-'}
                   {lead.targetYear ? ` · targeting ${lead.targetYear}` : ''}
                 </dd>
                 <dt>Where</dt>
-                <dd>{[lead.city, lead.state].filter(Boolean).join(', ') || '—'}</dd>
+                <dd>{[lead.city, lead.state].filter(Boolean).join(', ') || '-'}</dd>
                 <dt>School</dt>
-                <dd>{lead.school ?? '—'}</dd>
+                <dd>{lead.school ?? '-'}</dd>
                 <dt>Heard via</dt>
-                <dd>{lead.referralSource?.replace(/_/g, ' ') ?? '—'}</dd>
+                <dd>{lead.referralSource?.replace(/_/g, ' ') ?? '-'}</dd>
                 <dt>Signed up</dt>
                 <dd>
-                  {lead.signedUpAt ? new Date(lead.signedUpAt).toLocaleString('en-IN') : '—'}
+                  {lead.signedUpAt ? new Date(lead.signedUpAt).toLocaleString('en-IN') : '-'}
                   {lead.providers.includes('google') ? ' · Google' : ''}
                 </dd>
                 <dt>Payment</dt>
@@ -616,7 +616,7 @@ function LeadDrawer({
                   {lead.hasPaid ? (
                     <span className="chip chip--paid">
                       ₹{((lead.amountPaidPaise ?? 0) / 100).toLocaleString('en-IN')} on{' '}
-                      {lead.paidAt ? new Date(lead.paidAt).toLocaleDateString('en-IN') : '—'}
+                      {lead.paidAt ? new Date(lead.paidAt).toLocaleDateString('en-IN') : '-'}
                     </span>
                   ) : (
                     <span className="chip chip--unpaid">not paid</span>

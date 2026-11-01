@@ -14,7 +14,7 @@ import { ResultWall } from '../../components/ResultWall';
  */
 
 export const metadata: Metadata = {
-  title: 'Results — four students, four scorecards, in their own words',
+  title: 'Results: four students, four scorecards, in their own words',
   description:
     'JEE Main scorecards you can press play on: Prahalad at 99.66 percentile, Shubh and '
     + 'Sanskar at 99.5, and Krish from a full syllabus of backlog to IIT Roorkee. '

@@ -125,7 +125,7 @@ function AttemptReview() {
             {detail.flags.map((flag, index) => (
               <li key={index} style={{ marginBottom: 6 }}>
                 <strong>{flag.code.replace(/_/g, ' ')}</strong>
-                {flag.questionId ? ` on ${flag.questionId}` : ''} —{' '}
+                {flag.questionId ? ` on ${flag.questionId}` : ''}:{' '}
                 <span className="muted">
                   {Object.entries(flag.evidence)
                     .map(([key, value]) => `${key}: ${String(value)}`)

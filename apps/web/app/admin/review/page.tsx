@@ -50,7 +50,7 @@ export default function ReviewQueue() {
       <h1 style={{ fontSize: '1.5rem', margin: '0 0 4px' }}>Review queue</h1>
       <p className="muted" style={{ marginTop: 0 }}>
         A flag is a reason to look, never a finding. A changed address on a mobile network is
-        ordinary — <a href="/admin/live">back to the live console</a>
+        ordinary. <a href="/admin/live">back to the live console</a>
       </p>
 
       {rows && rows.length === 0 ? (
@@ -79,7 +79,7 @@ export default function ReviewQueue() {
             {row.flags.map((flag, index) => (
               <li key={`${flag.code}-${index}`}>
                 {FLAG_LABEL[flag.code] ?? flag.code}
-                {flag.questionId ? ` — ${flag.questionId}` : ''}
+                {flag.questionId ? `: ${flag.questionId}` : ''}
               </li>
             ))}
           </ul>

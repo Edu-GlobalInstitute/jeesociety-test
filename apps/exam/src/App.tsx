@@ -201,7 +201,7 @@ export function App() {
           message:
             error instanceof ApiError
               ? error.message
-              : 'We could not open the paper. Reload this page — your answers are safe.',
+              : 'We could not open the paper. Reload this page. Your answers are safe.',
         });
       }
     }
@@ -291,7 +291,7 @@ export function App() {
         <main className="page">
           <h1 className="page__title">{phase.status.name}</h1>
           <p className="page__lede">
-            The waiting room opens 30 minutes before the test. Come back then — this page will
+            The waiting room opens 30 minutes before the test. Come back then. This page will
             let you in automatically.
           </p>
           <section className="panel">

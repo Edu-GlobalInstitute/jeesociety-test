@@ -175,7 +175,7 @@ export default function AdminDashboard() {
             <p className="msg msg--warn" style={{ marginTop: 12, marginBottom: 0 }}>
               <strong>{data.funnel.abandoned}</strong> student
               {data.funnel.abandoned === 1 ? '' : 's'} reached the payment page and did not
-              finish. They are the warmest leads you have —{' '}
+              finish. They are the warmest leads you have:{' '}
               <a href="/admin/leads?payment=unpaid">work that list</a>.
             </p>
           ) : null}
@@ -222,7 +222,7 @@ export default function AdminDashboard() {
                     <td className="tnum" style={{ textAlign: 'right' }}>{row.signups}</td>
                     <td className="tnum" style={{ textAlign: 'right' }}>{row.paid}</td>
                     <td className="tnum muted-cell" style={{ textAlign: 'right' }}>
-                      {row.signups ? `${Math.round((row.paid / row.signups) * 100)}%` : '—'}
+                      {row.signups ? `${Math.round((row.paid / row.signups) * 100)}%` : '-'}
                     </td>
                   </tr>
                 ))}
@@ -290,7 +290,7 @@ function Kpi({
       <div className="kpi__value">{shown}</div>
       <p className="kpi__foot">
         <span className={`trend trend--${direction}`}>
-          {direction === 'up' ? '▲' : direction === 'down' ? '▼' : '—'}
+          {direction === 'up' ? '▲' : direction === 'down' ? '▼' : '-'}
           {change === null ? '' : ` ${Math.abs(change)}%`}
         </span>
         <span>

@@ -31,7 +31,7 @@ export function ComingSoon({ status }: ComingSoonProps) {
       <h1 className="page__title">{status.name}</h1>
       <p className="page__lede">
         {status.paid
-          ? 'Your place is booked. The test opens on the morning of the paper — this page will let you in when it does.'
+          ? 'Your place is booked. The test opens on the morning of the paper. This page will let you in when it does.'
           : 'This test is not open yet. You can register on the main site in the meantime.'}
       </p>
 

@@ -87,7 +87,7 @@ const CARDS = [
     stat: `+${DIAGNOSTIC.liftMarks}`,
     title: `A personalised report that adds ${DIAGNOSTIC.liftMarks} marks to your `
       + 'January attempt',
-    text: 'Every loophole in your preparation, named one by one — the chapters quietly '
+    text: 'Every loophole in your preparation, named one by one: the chapters quietly '
       + 'bleeding marks, the mistakes you repeat, the minutes you burn.',
   },
   {

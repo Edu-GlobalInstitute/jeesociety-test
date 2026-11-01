@@ -130,7 +130,7 @@ export function Lobby({ status, clock, onReady }: LobbyProps) {
       <img className="page__logo" src="/logo.jpeg" alt="JEEsociety" width={44} height={44} />
       <h1 className="page__title">{status.name}</h1>
       <p className="page__lede">
-        Stay on this page. The test opens automatically when the countdown reaches zero — you do
+        Stay on this page. The test opens automatically when the countdown reaches zero. You do
         not need to refresh.
       </p>
 
@@ -168,7 +168,7 @@ export function Lobby({ status, clock, onReady }: LobbyProps) {
         {allChecksDone && anyBad ? (
           <p className="muted" style={{ marginTop: 16 }}>
             Something on this device did not check out. You can still sit the test, but switch to
-            another browser or machine now if you can — and tell an invigilator either way.
+            another browser or machine now if you can, and tell an invigilator either way.
           </p>
         ) : null}
       </section>
@@ -192,7 +192,7 @@ export function Lobby({ status, clock, onReady }: LobbyProps) {
           <li className="check">
             <span className="check__mark" aria-hidden="true" />
             <span>
-              If this device fails entirely, sign in on another one — your last saved answers will
+              If this device fails entirely, sign in on another one. Your last saved answers will
               be there.
             </span>
           </li>

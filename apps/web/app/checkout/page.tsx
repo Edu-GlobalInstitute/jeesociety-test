@@ -88,7 +88,7 @@ export default function Checkout() {
             <div className="checkout__coupon-on">
               <span className="checkout__tick" aria-hidden="true">✓</span>
               <span>
-                Coupon applied — <b>₹{COUPON_SAVING} off</b>
+                Coupon applied: <b>₹{COUPON_SAVING} off</b>
               </span>
               <button type="button" className="link-button" onClick={remove}>
                 Remove
@@ -159,7 +159,7 @@ export default function Checkout() {
 
           {paying ? (
             <p className="checkout__stub" role="status">
-              Payment is not connected yet — this screen is the front end only.
+              Payment is not connected yet. This screen is the front end only.
             </p>
           ) : null}
         </section>
