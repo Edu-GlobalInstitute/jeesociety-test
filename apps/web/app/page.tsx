@@ -68,7 +68,7 @@ export default function Home() {
                 never stops, the inner one the entrance it arrives on. One
                 element cannot do both — they would fight over `transform`. */}
             <h1 className="hero__title">
-              <span className="hero__line"><span>A chance to add</span></span>
+              <span className="hero__line"><span>Last chance to add</span></span>
               <span className="hero__line hero__line--lit">
                 <span>+{DIAGNOSTIC.liftMarks} marks</span>
               </span>
