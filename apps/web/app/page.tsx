@@ -1,4 +1,4 @@
-import { DIAGNOSTIC, MENTORSHIP } from '@jee/shared/config';
+import { DIAGNOSTIC } from '@jee/shared/config';
 import './landing.css';
 import { HeroStars } from '../components/HeroStars';
 import { MentorNote } from '../components/MentorNote';
@@ -131,10 +131,6 @@ export default function Home() {
               {TEST_WEEKDAY}, {TEST_DATE_SHORT} · {TEST_TIME_LABEL}
             </p>
             <p className="finale__price tnum">₹{LIST_PRICE}</p>
-            <p className="finale__line">
-              One paper. One all-India rank. One shot at {MENTORSHIP.months} free months with{' '}
-              {MENTORSHIP.mentors} — and nothing more to pay, ever.
-            </p>
             <a className="btn-sun btn-sun--big" href="/checkout">
               Register
               <span className="btn-sun__arrow" aria-hidden="true"><ArrowIcon /></span>

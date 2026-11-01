@@ -927,20 +927,15 @@
 }
 
 .finale__price {
-  margin: 8px 0 6px;
+  /* The bottom margin was the removed line's; the price carries it now, so
+     the button does not sit against the number. */
+  margin: 8px 0 30px;
   font-family: var(--poster);
   font-weight: 900;
   font-stretch: 84%;
   font-size: clamp(4.4rem, 17vw, 10rem);
   line-height: 0.88;
   letter-spacing: -0.04em;
-}
-
-.finale__line {
-  max-width: 44ch;
-  margin: 0 auto 30px;
-  font-size: clamp(1.05rem, 2.3vw, 1.3rem);
-  font-weight: 600;
 }
 
 /* On the light band the button inverts: navy, so it still reads as the one
