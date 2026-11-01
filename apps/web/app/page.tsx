@@ -6,7 +6,6 @@ import { ArrowIcon, Seal, Sparkle } from '../components/PosterMarks';
 import { RescueLadder } from '../components/RescueLadder';
 import { Reveal } from '../components/Reveal';
 import { SliceCards } from '../components/SliceCards';
-import { LIST_PRICE } from '../lib/pricing';
 import { Sunrise } from '../components/Sunrise';
 import { TEST_DATE_SHORT, TEST_TIME_LABEL, TEST_WEEKDAY } from '../lib/testDate';
 
@@ -130,7 +129,6 @@ export default function Home() {
             <p className="finale__kicker">
               {TEST_WEEKDAY}, {TEST_DATE_SHORT} · {TEST_TIME_LABEL}
             </p>
-            <p className="finale__price tnum">₹{LIST_PRICE}</p>
             <p className="finale__line">
               Your last chance to score 99%ile in the January attempt and go to
               IIT. Don&rsquo;t miss it.

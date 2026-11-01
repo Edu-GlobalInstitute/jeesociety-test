@@ -926,21 +926,17 @@
   color: rgba(27, 42, 73, 0.72);
 }
 
-.finale__price {
-  margin: 8px 0 6px;
-  font-family: var(--poster);
-  font-weight: 900;
-  font-stretch: 84%;
-  font-size: clamp(4.4rem, 17vw, 10rem);
-  line-height: 0.88;
-  letter-spacing: -0.04em;
-}
-
+/*
+ * The band's own voice, now that the price has left it: the date above is a
+ * detail and the button below is an instruction, so this sentence is the only
+ * thing between them with anything to say. It carries the top margin the price
+ * used to hold open.
+ */
 .finale__line {
   max-width: 44ch;
-  margin: 0 auto 30px;
-  font-size: clamp(1.05rem, 2.3vw, 1.3rem);
-  font-weight: 600;
+  margin: 14px auto 30px;
+  font-size: clamp(1.25rem, 3vw, 1.7rem);
+  font-weight: 700;
 }
 
 /* On the light band the button inverts: navy, so it still reads as the one
