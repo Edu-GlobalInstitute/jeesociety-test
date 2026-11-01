@@ -131,6 +131,10 @@ export default function Home() {
               {TEST_WEEKDAY}, {TEST_DATE_SHORT} · {TEST_TIME_LABEL}
             </p>
             <p className="finale__price tnum">₹{LIST_PRICE}</p>
+            <p className="finale__line">
+              Your last chance to score 99 percentile in the January attempt and go
+              to IIT. Don&rsquo;t miss it.
+            </p>
             <a className="btn-sun btn-sun--big" href="/checkout">
               Register
               <span className="btn-sun__arrow" aria-hidden="true"><ArrowIcon /></span>
