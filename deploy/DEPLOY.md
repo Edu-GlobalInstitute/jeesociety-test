@@ -57,6 +57,18 @@ Leave autosuspend on for now. It must be **off** for the event — see step 9.
 
 From your machine, against the **direct** (unpooled) URL:
 
+PowerShell (Windows) — set the variable on its own line. PowerShell has no
+inline `VAR=value command` prefix; writing one makes it try to run the whole
+string as a program name:
+
+```powershell
+$env:DATABASE_URL = "<the UNPOOLED url>"
+npx --yes pnpm@9.15.4 migrate
+Remove-Item Env:\DATABASE_URL
+```
+
+bash / zsh:
+
 ```bash
 DATABASE_URL='<the UNPOOLED url>' npx pnpm@9.15.4 migrate
 ```

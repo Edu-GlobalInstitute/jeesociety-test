@@ -96,6 +96,18 @@ after a reset).
 
 In your terminal, with the **DIRECT** URL:
 
+PowerShell (Windows) — the variable goes on its own line, because PowerShell
+has no inline `VAR=value command` prefix:
+
+```powershell
+cd "D:\Orvinex Software Solution\testseries"
+$env:DATABASE_URL = "<paste DIRECT URL here>"
+npx --yes pnpm@9.15.4 migrate
+Remove-Item Env:\DATABASE_URL
+```
+
+bash / zsh:
+
 ```bash
 cd "D:/Orvinex Software Solution/testseries"
 DATABASE_URL='<paste DIRECT URL here>' npx pnpm@9.15.4 migrate
