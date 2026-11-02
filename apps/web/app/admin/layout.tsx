@@ -28,10 +28,14 @@ const TABS = [
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  // `trailingSlash: true` makes the static route resolve as `/admin/login/`.
+  // Treat both forms as the public login page so it does not redirect to itself
+  // and recursively wrap the current URL in `next=`.
+  const isLoginPage = pathname.replace(/\/+$/, '') === '/admin/login';
   const [access, setAccess] = useState<'checking' | 'ready' | 'error'>('checking');
 
   useEffect(() => {
-    if (pathname === '/admin/login') return;
+    if (isLoginPage) return;
     let live = true;
     void getProfile()
       .then((profile) => {
@@ -49,9 +53,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return () => {
       live = false;
     };
-  }, [pathname]);
+  }, [isLoginPage, pathname]);
 
-  if (pathname === '/admin/login') return <div className="admin admin--login">{children}</div>;
+  if (isLoginPage) return <div className="admin admin--login">{children}</div>;
 
   if (access !== 'ready') {
     return (
