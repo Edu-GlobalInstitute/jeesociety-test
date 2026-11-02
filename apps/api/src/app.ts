@@ -2,7 +2,7 @@ import express, { type Express } from 'express';
 import { toNodeHandler } from 'better-auth/node';
 import { pinoHttp } from 'pino-http';
 import { LIMITS } from '@jee/shared';
-import type { Pool } from '@jee/db';
+import { listMigrations, type Pool } from '@jee/db';
 import { createAuth, type Auth } from './auth.js';
 import type { Env } from './env.js';
 import { createLogger, type Logger } from './logger.js';
@@ -98,12 +98,54 @@ export function createApp({ env, pool, log, auth }: AppDeps): BuiltApp {
   app.get('/health', (_req, res) => {
     res.json({ ok: true, serverTime: Date.now() });
   });
+  /**
+   * Ready means "this build can serve requests against this database", which
+   * is more than "Postgres answered".
+   *
+   * `SELECT 1` alone passed while the schema was missing the tables this code
+   * queries -- deploying code whose migration had not been run left the service
+   * green on the dashboard and 500ing on the admin portal, which is the worst
+   * combination: nothing alerts, and the failure surfaces as a vague error in
+   * front of whoever opened the page.
+   *
+   * So it compares the migration files shipped in this build against the rows
+   * in schema_migrations, and reports 503 with the names of any that have not
+   * been applied. That turns "the dashboard is broken" into "008 has not run
+   * here", which is a thing someone can act on.
+   */
   app.get('/ready', async (_req, res) => {
     try {
-      await pool.query('SELECT 1');
-      res.json({ ok: true });
-    } catch {
-      res.status(503).json({ ok: false });
+      const [shipped, applied] = await Promise.all([
+        listMigrations(),
+        pool
+          .query<{ name: string }>('SELECT name FROM schema_migrations')
+          .then((result) => result.rows.map((row) => row.name))
+          // No table at all means nothing has ever been migrated, which is a
+          // pending list rather than an error to swallow.
+          .catch(() => [] as string[]),
+      ]);
+
+      const pending = shipped.filter((name) => !applied.includes(name));
+      if (pending.length > 0) {
+        logger.error({ pending }, 'database is missing migrations this build needs');
+        res.status(503).json({
+          ok: false,
+          reason: 'pending_migrations',
+          pending,
+          message:
+            `This database is missing ${pending.length} migration`
+            + `${pending.length === 1 ? '' : 's'} that this build needs: ${pending.join(', ')}.`,
+        });
+        return;
+      }
+
+      res.json({ ok: true, migrations: applied.length });
+    } catch (error) {
+      logger.error(
+        { err: error instanceof Error ? error.message : String(error) },
+        'readiness check failed',
+      );
+      res.status(503).json({ ok: false, reason: 'database_unreachable' });
     }
   });
 

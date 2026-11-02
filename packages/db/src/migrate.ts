@@ -36,7 +36,14 @@ export interface MigrationResult {
   alreadyApplied: string[];
 }
 
-async function listMigrations(dir: string): Promise<string[]> {
+/**
+ * The migration filenames this build ships, in apply order.
+ *
+ * Exported so the API's readiness check can compare them against
+ * schema_migrations: code deployed without its migration leaves the service
+ * answering SELECT 1 happily while the tables it queries do not exist.
+ */
+export async function listMigrations(dir: string = migrationsDir): Promise<string[]> {
   const entries = await readdir(dir);
   return entries.filter((name) => name.endsWith('.sql')).sort();
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api } from '../../lib/api';
+import { ApiError, api } from '../../lib/api';
 import { SignupPaidChart, type DayPoint } from '../../components/SignupPaidChart';
 import Link from 'next/link';
 
@@ -63,13 +63,33 @@ export default function AdminDashboard() {
         setData(next);
         setError(null);
       })
-      .catch((caught) =>
-        setError(
-          caught instanceof Error && 'status' in caught && (caught as { status: number }).status === 403
-            ? 'Admin access is required. Ask for your account to be added to the admins table.'
-            : 'Could not load the dashboard.',
-        ),
-      );
+      // "Could not load the dashboard." was all this used to say, which threw
+      // away the one thing needed to fix it. A 500 from /admin/metrics is
+      // almost always a migration that has not been run against this database
+      // -- the code deployed, the table did not -- and that is a sentence worth
+      // printing rather than making someone read server logs to discover.
+      .catch((caught: unknown) => {
+        const status = caught instanceof ApiError ? caught.status : 0;
+        const detail = caught instanceof Error ? caught.message : String(caught);
+
+        if (status === 403) {
+          setError('Admin access is required. Ask for your account to be added to the admins table.');
+          return;
+        }
+        if (status === 401) {
+          setError('Your session has expired. Sign in again.');
+          return;
+        }
+        if (status >= 500) {
+          setError(
+            `The server could not build the dashboard (${status}). This usually means a database `
+            + 'migration has not been run against this environment. '
+            + `Server said: ${detail}`,
+          );
+          return;
+        }
+        setError(`Could not load the dashboard. ${detail}`);
+      });
   }, []);
 
   if (error) {
