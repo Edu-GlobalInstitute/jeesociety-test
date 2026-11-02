@@ -70,6 +70,27 @@ export function adminCrmRoutes({
   /* ---------------------------------------------------------------------- */
   /* GET /admin/leads — the CRM list.                                        */
   /* ---------------------------------------------------------------------- */
+  /**
+   * A user id, and never the literal "bulk".
+   *
+   * `/leads/bulk` and `/leads/:userId` are the same shape to Express, which
+   * matches in registration order -- so a `:userId` route declared first
+   * swallows every bulk request and operates on a user called "bulk". That is
+   * exactly what happened: "Remove from CRM" answered "No such active CRM
+   * lead." and the bulk stage/owner edits silently wrote nothing.
+   *
+   * The bulk routes are now registered first, which fixes it. This schema is
+   * the belt to that braces: if the order is ever disturbed again, the
+   * single-lead handler refuses the word rather than pretending it is an id.
+   */
+  const UserIdParam = z
+    .string()
+    .min(1)
+    .max(64)
+    .refine((value) => value !== 'bulk', {
+      message: 'Route conflict: "bulk" is not a user id.',
+    });
+
   const LeadQuerySchema = z.object({
     search: z.string().trim().max(120).optional(),
     stage: z.enum(['new', 'contacted', 'interested', 'not_interested', 'lost']).optional(),
@@ -175,135 +196,13 @@ export function adminCrmRoutes({
     res.send(lines.join('\r\n'));
   });
 
-  /** One student's card: profile, payment state and the whole contact log. */
-  router.get('/leads/:userId', async (req, res) => {
-    const userId = z.string().min(1).max(64).parse(req.params.userId);
-    const { lead, notes } = await leads.leadDetail(userId, pool);
-    if (!lead) throw notFound('no_lead', 'No such student.');
-
-    res.json({
-      lead: serialiseLead(lead),
-      notes: notes.map((note) => ({
-        id: note.id,
-        channel: note.channel,
-        body: note.body,
-        author: note.author_name,
-        at: note.at.toISOString(),
-      })),
-    });
-  });
-
   /* ---------------------------------------------------------------------- */
-  /* POST /admin/leads/:userId — stage, owner, follow-up.                    */
+  /* The bulk routes are declared BEFORE /leads/:userId.                     */
+  /*                                                                         */
+  /* Express matches in registration order and "/leads/bulk" fits the        */
+  /* "/leads/:userId" pattern, so declaring the parameterised route first    */
+  /* swallows every bulk request with userId = "bulk". Keep these above it.  */
   /* ---------------------------------------------------------------------- */
-  /**
-   * `null` clears a field and omitting it leaves the field alone, which is why
-   * `.nullable().optional()` rather than `.optional()`: assigning an owner must
-   * not reset a stage a colleague changed a second earlier.
-   */
-  const UpdateLeadSchema = z.object({
-    stage: z
-      .enum(['new', 'contacted', 'interested', 'not_interested', 'lost'])
-      .optional(),
-    ownerId: z.string().max(64).nullable().optional(),
-    lostReason: z.string().max(500).nullable().optional(),
-    nextFollowUpAt: z.string().datetime().nullable().optional(),
-  });
-
-  router.post('/leads/:userId', async (req, res) => {
-    const me = currentUser(req);
-    const userId = z.string().min(1).max(64).parse(req.params.userId);
-    const body = UpdateLeadSchema.parse(req.body);
-
-    const { lead } = await leads.leadDetail(userId, pool);
-    if (!lead) throw notFound('no_lead', 'No such student.');
-
-    await leads.updateLead(
-      {
-        userId,
-        stage: body.stage,
-        ...(body.ownerId !== undefined ? { ownerId: body.ownerId } : {}),
-        ...(body.lostReason !== undefined ? { lostReason: body.lostReason } : {}),
-        ...(body.nextFollowUpAt !== undefined
-          ? { nextFollowUpAt: body.nextFollowUpAt }
-          : {}),
-      },
-      pool,
-    );
-
-    // A stage change is written into the log as well as onto the row. The row
-    // says where the lead is now; the log is the only thing that can say it was
-    // moved to 'lost' by someone on a Tuesday and why.
-    if (body.stage && body.stage !== lead.stage) {
-      await leads.addNote(
-        {
-          userId,
-          authorId: me.id,
-          channel: 'stage_change',
-          body:
-            `Stage: ${lead.stage} → ${body.stage}`
-            + (body.lostReason ? ` (${body.lostReason})` : ''),
-        },
-        pool,
-      );
-    }
-
-    res.json({ ok: true });
-  });
-
-  /** Remove a lead from the CRM while preserving the student's account/data. */
-  router.delete('/leads/:userId', async (req, res) => {
-    const me = currentUser(req);
-    const userId = z.string().min(1).max(64).parse(req.params.userId);
-    const { lead } = await leads.leadDetail(userId, pool);
-    if (!lead) throw notFound('no_lead', 'No such active CRM lead.');
-
-    const removed = await leads.removeLeadFromCrm({ userId, removedBy: me.id }, pool);
-    if (!removed) throw notFound('no_lead', 'No such active CRM lead.');
-
-    await admin.logAdminAction(
-      {
-        adminId: me.id,
-        action: 'lead_remove',
-        attemptId: null,
-        questionId: null,
-        before: { userId, stage: lead.stage },
-        after: { removedFromCrm: true },
-        reason: 'removed from CRM; student account and records preserved',
-      },
-      pool,
-    );
-    res.json({ ok: true });
-  });
-
-  /* ---------------------------------------------------------------------- */
-  /* POST /admin/leads/:userId/notes — the contact log.                      */
-  /* ---------------------------------------------------------------------- */
-  const NoteSchema = z.object({
-    channel: z.enum(['note', 'call', 'whatsapp', 'email', 'sms']).default('note'),
-    body: z.string().trim().min(1).max(4000),
-  });
-
-  router.post('/leads/:userId/notes', async (req, res) => {
-    const me = currentUser(req);
-    const userId = z.string().min(1).max(64).parse(req.params.userId);
-    const body = NoteSchema.parse(req.body);
-
-    const { lead } = await leads.leadDetail(userId, pool);
-    if (!lead) throw notFound('no_lead', 'No such student.');
-
-    const note = await leads.addNote(
-      { userId, authorId: me.id, channel: body.channel, body: body.body },
-      pool,
-    );
-
-    res.json({
-      ok: true,
-      note: note
-        ? { id: note.id, channel: note.channel, body: note.body, at: note.at.toISOString() }
-        : null,
-    });
-  });
 
   /* ---------------------------------------------------------------------- */
   /* POST /admin/leads/bulk — stage or owner across a selection.             */
@@ -403,6 +302,136 @@ export function adminCrmRoutes({
       pool,
     );
     res.json({ ok: true, removed: userIds.length });
+  });
+
+  /** One student's card: profile, payment state and the whole contact log. */
+  router.get('/leads/:userId', async (req, res) => {
+    const userId = UserIdParam.parse(req.params.userId);
+    const { lead, notes } = await leads.leadDetail(userId, pool);
+    if (!lead) throw notFound('no_lead', 'No such student.');
+
+    res.json({
+      lead: serialiseLead(lead),
+      notes: notes.map((note) => ({
+        id: note.id,
+        channel: note.channel,
+        body: note.body,
+        author: note.author_name,
+        at: note.at.toISOString(),
+      })),
+    });
+  });
+
+  /* ---------------------------------------------------------------------- */
+  /* POST /admin/leads/:userId — stage, owner, follow-up.                    */
+  /* ---------------------------------------------------------------------- */
+  /**
+   * `null` clears a field and omitting it leaves the field alone, which is why
+   * `.nullable().optional()` rather than `.optional()`: assigning an owner must
+   * not reset a stage a colleague changed a second earlier.
+   */
+  const UpdateLeadSchema = z.object({
+    stage: z
+      .enum(['new', 'contacted', 'interested', 'not_interested', 'lost'])
+      .optional(),
+    ownerId: z.string().max(64).nullable().optional(),
+    lostReason: z.string().max(500).nullable().optional(),
+    nextFollowUpAt: z.string().datetime().nullable().optional(),
+  });
+
+  router.post('/leads/:userId', async (req, res) => {
+    const me = currentUser(req);
+    const userId = UserIdParam.parse(req.params.userId);
+    const body = UpdateLeadSchema.parse(req.body);
+
+    const { lead } = await leads.leadDetail(userId, pool);
+    if (!lead) throw notFound('no_lead', 'No such student.');
+
+    await leads.updateLead(
+      {
+        userId,
+        stage: body.stage,
+        ...(body.ownerId !== undefined ? { ownerId: body.ownerId } : {}),
+        ...(body.lostReason !== undefined ? { lostReason: body.lostReason } : {}),
+        ...(body.nextFollowUpAt !== undefined
+          ? { nextFollowUpAt: body.nextFollowUpAt }
+          : {}),
+      },
+      pool,
+    );
+
+    // A stage change is written into the log as well as onto the row. The row
+    // says where the lead is now; the log is the only thing that can say it was
+    // moved to 'lost' by someone on a Tuesday and why.
+    if (body.stage && body.stage !== lead.stage) {
+      await leads.addNote(
+        {
+          userId,
+          authorId: me.id,
+          channel: 'stage_change',
+          body:
+            `Stage: ${lead.stage} → ${body.stage}`
+            + (body.lostReason ? ` (${body.lostReason})` : ''),
+        },
+        pool,
+      );
+    }
+
+    res.json({ ok: true });
+  });
+
+  /** Remove a lead from the CRM while preserving the student's account/data. */
+  router.delete('/leads/:userId', async (req, res) => {
+    const me = currentUser(req);
+    const userId = UserIdParam.parse(req.params.userId);
+    const { lead } = await leads.leadDetail(userId, pool);
+    if (!lead) throw notFound('no_lead', 'No such active CRM lead.');
+
+    const removed = await leads.removeLeadFromCrm({ userId, removedBy: me.id }, pool);
+    if (!removed) throw notFound('no_lead', 'No such active CRM lead.');
+
+    await admin.logAdminAction(
+      {
+        adminId: me.id,
+        action: 'lead_remove',
+        attemptId: null,
+        questionId: null,
+        before: { userId, stage: lead.stage },
+        after: { removedFromCrm: true },
+        reason: 'removed from CRM; student account and records preserved',
+      },
+      pool,
+    );
+    res.json({ ok: true });
+  });
+
+  /* ---------------------------------------------------------------------- */
+  /* POST /admin/leads/:userId/notes — the contact log.                      */
+  /* ---------------------------------------------------------------------- */
+  const NoteSchema = z.object({
+    channel: z.enum(['note', 'call', 'whatsapp', 'email', 'sms']).default('note'),
+    body: z.string().trim().min(1).max(4000),
+  });
+
+  router.post('/leads/:userId/notes', async (req, res) => {
+    const me = currentUser(req);
+    const userId = UserIdParam.parse(req.params.userId);
+    const body = NoteSchema.parse(req.body);
+
+    const { lead } = await leads.leadDetail(userId, pool);
+    if (!lead) throw notFound('no_lead', 'No such student.');
+
+    const note = await leads.addNote(
+      { userId, authorId: me.id, channel: body.channel, body: body.body },
+      pool,
+    );
+
+    res.json({
+      ok: true,
+      note: note
+        ? { id: note.id, channel: note.channel, body: note.body, at: note.at.toISOString() }
+        : null,
+    });
   });
 
   return router;
