@@ -1,12 +1,16 @@
 /*
  * The landing page.
  *
- * One idea runs through the whole file, and it is the brand palette's own: the
- * page starts at night and ends in full sun. The hero is deep navy with a star
- * field and a sun climbing out of the horizon; the sections after it brighten
- * from cream to white-cream; the reward ladder drops back into the night so
- * the gold on it is the brightest thing on screen; and the last band is the
- * sunrise itself, orange to gold, with navy type on it.
+ * One idea runs through the whole file: the page is the morning, already
+ * arrived. The hero is a pale dawn sky with the sun clear of the horizon and
+ * motes of light in it; the sections after it hold that cream and brighten to
+ * white-cream; and the last band is the sun at full strength, orange to gold,
+ * with navy type on it.
+ *
+ * It used to open at night, on the argument that hope reads as hope only
+ * against something dark. It is all daylight now, so the warm accents do that
+ * work by being the only saturated things on a quiet cream page — which is
+ * why they are rationed even harder than before.
  *
  * That is why the warm accents are rationed. Gold and orange appear on the
  * price, on the register button, on the top percentile band and on the sun —
@@ -33,22 +37,23 @@
   transform: none;
 }
 
-/* ── Hero: the night, and the sun coming up ───────────────────────────── */
+/* ── Hero: the morning, with the sun already up ───────────────────────── */
 
 .hero {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  padding: clamp(46px, 7vw, 92px) 0 clamp(104px, 13vw, 168px);
-  color: var(--on-night);
-  /* The sky: a warm bloom at the horizon falling away to the navy base, which
-     is the palette's "dark base with warm accents" read literally. */
+  padding: clamp(30px, 4.6vw, 62px) 0 clamp(104px, 13vw, 168px);
+  color: var(--ink);
+  /* The sky: a warm bloom at the horizon washing up into a pale cream, which
+     is the same gradient as before stood on its head — light at the sun,
+     lighter still at the top of the window. */
   background:
-    radial-gradient(118% 82% at 50% 104%, #5b2f45 0%, #35305a 30%, var(--navy) 58%, var(--navy-deep) 100%);
+    radial-gradient(118% 86% at 50% 106%, #ffe3b0 0%, #ffeccb 26%, var(--cream) 56%, #fffaf0 100%);
 }
 
-/* Daybreak: the band's bottom edge melts into the cream of the next section,
-   so the two are one continuous sky rather than two stacked colours. */
+/* The band's bottom edge melts into the cream of the next section, so the two
+   are one continuous sky rather than two stacked colours. */
 .hero::after {
   content: '';
   position: absolute;
@@ -80,7 +85,9 @@
  */
 @media (min-width: 980px) {
   .hero__inner {
-    grid-template-columns: minmax(0, 1.18fr) minmax(280px, 0.82fr);
+    /* The copy carries a 24-character headline line, so it takes the wider
+       share of the row; the ladder stays comfortable down to 280px. */
+    grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
     gap: 30px;
     align-items: center;
   }
@@ -88,17 +95,7 @@
   /* These two are written as `.hero .x` on purpose. A media query adds no
      specificity, and the base rules for both sit further down this file, so
      the plain selectors would lose the cascade to them. */
-  .hero .hero__title { font-size: clamp(2.5rem, 3.75vw, 3.4rem); }
-
-  /* Two by two under the countdown. Four across in a half-width column puts
-     the last pair on a second row with a divider hanging off the first. */
-  .hero .hero__facts {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px 24px;
-  }
-
-  .hero .hero__facts li { padding-right: 0; border-right: 0; }
+  .hero .hero__title { font-size: clamp(2.2rem, 4.3vw, 2.85rem); }
 }
 
 .hero__art {
@@ -131,7 +128,7 @@
     rgba(255, 140, 66, 0) 72%
   );
   /* Two-thirds of the disc stays below the horizon, so the hero's own copy
-     always sits on navy rather than on the sun. */
+     always sits on the pale sky rather than on the sun itself. */
   animation: sun-rise 2400ms cubic-bezier(0.18, 0.78, 0.26, 1) 150ms both;
 }
 
@@ -144,9 +141,9 @@
   transform: translateX(-50%);
   background: radial-gradient(
     circle,
-    rgba(255, 140, 66, 0.3) 0%,
-    rgba(255, 201, 60, 0.13) 32%,
-    rgba(27, 42, 73, 0) 62%
+    rgba(255, 140, 66, 0.34) 0%,
+    rgba(255, 201, 60, 0.18) 32%,
+    rgba(255, 244, 224, 0) 62%
   );
   animation: glow-breathe 8s ease-in-out 1.6s infinite;
 }
@@ -164,8 +161,8 @@
   opacity: 0.62;
   background: repeating-conic-gradient(
     from 0deg,
-    rgba(255, 201, 60, 0.15) 0deg 4.5deg,
-    rgba(255, 201, 60, 0) 4.5deg 15deg
+    rgba(255, 160, 40, 0.3) 0deg 4.5deg,
+    rgba(255, 160, 40, 0) 4.5deg 15deg
   );
   -webkit-mask-image: radial-gradient(circle, #000 10%, rgba(0, 0, 0, 0.55) 34%, transparent 62%);
   mask-image: radial-gradient(circle, #000 10%, rgba(0, 0, 0, 0.55) 34%, transparent 62%);
@@ -178,17 +175,23 @@
   inset-inline: 0;
   bottom: 0;
   height: 42%;
-  background: linear-gradient(180deg, rgba(255, 140, 66, 0) 0%, rgba(255, 140, 66, 0.2) 100%);
+  background: linear-gradient(180deg, rgba(255, 140, 66, 0) 0%, rgba(255, 140, 66, 0.26) 100%);
 }
 
-/* ── Star field (components/HeroStars) ───────────────────────────────── */
+/* ── Light field (components/HeroStars) ──────────────────────────────── */
 
+/*
+ * The same field of small sparkles, but cream specks would be nothing on a
+ * cream sky, so they are gold now and read as motes catching the light rather
+ * than as stars. HeroStars sets each one's peak opacity inline; gold at those
+ * same values is a glint on paper, which is what is wanted here.
+ */
 .hero-stars {
   position: absolute;
   inset: 0 0 32% 0;
   z-index: 2;
   pointer-events: none;
-  color: var(--cream);
+  color: var(--gold);
 }
 
 .hero-star {
@@ -205,46 +208,64 @@
 
 /* ── Hero content ─────────────────────────────────────────────────────── */
 
-.hero__pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 0 0 22px;
-}
-
-.pill {
+/*
+ * The date, in a pill above the headline.
+ *
+ * A quiet navy outline rather than a warm badge: the gold and the orange on
+ * this page are rationed to the things a student is being offered — the
+ * price, the button, the marks on the ladder — and the date is not one of
+ * them. Only the day itself is warm, because that is the part being read.
+ */
+.hero__when {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  border-radius: 999px;
+  gap: 9px;
+  /* Shrinks to its text, but never past the column it sits in. */
+  max-width: 100%;
+  margin: 0 0 18px;
+  padding: 7px 16px 7px 13px;
   border: 1px solid var(--navy-line);
-  background: rgba(255, 244, 224, 0.07);
-  color: var(--on-night-soft);
-  font-size: 0.8rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.5);
+  font-family: var(--display);
   font-weight: 600;
-  letter-spacing: 0.02em;
-  animation: fade-up 600ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  font-size: 0.9rem;
+  letter-spacing: -0.005em;
+  color: var(--ink-soft);
+  animation: fade-up 700ms cubic-bezier(0.2, 0.8, 0.3, 1) 60ms both;
 }
 
-.hero__pills .pill:nth-child(2) { animation-delay: 90ms; }
-.hero__pills .pill:nth-child(3) { animation-delay: 180ms; }
+.hero__when b {
+  font-weight: 800;
+  color: var(--orange-deep);
+}
 
-.pill--live { color: var(--cream); border-color: rgba(46, 196, 182, 0.45); }
-
-/* Teal for "open", because the palette reserves it for growth and because a
-   green-ish dot is what a live indicator is read as everywhere else. */
-.pill__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+/* Alive, like a light that is on: the morning is still ahead. */
+.hero__when-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
   background: var(--teal);
-  box-shadow: 0 0 0 0 rgba(46, 196, 182, 0.55);
-  animation: live-pulse 2.4s ease-out infinite;
+  box-shadow: 0 0 0 3px rgba(46, 196, 182, 0.2);
+  animation: when-pulse 2.8s ease-in-out infinite;
 }
 
-.pill--date { color: var(--gold); border-color: rgba(255, 201, 60, 0.4); }
+@keyframes when-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(46, 196, 182, 0.2); }
+  50% { box-shadow: 0 0 0 6px rgba(46, 196, 182, 0.08); }
+}
 
+/*
+ * Three beats, three lines, at every width. Each <span> is one line of the
+ * headline, so the only thing that can add a fourth is a beat too wide for
+ * its column wrapping inside itself — which is what every font-size below is
+ * sized to prevent. The longest beat sets the ceiling: it is about 13.1em
+ * wide at this weight and width, so a column of W pixels can carry a font of
+ * W / 13.1 and no more. Each size below is that limit with a few per cent of
+ * slack. There is no `max-width` any more: the beats decide the breaks, so a
+ * measure in `ch` could only cut a line in half.
+ */
 .hero__title {
   font-family: var(--poster);
   font-weight: 900;
@@ -254,7 +275,6 @@
   letter-spacing: -0.028em;
   text-transform: uppercase;
   margin: 0 0 22px;
-  max-width: 26ch;
 }
 
 /*
@@ -276,15 +296,25 @@
 .hero__line:nth-child(2) > span { animation-delay: 240ms; }
 .hero__line:nth-child(3) > span { animation-delay: 380ms; }
 
-/* The promise line is the only type on the page made of sunlight. */
+/*
+ * The promise line is the only type on the page made of sunlight. On cream it
+ * is cut from the darkened half of the palette — raw gold on cream is a
+ * headline nobody can read — and the gleam sweeps a lighter orange through it
+ * rather than a near-white.
+ *
+ * It carries two animations, so it has to restate its entrance delay: the
+ * shorthand below resets the one the nth-child rule above would have given
+ * it. The 240ms is the second line's slot, which is where the lit line sits —
+ * move the modifier to another line and this moves with it.
+ */
 .hero__line--lit > span {
-  background: linear-gradient(96deg, var(--gold) 0%, #fff1cc 26%, var(--orange) 58%, var(--gold) 100%);
+  background: linear-gradient(96deg, var(--orange-deep) 0%, #e8821a 26%, var(--gold-deep) 58%, var(--orange-deep) 100%);
   background-size: 240% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
   animation:
-    line-up 860ms cubic-bezier(0.16, 0.84, 0.3, 1) 380ms both,
+    line-up 860ms cubic-bezier(0.16, 0.84, 0.3, 1) 240ms both,
     gleam 7s ease-in-out 1.6s infinite;
 }
 
@@ -296,7 +326,7 @@
   animation: fade-up 700ms cubic-bezier(0.2, 0.8, 0.3, 1) 520ms both;
 }
 
-.hero__sub b { color: var(--gold); font-weight: 700; }
+.hero__sub b { color: var(--orange-deep); font-weight: 700; }
 
 .hero__actions {
   display: flex;
@@ -355,93 +385,6 @@
 .btn-sun__arrow svg { width: 17px; height: 17px; }
 .btn-sun:hover .btn-sun__arrow { transform: translateX(3px); }
 
-/* The secondary action on the night side: outlined, never filled, so there is
-   only ever one button asking to be pressed. */
-.btn-dusk {
-  display: inline-flex;
-  align-items: center;
-  padding: 13px 22px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 244, 224, 0.34);
-  color: var(--on-night);
-  font-weight: 600;
-  text-decoration: none;
-  transition: background 180ms ease, border-color 180ms ease;
-}
-
-.btn-dusk:hover {
-  background: rgba(255, 244, 224, 0.1);
-  border-color: var(--on-night);
-  color: var(--on-night);
-}
-
-/* ── Countdown ────────────────────────────────────────────────────────── */
-
-.countdown {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 34px;
-  animation: fade-up 700ms cubic-bezier(0.2, 0.8, 0.3, 1) 760ms both;
-}
-
-.countdown__cell {
-  min-width: 78px;
-  padding: 10px 14px;
-  border-radius: 14px;
-  border: 1px solid var(--navy-line);
-  background: rgba(255, 244, 224, 0.06);
-  text-align: center;
-}
-
-.countdown__num {
-  display: block;
-  font-family: var(--poster);
-  font-weight: 800;
-  font-stretch: 86%;
-  font-size: 1.9rem;
-  line-height: 1.1;
-  color: var(--gold);
-}
-
-.countdown__label {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--on-night-faint);
-}
-
-/* ── Hero fact row ────────────────────────────────────────────────────── */
-
-.hero__facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 34px;
-  list-style: none;
-  margin: 38px 0 0;
-  padding: 0;
-  animation: fade-up 700ms cubic-bezier(0.2, 0.8, 0.3, 1) 880ms both;
-}
-
-.hero__facts li {
-  display: flex;
-  flex-direction: column;
-  padding-right: 34px;
-  border-right: 1px solid var(--navy-line);
-}
-
-.hero__facts li:last-child { border-right: 0; padding-right: 0; }
-
-.hero__facts b {
-  font-family: var(--poster);
-  font-weight: 800;
-  font-stretch: 88%;
-  font-size: 1.5rem;
-  color: var(--cream);
-}
-
-.hero__facts span { font-size: 0.82rem; color: var(--on-night-faint); }
-
 /* ── Hero marks: the seal and one sparkle ─────────────────────────────── */
 
 /* The seal: navy on the closing band's sunrise, which is the one surface
@@ -476,7 +419,7 @@
   top: -10px;
   right: 22%;
   width: clamp(26px, 3.4vw, 50px);
-  color: var(--gold);
+  color: var(--orange);
   animation: twinkle 4.5s ease-in-out infinite;
 }
 
@@ -489,18 +432,6 @@
   padding: clamp(58px, 8vw, 102px) 0;
 }
 
-/* The page brightens as it goes: cream at daybreak, then a shade lighter. */
-.band--dawn { background: var(--cream); }
-.band--day { background: #fffbf2; }
-.band--quiet { background: var(--cream); }
-
-.band--night {
-  background:
-    radial-gradient(85% 60% at 50% 0%, rgba(255, 140, 66, 0.18) 0%, rgba(27, 42, 73, 0) 68%),
-    var(--navy);
-  color: var(--on-night);
-}
-
 .band__eyebrow {
   font-family: var(--poster);
   font-weight: 800;
@@ -511,8 +442,6 @@
   color: var(--orange-deep);
   margin: 0 0 12px;
 }
-
-.band--night .band__eyebrow { color: var(--gold); }
 
 .band__title {
   font-family: var(--display);
@@ -529,8 +458,6 @@
   color: var(--orange-deep);
 }
 
-.band--night .band__title em { color: var(--gold); }
-
 .band__lede {
   max-width: 64ch;
   margin: 0;
@@ -538,668 +465,423 @@
   color: var(--ink-soft);
 }
 
-.band--night .band__lede { color: var(--on-night-soft); }
 .band__lede b { color: var(--ink); font-weight: 700; }
-.band--night .band__lede b { color: var(--gold); font-weight: 700; }
 
-.band__footnote {
-  max-width: 72ch;
-  margin: 26px 0 0;
-  font-size: 0.86rem;
-  line-height: 1.6;
-  color: var(--ink-faint);
+/* ── The slice: three cards thrown in from the left (components/SliceCards) ── */
+
+/*
+ * How the toss is built, because the construction is the whole trick:
+ *
+ *  - Every moving part of a card is a function of one number, `--k`: 0 is
+ *    off-stage to the left, mid-flight; 1 is landed. The component writes it
+ *    from the scroll offset on a wide window and transitions it on a phone,
+ *    and this file never needs to know which.
+ *  - The card is three boxes, not one: the cell, which holds its place in the
+ *    row and never moves; the layer inside it that flies; and inside that, the
+ *    layer that floats. The cell is split from the rest because on a phone the
+ *    toss is triggered by an observer watching the card reach the viewport —
+ *    and an observer measures an element where its transform has put it, so a
+ *    card that flew itself off-screen to wait for its cue would be waiting for
+ *    a cue it had just made impossible. The float is split from the flight for
+ *    a plainer reason: one element has one `transform`, and the two would
+ *    fight over it.
+ *  - `--k` is registered, so it has a real initial value and can be
+ *    transitioned. The initial value is 1 — at rest — which is what makes the
+ *    section readable with no JavaScript at all: the server's markup is three
+ *    cards sitting where they belong.
+ *  - The card's surface is a layer of its own behind the words, not a box
+ *    around them, so the panel keeps its shadow and its rounding while the
+ *    text above it inherits neither.
+ */
+
+/* Inherited, so the component can write it on the card the observer watches
+   while the layer that actually moves — the one inside it — reads it. */
+@property --k {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 1;
 }
 
-/* ── The taster ───────────────────────────────────────────────────────── */
-
-.taster {
-  max-width: 780px;
-  margin: 30px 0 0;
-}
-
-.taster__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 14px;
-}
-
-.taster__rail {
-  display: flex;
-  gap: 7px;
-  list-style: none;
-  margin: 0;
+/* Opens on the cream the hero's bottom edge melts into and hands back the
+   same cream, so the note band below still begins where the hero ended and
+   the sky stays continuous through all three. */
+.band--slice {
+  /* The band's padding lives on the track inside it, not here: while the stage
+     is pinned the section has to be exactly as tall as the scroll the tosses
+     are spread over, and padding on top of that would show as a gap. */
   padding: 0;
-}
-
-.taster__pip {
-  width: 30px;
-  height: 7px;
-  border-radius: 999px;
-  background: var(--rule);
-  transition: background 220ms ease, transform 220ms ease;
-}
-
-.taster__pip--now { background: var(--gold); transform: scaleY(1.6); }
-.taster__pip--right { background: var(--teal); }
-.taster__pip--wrong { background: var(--orange-deep); }
-
-.taster__marks {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--ink-faint);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.taster__marks b {
-  font-family: var(--poster);
-  font-weight: 800;
-  font-size: 1.3rem;
-  letter-spacing: 0;
-  color: var(--teal-deep);
-}
-
-.taster__marks b.is-negative { color: var(--orange-deep); }
-
-.taster__card {
-  background: var(--surface);
-  border: 1px solid var(--rule);
-  border-radius: 20px;
-  padding: clamp(20px, 3.4vw, 32px);
-  box-shadow: 0 20px 48px rgba(27, 42, 73, 0.1);
-  animation: card-in 440ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
-}
-
-.taster__topic {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  margin: 0 0 16px;
-}
-
-.taster__topic span {
-  font-family: var(--poster);
-  font-weight: 800;
-  font-stretch: 88%;
-  font-size: 0.8rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--navy);
-}
-
-.taster__topic small { font-size: 0.76rem; color: var(--ink-faint); }
-
-.taster__prompt {
-  margin: 0 0 20px;
-  font-size: clamp(1.05rem, 2.2vw, 1.28rem);
-  line-height: 1.5;
-  color: var(--ink);
-}
-
-.taster__options {
-  display: grid;
-  gap: 10px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-@media (min-width: 620px) {
-  .taster__options { grid-template-columns: 1fr 1fr; }
-}
-
-.taster__option {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 12px 15px;
-  font: inherit;
-  text-align: left;
-  border: 1.5px solid var(--rule);
-  border-radius: 14px;
-  background: var(--surface);
-  color: var(--ink);
-  cursor: pointer;
-  transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
-}
-
-.taster__option:hover { border-color: var(--orange); transform: translateY(-1px); }
-
-.taster__key {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 28px;
-  height: 28px;
-  border-radius: 9px;
-  background: var(--cream);
-  color: var(--navy);
-  font-family: var(--poster);
-  font-weight: 800;
-  font-size: 0.85rem;
-}
-
-.taster__text { font-size: 1.02rem; }
-
-/* Marked answers. Colour alone never carries the verdict — the glyph and the
-   sentence under the options say it too. */
-.taster__option.is-right {
-  border-color: var(--teal);
-  background: #e9f8f6;
-}
-
-.taster__option.is-right .taster__key { background: var(--teal); color: #06342f; }
-
-.taster__option.is-right::after {
-  content: '✓';
-  margin-left: auto;
-  font-weight: 800;
-  color: var(--teal-deep);
-}
-
-.taster__option.is-wrong {
-  border-color: var(--orange-deep);
-  background: #fdeade;
-  animation: shake 380ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
-}
-
-.taster__option.is-wrong::after {
-  content: '✗';
-  margin-left: auto;
-  font-weight: 800;
-  color: var(--orange-deep);
-}
-
-.taster__option.is-dim { opacity: 0.44; }
-
-.taster__option[aria-disabled='true'] { cursor: default; }
-.taster__option[aria-disabled='true']:hover { transform: none; }
-.taster__option.is-dim:hover { border-color: var(--rule); }
-
-.taster__after {
-  margin-top: 20px;
-  padding-top: 18px;
-  border-top: 1px dashed var(--rule);
-  animation: fade-up 340ms ease both;
-}
-
-.taster__call {
-  margin: 0 0 6px;
-  font-family: var(--display);
-  font-weight: 800;
-  font-size: 1.06rem;
-}
-
-.taster__call.is-right { color: var(--teal-deep); }
-.taster__call.is-wrong { color: var(--orange-deep); }
-
-.taster__why {
-  margin: 0 0 18px;
-  color: var(--ink-soft);
-  max-width: 62ch;
-}
-
-.taster__next {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 9px 9px 20px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--navy);
-  color: var(--cream);
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 160ms ease;
-}
-
-.taster__next:hover { background: var(--navy-lift); }
-
-.taster__next-arrow {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 999px;
-  background: var(--gold);
-  color: var(--navy);
-}
-
-.taster__next-arrow svg { width: 15px; height: 15px; }
-
-.taster__hint {
-  margin: 18px 0 0;
-  font-size: 0.86rem;
-  color: var(--ink-faint);
-}
-
-/* The score card: the page's night, borrowed for one panel. */
-.taster--result {
-  position: relative;
-  overflow: hidden;
-  padding: clamp(26px, 4.4vw, 44px);
-  border-radius: 22px;
-  text-align: center;
-  color: var(--on-night);
   background:
-    radial-gradient(90% 90% at 50% 0%, rgba(255, 201, 60, 0.22) 0%, rgba(27, 42, 73, 0) 62%),
-    var(--navy);
-  animation: card-in 480ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+    radial-gradient(76% 52% at 18% 8%, rgba(255, 201, 60, 0.16) 0%, rgba(255, 201, 60, 0) 64%),
+    linear-gradient(180deg, var(--cream) 0%, #fff8ea 46%, var(--cream) 100%);
 }
 
-.taster__eyebrow {
+.slice__track { position: relative; }
+
+/*
+ * The scroll the tosses live in: one window for the stage, plus `--slice-run`
+ * windows of travel (components/SliceCards owns that number, so adding a
+ * fourth card lengthens the section without touching this file).
+ */
+.slice__track--pinned {
+  height: calc(100vh * (1 + var(--slice-run, 2.3)));
+}
+
+.slice__track--pinned .slice__stage {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: grid;
+  align-content: center;
+  /* A card in the air is outside the page. Clipping has to happen here, on the
+     sticky box itself — overflow on any ancestor of a sticky element is what
+     stops it sticking. */
+  overflow: hidden;
+  /* Clear of the masthead, which sticks over the top of this. */
+  padding: 78px 0 24px;
+}
+
+/* The stacked modes are an ordinary band and carry its spacing. */
+.slice__track--plain,
+.slice__track--enter {
+  padding: clamp(58px, 8vw, 102px) 0;
+}
+
+.slice__title {
+  max-width: 30ch;
+  margin-bottom: clamp(24px, 3.4vw, 40px);
+}
+
+.slice__row {
+  display: grid;
+  gap: clamp(16px, 2vw, 26px);
   margin: 0;
-  font-family: var(--poster);
-  font-weight: 800;
-  font-size: 0.78rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--on-night-faint);
-}
-
-.taster__score {
-  margin: 6px 0 4px;
-  font-family: var(--poster);
-  font-weight: 900;
-  font-stretch: 86%;
-  font-size: clamp(3.2rem, 11vw, 5.6rem);
-  line-height: 1;
-  color: var(--gold);
-}
-
-.taster__score span {
-  font-size: 0.3em;
-  margin-left: 10px;
-  color: var(--on-night-faint);
-}
-
-.taster__tally {
-  margin: 0 0 18px;
-  font-size: 0.86rem;
-  color: var(--on-night-soft);
-}
-
-.taster__verdict {
-  margin: 0 0 10px;
-  font-family: var(--display);
-  font-weight: 800;
-  font-size: clamp(1.4rem, 3.4vw, 2rem);
-  letter-spacing: -0.02em;
-}
-
-.taster__note {
-  max-width: 58ch;
-  margin: 0 auto 26px;
-  color: var(--on-night-soft);
-}
-
-.taster__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-}
-
-.taster__again {
-  border: 0;
-  background: none;
-  font: inherit;
-  color: var(--on-night-soft);
-  text-decoration: underline;
-  text-underline-offset: 4px;
-  cursor: pointer;
-}
-
-.taster__again:hover { color: var(--gold); }
-
-/* The confetti canvas (components/Celebration). */
-.celebrate {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  pointer-events: none;
-}
-
-/* ── The reward ladder ────────────────────────────────────────────────── */
-
-.ladder__head {
-  display: grid;
-  gap: 28px;
-  align-items: center;
-}
-
-@media (min-width: 900px) {
-  .ladder__head { grid-template-columns: 1.3fr 0.7fr; }
-}
-
-.ladder {
-  list-style: none;
-  display: grid;
-  gap: 14px;
-  margin: 36px 0 0;
   padding: 0;
-}
-
-.rung {
-  display: grid;
-  gap: 8px 18px;
-  align-items: center;
-  padding: 20px 24px;
-  border-radius: 18px;
-  border: 1px solid var(--navy-line);
-  background: rgba(255, 244, 224, 0.06);
+  list-style: none;
 }
 
 @media (min-width: 760px) {
-  .rung { grid-template-columns: 148px 1fr auto; }
+  .slice__row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
-/* The top band is the one thing on the page allowed to glow. */
-.rung--top {
-  border-color: rgba(255, 201, 60, 0.46);
-  background:
-    linear-gradient(100deg, rgba(255, 201, 60, 0.2) 0%, rgba(255, 140, 66, 0.07) 100%);
-  box-shadow: 0 18px 46px rgba(255, 140, 66, 0.14);
+/* ── One card ─────────────────────────────────────────────────────────── */
+
+/* The cell: it holds the card's place in the row and never moves itself. */
+.slice-card {
+  position: relative;
+  display: flex;
+  color: var(--ink);
 }
 
-.rung__pc {
+/* On a phone the flight is a transition rather than a scroll offset, so the
+   one number everything else is built from is the one thing transitioned —
+   declared on the cell, where the change starts, and inherited down. */
+.slice__track--enter .slice-card {
+  transition: --k var(--slice-toss, 780ms) cubic-bezier(0.18, 0.82, 0.24, 1);
+}
+
+/* The layer that flies. */
+.slice-card__fly {
+  position: relative;
+  /* So the surface, which sits at a negative z-index, stays behind this
+     card's own words and not behind the band. */
+  isolation: isolate;
+  flex: 1;
+  /* A flex row of one, so the floating layer inside stretches to the height
+     the tallest card in the row sets rather than to its own text. */
+  display: flex;
+  /* It spins about a point low in the card, the way a thrown thing turns about
+     its mass rather than its middle. */
+  transform-origin: 46% 72%;
+  /*
+   * The toss. Four parts, all read off `--k`: in from the left, up over an arc
+   * and back down (sin() is 0 at both ends and 1 in the middle, which is
+   * exactly the flight of something thrown), spinning as it goes, and growing
+   * into place as it arrives.
+   */
+  transform:
+    translateX(calc((1 - var(--k)) * -128%))
+    translateY(calc(sin(var(--k) * 180deg) * -5%))
+    rotate(calc((1 - var(--k)) * -21deg))
+    scale(calc(0.86 + 0.14 * var(--k)));
+  /* Already solid a third of the way in: a card should read as thrown, not as
+     faded up. */
+  opacity: clamp(0, calc(var(--k) * 3), 1);
+}
+
+/*
+ * The float: the one movement on this section that never finishes. It is a
+ * few pixels of rise and fall and about a third of a degree of tilt — enough
+ * that the row is never quite still, not enough to read as a wobble while
+ * somebody is trying to read the card.
+ *
+ * It also carries the card's padding, because a transformed element is the
+ * containing block for anything absolutely positioned inside it: the surface
+ * below is `inset: 0` against this box, so this is the box that has to be the
+ * whole card.
+ */
+.slice-card__bob {
+  position: relative;
+  flex: 1;
+  padding: clamp(20px, 2.1vw, 28px);
+  animation: card-float 6.8s ease-in-out infinite;
+}
+
+/*
+ * Three cards rising and falling in step would read as one object. Each gets
+ * its own period, and a negative delay so it begins already somewhere in the
+ * middle of its own cycle rather than all three starting from the floor.
+ */
+.slice-card:nth-child(1) .slice-card__bob { animation-duration: 6.4s; animation-delay: -0.9s; }
+.slice-card:nth-child(2) .slice-card__bob { animation-duration: 7.6s; animation-delay: -3.2s; }
+.slice-card:nth-child(3) .slice-card__bob { animation-duration: 6.9s; animation-delay: -5.1s; }
+
+@keyframes card-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-9px) rotate(-0.35deg); }
+}
+
+/* The card's surface. One panel, behind the words. */
+.slice-card__face {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 16px;
+  border: 1px solid var(--navy-line);
+  background: linear-gradient(174deg, #fff 0%, #fffaf1 62%, #fff6e6 100%);
+  box-shadow: 0 22px 44px -28px rgba(27, 42, 73, 0.55);
+}
+
+.slice-card__body { position: relative; }
+
+.slice-card__kicker {
   font-family: var(--poster);
-  font-weight: 900;
-  font-stretch: 86%;
-  font-size: 2.7rem;
-  line-height: 0.95;
-  color: var(--gold);
-}
-
-.rung__pc small {
-  display: block;
-  font-family: var(--body);
-  font-weight: 500;
-  font-size: 0.74rem;
-  letter-spacing: 0.04em;
+  font-weight: 800;
+  font-stretch: 88%;
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--on-night-faint);
-  margin-top: 6px;
+  color: var(--ink-faint);
+  margin: 0 0 10px;
 }
 
-.rung__prize strong {
-  display: block;
+.slice-card__stat {
   font-family: var(--display);
   font-weight: 800;
-  font-size: 1.32rem;
-  letter-spacing: -0.015em;
-}
-
-.rung--top .rung__prize strong { color: var(--gold); }
-.rung__prize span { color: var(--on-night-soft); font-size: 0.95rem; }
-
-.rung__share {
-  font-size: 0.74rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--on-night-soft);
-  white-space: nowrap;
-}
-
-.ladder__rules {
-  margin-top: 32px;
-  padding: 26px 28px;
-  border-radius: 18px;
-  border: 1px solid var(--navy-line);
-  background: rgba(14, 24, 48, 0.45);
-}
-
-.ladder__rules > p { margin: 0 0 16px; color: var(--on-night-soft); max-width: 70ch; }
-.ladder__rules > p b { color: var(--cream); }
-
-.ladder__rules ul {
-  display: grid;
-  gap: 12px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-@media (min-width: 860px) {
-  .ladder__rules ul { grid-template-columns: 1fr 1fr; gap: 14px 30px; }
-}
-
-.ladder__rules li {
-  color: var(--on-night-soft);
-  font-size: 0.95rem;
-  padding-left: 18px;
-  position: relative;
-}
-
-.ladder__rules li::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0.62em;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--teal);
-}
-
-.ladder__rules b { color: var(--cream); font-weight: 700; }
-
-.ladder__cta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 18px 26px;
-  margin-top: 32px;
-}
-
-.ladder__cta p {
-  margin: 0;
-  max-width: 34ch;
-  font-size: 0.92rem;
-  color: var(--on-night-soft);
-}
-
-.ladder__cta p b { color: var(--gold); font-weight: 700; }
-
-/* ── The prize photographs (components/PrizeDevices) ──────────────────── */
-
-.prize { position: relative; padding: 10px 0 24px; }
-
-.prize::before {
-  content: '';
-  position: absolute;
-  inset: -8% -4% 6% -4%;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 201, 60, 0.26) 0%, rgba(255, 201, 60, 0) 68%);
-}
-
-.prize__tile {
-  position: relative;
-  max-width: 290px;
-  margin-inline: auto;
-  border-radius: 18px;
-  overflow: hidden;
-  border: 1px solid var(--navy-line);
-  box-shadow: 0 24px 54px rgba(0, 0, 0, 0.38);
-}
-
-.prize__tile img { display: block; width: 100%; height: auto; }
-
-.prize__phone {
-  position: absolute;
-  left: 2%;
-  bottom: 0;
-  width: 27%;
-  height: auto;
-  filter: drop-shadow(0 18px 28px rgba(0, 0, 0, 0.45));
-  animation: float-y 6.5s ease-in-out infinite;
-}
-
-/* ── The paper: two halves and a spec strip ───────────────────────────── */
-
-.halves {
-  display: grid;
-  gap: 18px;
-  margin-top: 34px;
-}
-
-@media (min-width: 820px) {
-  .halves { grid-template-columns: 1fr 1fr; }
-}
-
-.halves > * { height: 100%; }
-
-.half {
-  height: 100%;
-  padding: 26px 28px;
-  border-radius: 18px;
-  background: var(--surface);
-  border: 1px solid var(--rule);
-  border-top: 4px solid var(--orange);
-}
-
-/* The written half is the one nobody else offers, so it gets the second
-   accent rather than a repeat of the first. */
-.half--written { border-top-color: var(--teal); }
-
-.half__count {
-  display: block;
-  font-family: var(--poster);
-  font-weight: 900;
-  font-stretch: 86%;
-  font-size: 3.4rem;
+  font-size: clamp(2.1rem, 3.5vw, 2.9rem);
   line-height: 1;
+  letter-spacing: -0.03em;
+  margin: 0 0 12px;
   color: var(--orange-deep);
 }
 
-.half--written .half__count { color: var(--teal-deep); }
-
-.half h3 {
-  margin: 4px 0 12px;
-  font-family: var(--poster);
-  font-weight: 800;
-  font-stretch: 90%;
-  font-size: 0.86rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--navy);
-}
-
-.half p { margin: 0; color: var(--ink-soft); }
-
-.strip {
-  display: grid;
-  gap: 1px;
-  list-style: none;
-  margin: 18px 0 0;
-  padding: 0;
-  background: var(--rule);
-  border: 1px solid var(--rule);
-  border-radius: 16px;
-  overflow: hidden;
-}
-
-@media (min-width: 720px) {
-  .strip { grid-template-columns: repeat(4, 1fr); }
-}
-
-.strip li {
-  background: var(--surface);
-  padding: 16px 18px;
-}
-
-.strip b {
-  display: block;
+.slice-card__title {
   font-family: var(--display);
-  font-weight: 800;
-  font-size: 1.05rem;
-  color: var(--navy);
-}
-
-.strip span { font-size: 0.86rem; color: var(--ink-faint); }
-
-/* ── Reassurance cards ────────────────────────────────────────────────── */
-
-.cards {
-  display: grid;
-  gap: 16px;
-  margin-top: 34px;
-}
-
-@media (min-width: 780px) {
-  .cards { grid-template-columns: repeat(3, 1fr); }
-}
-
-.cards > * { height: 100%; }
-
-.card {
-  height: 100%;
-  padding: 24px 26px;
-  border-radius: 18px;
-  background: var(--surface);
-  border: 1px solid var(--rule);
-}
-
-.card h3 {
-  margin: 0 0 10px;
-  font-family: var(--display);
-  font-weight: 800;
-  font-size: 1.1rem;
+  font-weight: 700;
+  font-size: clamp(1.08rem, 1.7vw, 1.3rem);
+  line-height: 1.18;
   letter-spacing: -0.015em;
-  color: var(--navy);
+  margin: 0 0 10px;
+  text-wrap: balance;
 }
 
-.card p { margin: 0; color: var(--ink-soft); }
-.card p b { color: var(--orange-deep); font-weight: 700; }
-
-/* ── Steps ────────────────────────────────────────────────────────────── */
-
-.steps {
-  list-style: none;
-  counter-reset: step;
-  max-width: 70ch;
-  margin: 30px 0 0;
-  padding: 0;
-}
-
-.steps li {
-  counter-increment: step;
-  position: relative;
-  padding: 18px 0 18px 64px;
-  border-bottom: 1px solid var(--rule);
+.slice-card__text {
+  margin: 0;
+  font-size: 0.93rem;
+  line-height: 1.55;
   color: var(--ink-soft);
 }
 
-.steps li:last-child { border-bottom: 0; }
-
-.steps li::before {
-  content: counter(step);
-  position: absolute;
-  left: 0;
-  top: 16px;
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  background: var(--navy);
-  color: var(--gold);
-  font-family: var(--poster);
-  font-weight: 800;
-  font-size: 1.2rem;
+/*
+ * The setting asks for none of this. The component already drops to `plain`
+ * when it is on, so the cards never move — this rule is the belt to that
+ * brace, for the frames before the component has decided.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .slice-card__fly,
+  .slice-card__bob,
+  .slice-card__face {
+    animation: none;
+    transition: none;
+    transform: none;
+    opacity: 1;
+  }
 }
 
-.steps strong { color: var(--ink); font-weight: 700; }
+/* ── The mentor's note (components/MentorNote) ────────────────────────── */
+
+/*
+ * The band between the hero and the finale. It opens on the exact cream the
+ * hero's bottom edge melts into and brightens from there, so the two read as
+ * one continuous sky rather than two stacked colours, and hands off to the
+ * finale's gold at its palest.
+ */
+.band--note {
+  background:
+    radial-gradient(84% 58% at 50% 0%, rgba(255, 201, 60, 0.15) 0%, rgba(255, 201, 60, 0) 66%),
+    linear-gradient(180deg, var(--cream) 0%, #fff8ea 48%, #fffbf2 100%);
+}
+
+/* Centred, unlike every other band. This is an interlude — one person
+   talking — and the change of axis is what marks it as one. */
+.note__wrap { text-align: center; }
+
+.band__title--note {
+  max-width: 26ch;
+  margin-inline: auto;
+}
+
+
+.note {
+  max-width: 880px;
+  margin: clamp(26px, 4vw, 40px) auto 0;
+}
+
+/*
+ * "Please listen to this", with the drawn arrow pointing down at the play
+ * button. Written as one line of a person's handwriting would be: the arrow
+ * is the only mark on the page that is not geometric.
+ */
+.note__nudge {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 10px;
+  margin: 0 0 16px;
+  text-align: left;
+  font-size: clamp(0.98rem, 2vw, 1.08rem);
+  color: var(--ink-soft);
+}
+
+.note__nudge span { max-width: 34ch; }
+
+.note__nudge b {
+  display: block;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(1.15rem, 2.6vw, 1.42rem);
+  letter-spacing: -0.015em;
+  color: var(--orange-deep);
+}
+
+.note__arrow {
+  flex: none;
+  width: clamp(54px, 8vw, 78px);
+  height: auto;
+  color: var(--orange);
+  /* Hangs below the line so the tip lands on the top edge of the player. */
+  margin-bottom: -22px;
+  transform: scaleX(-1) rotate(-20deg);
+}
+
+/*
+ * The player, in both states: the poster button before the click and the
+ * iframe after it. One shape, so pressing play changes nothing but the
+ * contents of the frame.
+ */
+.note__poster,
+.note__frame {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 22px;
+  background: var(--navy);
+  box-shadow:
+    0 2px 0 rgba(27, 42, 73, 0.1),
+    0 26px 60px -28px rgba(27, 42, 73, 0.5);
+}
+
+.note__poster {
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+  cursor: pointer;
+  /* The gold ring is the same promise as the price and the button: it says
+     this is the thing on the band worth touching. */
+  outline: 2px solid rgba(255, 201, 60, 0.55);
+  outline-offset: 3px;
+  transition: transform 260ms cubic-bezier(0.2, 0.8, 0.3, 1), box-shadow 260ms ease;
+}
+
+.note__poster:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 2px 0 rgba(27, 42, 73, 0.1),
+    0 34px 70px -26px rgba(27, 42, 73, 0.55);
+}
+
+.note__poster:disabled { cursor: default; }
+
+.note__thumb {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Darkened a touch so the play button and the ring read against any frame
+     YouTube happens to have picked as the thumbnail. */
+  filter: saturate(1.05) brightness(0.88);
+  transition: transform 420ms cubic-bezier(0.2, 0.8, 0.3, 1), filter 260ms ease;
+}
+
+.note__poster:hover .note__thumb { transform: scale(1.03); filter: saturate(1.05) brightness(0.8); }
+
+/* Only while the link has not been pasted in yet — see MentorNote.tsx. */
+.note__missing {
+  position: absolute;
+  inset: 14px;
+  display: grid;
+  place-content: center;
+  padding: 20px;
+  border: 2px dashed rgba(255, 244, 224, 0.4);
+  border-radius: 14px;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--cream);
+}
+
+.note__missing code {
+  font-size: 0.85em;
+  color: var(--gold);
+  overflow-wrap: anywhere;
+}
+
+.note__play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: clamp(64px, 11vw, 86px);
+  aspect-ratio: 1;
+  margin: 0;
+  border-radius: 50%;
+  background: linear-gradient(96deg, var(--gold) 0%, var(--orange) 100%);
+  color: var(--navy);
+  transform: translate(-50%, -50%);
+  transition: transform 260ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+/* The ring that keeps going out, forever, like a radio signal. It is the
+   whole reason a student notices the frame is pressable. */
+.note__play::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 201, 60, 0.75);
+  animation: note-ping 2400ms ease-out infinite;
+}
+
+.note__play svg {
+  width: 40%;
+  height: 40%;
+  /* The triangle's own mass sits left of centre; nudged back so it looks
+     centred rather than measuring as centred. */
+  margin-left: 7%;
+}
+
+.note__poster:hover .note__play { transform: translate(-50%, -50%) scale(1.08); }
 
 /* ── The last band: the sun, fully up ─────────────────────────────────── */
 
@@ -1244,21 +926,17 @@
   color: rgba(27, 42, 73, 0.72);
 }
 
-.finale__price {
-  margin: 8px 0 6px;
-  font-family: var(--poster);
-  font-weight: 900;
-  font-stretch: 84%;
-  font-size: clamp(4.4rem, 17vw, 10rem);
-  line-height: 0.88;
-  letter-spacing: -0.04em;
-}
-
+/*
+ * The band's own voice, now that the price has left it: the date above is a
+ * detail and the button below is an instruction, so this sentence is the only
+ * thing between them with anything to say. It carries the top margin the price
+ * used to hold open.
+ */
 .finale__line {
   max-width: 44ch;
-  margin: 0 auto 30px;
-  font-size: clamp(1.05rem, 2.3vw, 1.3rem);
-  font-weight: 600;
+  margin: 14px auto 30px;
+  font-size: clamp(1.25rem, 3vw, 1.7rem);
+  font-weight: 700;
 }
 
 /* On the light band the button inverts: navy, so it still reads as the one
@@ -1273,24 +951,17 @@
 
 .finale .btn-sun__arrow { background: var(--gold); color: var(--navy); }
 
-.finale__small {
-  margin: 26px 0 0;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: rgba(27, 42, 73, 0.88);
-}
-
 /* ── The rescue ladder (components/RescueLadder) ──────────────────────── */
 
 /*
  * One loop, four layers, thirteen seconds:
  *
- *   0-5%    a student stands at the foot of the three-band ladder
- *   5-14%   they climb to the bottom rung (97)
- *   14-26%  they stretch for the next one and slide back
+ *   0-5%    a student stands at the foot of the three-step ladder
+ *   5-14%   they climb to the first step, the paper
+ *   14-26%  they stretch for the report above it and slide back
  *   27-36%  a hand comes in from off the picture
- *   36-56%  it takes them from the bottom rung to the top one (99)
- *   56-68%  they are set down, the top rung lights, the prize pops
+ *   36-56%  it takes them from the paper to the webinar at the top
+ *   56-68%  they are set down, the top rung lights, the marks pop
  *   68-88%  two hops of celebration
  *   88-100% everything fades and the student is back on the ground
  *
@@ -1323,9 +994,11 @@
 
 /* ── The ladder itself ────────────────────────────────────────────────── */
 
+/* Drawn in navy, not cream: this picture sits in the hero, and the hero is
+   the morning rather than the night. */
 .climb__rail,
 .climb__rung {
-  stroke: var(--cream);
+  stroke: var(--navy);
   stroke-width: 6;
   stroke-linecap: round;
 }
@@ -1333,27 +1006,37 @@
 .climb__rail { opacity: 0.68; }
 
 .climb__ground {
-  stroke: rgba(255, 244, 224, 0.22);
+  stroke: rgba(27, 42, 73, 0.26);
   stroke-width: 2;
   stroke-dasharray: 6 9;
 }
 
-.climb__floor {
+/* The step number, the one warm thing on the ladder itself. */
+.climb__step {
   font-family: var(--poster);
   font-weight: 800;
-  font-size: 29px;
+  font-size: 32px;
   letter-spacing: -0.02em;
-  fill: var(--gold);
+  fill: var(--orange-deep);
 }
 
-.climb__prizeWord {
-  font-size: 16px;
-  fill: var(--on-night-soft);
+/* The step's name, and the detail under it. Two sizes rather than two
+   colours, so the pair reads as one label at phone width. */
+.climb__stepName {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 20px;
+  fill: var(--ink);
+}
+
+.climb__stepSub {
+  font-size: 15.5px;
+  fill: var(--on-night-faint);
 }
 
 /* Lights when the student is standing on the top rung. */
 .climb__glow {
-  stroke: var(--gold);
+  stroke: var(--orange);
   stroke-width: 11;
   stroke-linecap: round;
   opacity: 0;
@@ -1364,7 +1047,7 @@
 
 .climb__limb {
   fill: none;
-  stroke: var(--cream);
+  stroke: var(--navy);
   stroke-width: 5.5;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -1372,7 +1055,7 @@
 
 .climb__head {
   fill: var(--teal);
-  stroke: var(--cream);
+  stroke: var(--navy);
   stroke-width: 2.5;
 }
 
@@ -1389,7 +1072,12 @@
 
 .climb__rider { opacity: 0; animation: climb-rider 13s linear infinite; }
 
-.climb__palm { fill: var(--cream); }
+.climb__palm {
+  fill: var(--cream);
+  stroke: var(--navy);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
 .climb__sleeve { fill: var(--orange); }
 .climb__cuff { fill: var(--gold); }
 
@@ -1405,14 +1093,38 @@
 
 .climb__prize {
   opacity: 0;
-  /* The prize sits at (130, 40) of a 420 box, so scaling about that point
-     reads as the prize popping rather than the layer zooming. */
-  transform-origin: 31% 9.5%;
+  /* The plaque's own middle is (290, 42) of a 420 box, so scaling about that
+     point reads as the plaque popping rather than the layer zooming. */
+  transform-origin: 69% 10%;
   animation: climb-prize 13s cubic-bezier(0.2, 0.9, 0.3, 1.2) infinite;
 }
 
-.climb__tablet { fill: var(--gold); }
-.climb__screen { fill: var(--navy); }
+/* The plaque is the only filled gold shape in the picture, which is how a
+   student finds the number the three steps are for. */
+.climb__plaque {
+  fill: var(--orange);
+  stroke: var(--orange-deep);
+  stroke-width: 2.5;
+}
+
+.climb__plaqueNum {
+  font-family: var(--poster);
+  font-weight: 900;
+  font-stretch: 86%;
+  font-size: 38px;
+  letter-spacing: -0.03em;
+  text-anchor: middle;
+  fill: var(--navy);
+}
+
+.climb__plaqueWord {
+  font-family: var(--poster);
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 0.17em;
+  text-anchor: middle;
+  fill: rgba(27, 42, 73, 0.78);
+}
 
 /*
  * Opacity only, never transform. A CSS `transform` on an SVG child overrides
@@ -1421,15 +1133,8 @@
  * sparkle back to its group's origin at full 100-unit size.
  */
 .climb__spark {
-  fill: var(--gold);
+  fill: var(--orange);
   animation: climb-spark 2.6s ease-in-out infinite;
-}
-
-.climb__caption {
-  margin: 10px 0 0;
-  text-align: center;
-  font-size: 0.84rem;
-  color: var(--on-night-faint);
 }
 
 @keyframes climb-kid {
@@ -1505,6 +1210,14 @@
 
 /* ── Keyframes ────────────────────────────────────────────────────────── */
 
+/* The play button's signal ring: out and gone, with a long pause between, so
+   it reads as a heartbeat rather than as something spinning. */
+@keyframes note-ping {
+  0% { opacity: 0.85; transform: scale(1); }
+  70% { opacity: 0; transform: scale(1.45); }
+  100% { opacity: 0; transform: scale(1.45); }
+}
+
 @keyframes sun-rise {
   from { transform: translate(-50%, 100%); opacity: 0; }
   to { transform: translate(-50%, 62%); opacity: 1; }
@@ -1535,24 +1248,6 @@
   to { transform: translateY(0); opacity: 1; }
 }
 
-@keyframes card-in {
-  from { transform: translateY(16px) scale(0.985); opacity: 0; }
-  to { transform: translateY(0) scale(1); opacity: 1; }
-}
-
-@keyframes shake {
-  10%, 90% { transform: translateX(-2px); }
-  20%, 80% { transform: translateX(3px); }
-  30%, 50%, 70% { transform: translateX(-5px); }
-  40%, 60% { transform: translateX(5px); }
-}
-
-@keyframes live-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(46, 196, 182, 0.55); }
-  70% { box-shadow: 0 0 0 9px rgba(46, 196, 182, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(46, 196, 182, 0); }
-}
-
 @keyframes twinkle {
   0%, 100% { transform: scale(0.85) rotate(0deg); opacity: 0.6; }
   50% { transform: scale(1.1) rotate(18deg); opacity: 1; }
@@ -1561,11 +1256,6 @@
 @keyframes seal-turn {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
-}
-
-@keyframes float-y {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
 }
 
 /* ── Narrow screens ───────────────────────────────────────────────────── */
@@ -1577,29 +1267,16 @@
 }
 
 @media (max-width: 620px) {
-  .hero__title { max-width: none; font-size: clamp(2.3rem, 11vw, 3.4rem); }
+  .hero__title { font-size: min(3.4rem, 6.4vw); }
   .hero__actions { flex-direction: column; align-items: stretch; }
   .hero__actions .btn-sun { justify-content: space-between; }
-  .btn-dusk { justify-content: center; }
-  .countdown__cell { flex: 1 1 0; min-width: 0; padding: 9px 6px; }
-  .countdown__num { font-size: 1.5rem; }
-  /* Two by two, with the dividers dropped — a single divider left hanging at
-     the end of a wrapped row reads as a mistake. */
-  .hero__facts {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px 18px;
-    margin-top: 30px;
-  }
-
-  .hero__facts li { padding-right: 0; border-right: 0; }
-  .hero__art { max-width: 300px; }
-  .climb__caption { font-size: 0.78rem; }
-  .rung { padding: 18px; }
-  .ladder__rules { padding: 22px 20px; }
-  .taster__head { flex-wrap: wrap; }
-  .steps li { padding-left: 54px; }
-  .steps li::before { width: 36px; height: 36px; font-size: 1.05rem; }
+    /* The rung labels are set in the viewBox, so the whole picture shrinking is
+     the labels shrinking. This is as small as they stay comfortable. */
+  .hero__art { max-width: 320px; }
+  .note__arrow { display: none; }
+  .note__nudge { text-align: center; }
+  .note__nudge span { max-width: none; }
+  .note__poster, .note__frame { border-radius: 16px; }
 }
 
 /* ── Reduced motion ───────────────────────────────────────────────────── */
@@ -1616,19 +1293,12 @@
   .hero-star,
   .finale__seal,
   .hero__sparkle,
-  .prize__phone,
-  .pill,
-  .pill__dot,
+  .hero__when,
+  .hero__when-dot,
   .hero__sub,
   .hero__actions,
-  .countdown,
-  .hero__facts,
   .hero__line > span,
   .hero__line--lit > span,
-  .taster__card,
-  .taster--result,
-  .taster__after,
-  .taster__option.is-wrong,
   .finale::before {
     animation: none !important;
   }
@@ -1649,6 +1319,8 @@
   .climb__prize { opacity: 1; transform: none; }
   .climb__glow { opacity: 1; }
   .climb__hand { opacity: 0; }
+
+  .note__play::after { animation: none; opacity: 0; }
 
   .hero-star { opacity: var(--star-peak, 0.26); }
   .sunrise__disc { transform: translate(-50%, 62%); }

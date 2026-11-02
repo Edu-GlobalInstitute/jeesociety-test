@@ -217,7 +217,7 @@ export default function AdminDashboard() {
       <section className="panel">
         <h2 style={{ fontSize: '1rem', marginTop: 0 }}>Jobs</h2>
         <p className="muted" style={{ marginTop: 0 }}>
-          Queuing a job writes a row. The worker claims it on its next poll — nothing runs
+          Queuing a job writes a row. The worker claims it on its next poll. Nothing runs
           inside this request.
         </p>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>

@@ -18,7 +18,7 @@ export function Submitting({ attemptNumber, jitterSeconds }: SubmittingProps) {
       <h1 className="page__title">Submitting your test</h1>
       <p className="page__lede">
         {attemptNumber <= 1
-          ? `Sending your answers. This takes up to ${jitterSeconds} seconds — everyone submits at once, so we spread it out.`
+          ? `Sending your answers. This takes up to ${jitterSeconds} seconds. Everyone submits at once, so we spread it out.`
           : 'Still sending. Your answers are saved; we are completing your submission.'}
       </p>
       <section className="panel">

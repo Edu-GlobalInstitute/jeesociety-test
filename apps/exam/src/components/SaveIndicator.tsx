@@ -28,7 +28,7 @@ export function SaveIndicator({ lastSyncedAt, now }: SaveIndicatorProps) {
     health === 'never'
       ? 'Saved on this device'
       : health === 'stale'
-        ? `Still saving — last reached us ${relative(lastSyncedAt!, now)}`
+        ? `Still saving. Last reached us ${relative(lastSyncedAt!, now)}`
         : `Saved ${relative(lastSyncedAt!, now)}`;
 
   return (

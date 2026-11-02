@@ -180,7 +180,7 @@ export default function SignUp() {
         </div>
 
         <p className="auth__fine">
-          Creating an account does not reserve a place — payment does. Nothing is charged on this
+          Creating an account does not reserve a place. Payment does. Nothing is charged on this
           screen.
         </p>
       </div>

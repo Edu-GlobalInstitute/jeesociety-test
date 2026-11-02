@@ -135,8 +135,8 @@ export default function Login() {
             no self-service route. Saying who to contact is the honest thing
             here; a "forgot password" link would lead nowhere. */}
         <p className="auth__fine">
-          Can’t get in? Write to us from the address you registered with and we will sort it
-          out.
+          Cannot get in? Write to us from the address you registered with and we
+          will sort it out.
         </p>
       </div>
     </main>

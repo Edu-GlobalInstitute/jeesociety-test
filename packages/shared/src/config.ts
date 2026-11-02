@@ -24,6 +24,28 @@ export const MCQ_MARKS = {
 export const TEST_FEE_PAISE = 30_000;
 
 /**
+ * The one thing being given away: a seat in the mentorship programme.
+ *
+ * Every mention of it on the landing page — the headline, the ticker, the
+ * reward ladder, the metadata — reads these fields, so the programme's length,
+ * its price and who teaches it cannot drift apart across the site.
+ */
+export const MENTORSHIP = {
+  /** The full programme, and what the top band wins outright. */
+  months: 6,
+  /** What a seat costs anyone who buys one, in rupees. */
+  worthRupees: 10_000,
+  /** What the shorter runner-up seat is, in months. */
+  runnerUpMonths: 3,
+  /** Who teaches it. Quoted verbatim, so it stays accurate. */
+  mentors: 'IIT Bombay students',
+  /** Half price, for the third band. Derived so the two can never disagree. */
+  get halfPriceRupees() {
+    return this.worthRupees / 2;
+  },
+} as const;
+
+/**
  * Reward bands, by percentile in this test's own rank list.
  *
  * The bands do not overlap — a 99.2 percentile student is in the first band
@@ -32,17 +54,29 @@ export const TEST_FEE_PAISE = 30_000;
  * percentile rather than a projection: each band is one student in a hundred.
  */
 export const REWARD_BANDS = [
-  { floor: 99, label: 'An iPad or an iPhone', share: 'top 1 in 100' },
-  { floor: 98, label: 'Mentorship worth ₹10,000', share: 'the next 1 in 100' },
-  { floor: 97, label: 'Half off that mentorship', share: 'the next 1 in 100' },
+  {
+    floor: 99,
+    label: `${MENTORSHIP.months} months of mentorship, free`,
+    share: 'top 1 in 100',
+  },
+  {
+    floor: 98,
+    label: `${MENTORSHIP.runnerUpMonths} months of mentorship, free`,
+    share: 'the next 1 in 100',
+  },
+  {
+    floor: 97,
+    label: `Half off the ${MENTORSHIP.months}-month seat`,
+    share: 'the next 1 in 100',
+  },
 ] as const;
 
 /**
- * When the paper opens. ISO-8601 with an explicit offset so the landing
- * page's countdown and the server agree regardless of where either is run.
- * This must match `tests.starts_at` in the database for the test being sold.
+ * When the paper opens. ISO-8601 with an explicit offset so every label on the
+ * site and the server agree regardless of where either is run. This must match
+ * `tests.starts_at` in the database for the test being sold.
  */
-export const TEST_STARTS_AT = '2026-11-10T09:00:00+05:30';
+export const TEST_STARTS_AT = '2026-11-29T09:00:00+05:30';
 
 /**
  * The paper's shape, in one place.
@@ -74,6 +108,45 @@ export const PAPER = {
     return this.totalCount * MCQ_MARKS.correct;
   },
 } as const;
+
+/**
+ * Who the paper is written for, and what a student walks away with.
+ *
+ * The offer, in numbers. The paper is for students still scoring below
+ * `entryCeilingMarks`, or still short of `syllabusCeilingPercent` of the
+ * syllabus — either one is enough, because a student can be under the
+ * ceiling for either reason. The report that follows is written to be worth
+ * `liftMarks`, and `webinarHost` is who takes the class through that report
+ * afterwards. Every one of them is read by the landing page and by the ladder
+ * in its hero, so they are stated once here rather than typed into the
+ * poster.
+ */
+export const DIAGNOSTIC = {
+  /** The paper is for students still under this, out of PAPER.maxMarks. */
+  entryCeilingMarks: 150,
+  /**
+   * The other way in: a student who has not finished more than this much of
+   * the syllabus. Marks are not the only reason to be behind.
+   */
+  syllabusCeilingPercent: 60,
+  /** What the report and the webinar are built to add to that score. */
+  liftMarks: 100,
+  /**
+   * Who runs the webinar after the paper. The bare noun, without an article,
+   * so a sentence can put "an" in front of it and a label can stand it on its
+   * own. Quoted verbatim, so it stays accurate.
+   */
+  webinarHost: 'IIT Bombay mentor',
+} as const;
+
+/* The offer has to be arithmetically possible: a student sitting right at the
+   ceiling must still have `liftMarks` left on the paper to win. */
+if (DIAGNOSTIC.entryCeilingMarks + DIAGNOSTIC.liftMarks > PAPER.maxMarks) {
+  throw new Error(
+    `DIAGNOSTIC promises ${DIAGNOSTIC.liftMarks} marks on top of `
+    + `${DIAGNOSTIC.entryCeilingMarks}, but the whole paper is worth ${PAPER.maxMarks}.`,
+  );
+}
 
 export const CLIENT_TIMING = {
   /** IndexedDB write debounce. The student's protection against a refresh. */

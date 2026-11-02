@@ -114,13 +114,13 @@ export function BulkUpload({
         </summary>
         <div style={{ paddingTop: 8 }}>
           <p className="ap__sub">
-            Copy the cells straight out of Excel or Google Sheets — the first row must be the
+            Copy the cells straight out of Excel or Google Sheets. The first row must be the
             column names. Columns may be in any order and the ones you do not need can be left
             out entirely.
           </p>
           <table className="t" style={{ marginBottom: 10 }}>
             <tbody>
-              <tr><td><code>number</code></td><td>q1, q2… — unique within this paper</td></tr>
+              <tr><td><code>number</code></td><td>q1, q2… (unique within this paper)</td></tr>
               <tr><td><code>subject</code></td><td>{shape.subjects.join(', ')}</td></tr>
               <tr><td><code>type</code></td><td><code>scq</code> for multiple choice, <code>integer</code> for a typed number</td></tr>
               <tr><td><code>question</code></td><td>the question text</td></tr>

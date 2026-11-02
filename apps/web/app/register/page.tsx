@@ -95,7 +95,7 @@ export default function Register() {
             if (!current?.paid) {
               setMessage(
                 'We have not had confirmation from the payment provider yet. If money has left '
-                + 'your account, it will appear here within a few minutes — you do not need to pay again.',
+                + 'your account, it will appear here within a few minutes. You do not need to pay again.',
               );
             }
           }
@@ -116,7 +116,7 @@ export default function Register() {
       <h1 style={{ fontSize: '1.8rem', margin: '0 0 8px' }}>Register for the test</h1>
       <p className="prose" style={{ marginBottom: 28 }}>
         {status
-          ? `${status.name} — starts ${new Date(status.startsAt).toLocaleString()}.`
+          ? `${status.name}: starts ${new Date(status.startsAt).toLocaleString()}.`
           : `Create an account, pay ₹${RUPEES}, and you are in.`}
       </p>
 
@@ -139,7 +139,7 @@ export default function Register() {
           <p className="prose">
             The paper opens on <strong>{TEST_WHEN}</strong>. The waiting room opens thirty
             minutes before that, and we will email you the day before with the link and what to
-            have ready — there is nothing for you to do until then.
+            have ready. There is nothing for you to do until then.
           </p>
           <p className="prose" style={{ marginTop: 14 }}>
             Keep the email address you signed up with working. It is how we reach you if
@@ -152,7 +152,7 @@ export default function Register() {
           <p className="prose">
             The waiting room opens at{' '}
             <strong>{new Date(status.lobbyOpensAt).toLocaleString()}</strong>, thirty minutes
-            before the start. Open it on the device you plan to sit the test on — it checks that
+            before the start. Open it on the device you plan to sit the test on. It checks that
             your browser can save and send your answers while there is still time to fix
             anything.
           </p>

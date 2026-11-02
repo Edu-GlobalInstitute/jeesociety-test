@@ -1,7 +1,11 @@
 import { SPARKLE_PATH } from './PosterMarks';
 
 /**
- * A field of small blinking stars behind the poster headline.
+ * A field of small blinking motes of light behind the poster headline.
+ *
+ * They were stars when the hero was a night sky. The hero is a morning now, so
+ * the same field is painted gold instead of cream (app/landing.css) and reads
+ * as light caught in the air — the markup and the maths are unchanged.
  *
  * Three things constrain how this is built:
  *
@@ -52,10 +56,12 @@ const STARS: Star[] = (() => {
       // Spread across the cycle so they blink independently, never in unison.
       delay: random() * 7,
       duration: 3.2 + random() * 3.6,
-      // The headline sits across the middle of the stage. Stars behind it are
+      // The headline sits across the middle of the stage. Motes behind it are
       // dimmed rather than moved, which keeps the field even while leaving the
-      // type the most legible thing on the poster.
-      peak: (y > 28 && y < 72 ? 0.1 : 0.26) + random() * 0.12,
+      // type the most legible thing on the poster. The values are roughly
+      // double what they were on navy: gold over cream is a far smaller step
+      // than cream over navy, so it takes more opacity to read at all.
+      peak: (y > 28 && y < 72 ? 0.24 : 0.52) + random() * 0.16,
     };
   });
 })();

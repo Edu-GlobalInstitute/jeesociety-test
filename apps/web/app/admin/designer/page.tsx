@@ -219,7 +219,7 @@ function CreateTest({ onClose, onCreated }: { onClose: () => void; onCreated: ()
           <span>Name</span>
           <input
             className="inp"
-            placeholder="JEE Main Mock 1 — Full Syllabus"
+            placeholder="JEE Main Mock 1: Full Syllabus"
             value={name}
             onChange={(event) => setName(event.target.value)}
           />
@@ -227,8 +227,8 @@ function CreateTest({ onClose, onCreated }: { onClose: () => void; onCreated: ()
         <label className="field">
           <span>Kind</span>
           <select className="sel" value={kind} onChange={(event) => setKind(event.target.value as 'mock')}>
-            <option value="mock">Mock — free, every student</option>
-            <option value="scholarship">Scholarship — paid entry only</option>
+            <option value="mock">Mock: free, every student</option>
+            <option value="scholarship">Scholarship: paid entry only</option>
           </select>
         </label>
         <label className="field">
@@ -257,7 +257,7 @@ function CreateTest({ onClose, onCreated }: { onClose: () => void; onCreated: ()
         </label>
       </div>
       <p className="ap__sub">
-        The lobby opens fifteen minutes before the start. The test is created as a draft — nothing
+        The lobby opens fifteen minutes before the start. The test is created as a draft. Nothing
         is visible to students until you launch it.
       </p>
       <div className="row">
