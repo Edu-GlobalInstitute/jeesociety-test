@@ -33,6 +33,8 @@ export default function Register() {
   const [busy, setBusy] = useState(false);
   /** Null while unknown; false sends the student to step two. */
   const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
+  const [couponCode, setCouponCode] = useState('');
+  const [couponQuote, setCouponQuote] = useState<{ code: string; name: string; discountPaise: number; amount: number } | null>(null);
 
   const refresh = async () => {
     try {
@@ -80,7 +82,15 @@ export default function Register() {
     setBusy(true);
     setMessage(null);
     try {
-      const order = await api<RazorpayOrder>('/payments/order', { method: 'POST', body: '{}' });
+      const order = await api<RazorpayOrder & { free?: boolean }>('/payments/order', {
+        method: 'POST', body: JSON.stringify(couponQuote ? { couponCode: couponQuote.code } : {}),
+      });
+      if (order.free) {
+        await refresh();
+        setBusy(false);
+        setMessage('Your coupon covers the full price. Your registration is confirmed.');
+        return;
+      }
       openCheckout(order, () => {
         // Poll: the webhook grants access, and it arrives independently of
         // whatever the checkout window told us.
@@ -106,6 +116,21 @@ export default function Register() {
       setMessage(
         error instanceof ApiError ? error.message : 'We could not start the payment.',
       );
+    }
+  }
+
+  async function applyCoupon() {
+    setMessage(null);
+    setCouponQuote(null);
+    const code = couponCode.trim().toUpperCase();
+    if (!code) return;
+    try {
+      const quote = await api<{ code: string; name: string; discountPaise: number; amount: number }>(
+        '/payments/coupon/quote', { method: 'POST', body: JSON.stringify({ code }) },
+      );
+      setCouponQuote(quote);
+    } catch (error) {
+      setMessage(error instanceof ApiError ? error.message : 'Could not apply that coupon.');
     }
   }
 
@@ -162,13 +187,21 @@ export default function Register() {
         </section>
       ) : (
         <section className="panel">
-          <h2 style={{ fontSize: '1rem', marginTop: 0 }}>Pay ₹{RUPEES} and take your place</h2>
+          <h2 style={{ fontSize: '1rem', marginTop: 0 }}>Pay ₹{((couponQuote?.amount ?? TEST_FEE_PAISE) / 100).toLocaleString('en-IN')} and take your place</h2>
           <p className="prose">
             Registration closes the moment the test begins. Pay now so a payment problem on the
             day cannot keep you out.
           </p>
+          <label className="field" style={{ maxWidth: 420 }}>
+            <span>Coupon code</span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input className="inp" value={couponCode} onChange={(event) => { setCouponCode(event.target.value.toUpperCase()); setCouponQuote(null); }} maxLength={32} autoComplete="off" />
+              <button className="btn" type="button" onClick={applyCoupon} disabled={!couponCode.trim() || busy}>Apply</button>
+            </div>
+          </label>
+          {couponQuote ? <p className="prose" role="status">{couponQuote.name}: discount ₹{(couponQuote.discountPaise / 100).toLocaleString('en-IN')}. Pay ₹{(couponQuote.amount / 100).toLocaleString('en-IN')}.</p> : null}
           <button className="btn" onClick={pay} disabled={busy}>
-            {busy ? 'Working…' : `Pay ₹${RUPEES} and register`}
+            {busy ? 'Working…' : `Pay ₹${((couponQuote?.amount ?? TEST_FEE_PAISE) / 100).toLocaleString('en-IN')} and register`}
           </button>
         </section>
       )}

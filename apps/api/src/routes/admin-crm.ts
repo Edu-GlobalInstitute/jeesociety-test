@@ -368,7 +368,7 @@ export function adminCrmRoutes({
     userIds: z.array(z.string().min(1).max(64)).min(1).max(500),
   });
 
-  router.post('/leads/bulk-delete', async (req, res) => {
+  router.delete('/leads/bulk', async (req, res) => {
     const me = currentUser(req);
     const body = BulkDeleteSchema.parse(req.body);
     const userIds = [...new Set(body.userIds)];

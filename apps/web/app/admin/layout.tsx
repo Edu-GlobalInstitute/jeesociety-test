@@ -46,6 +46,7 @@ import './admin.css';
 const TABS = [
   { href: '/admin', label: 'Dashboard', exact: true },
   { href: '/admin/leads', label: 'Sales CRM' },
+  { href: '/admin/coupons', label: 'Coupons' },
   { href: '/admin/designer', label: 'Test designer' },
   { href: '/admin/review', label: 'Review queue' },
   { href: '/admin/security', label: 'Security' },

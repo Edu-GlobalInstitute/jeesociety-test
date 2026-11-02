@@ -164,8 +164,8 @@ function LeadsBoard() {
       `Remove ${selected.size} selected lead${selected.size === 1 ? '' : 's'} from the CRM? Their student accounts, payments, exam records and contact history will be kept.`,
     )) return;
     try {
-      await api('/admin/leads/bulk-delete', {
-        method: 'POST',
+      await api('/admin/leads/bulk', {
+        method: 'DELETE',
         body: JSON.stringify({ userIds: [...selected] }),
       });
       setSelected(new Set());
