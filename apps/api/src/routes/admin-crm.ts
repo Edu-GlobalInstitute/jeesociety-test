@@ -251,6 +251,31 @@ export function adminCrmRoutes({
     res.json({ ok: true });
   });
 
+  /** Remove a lead from the CRM while preserving the student's account/data. */
+  router.delete('/leads/:userId', async (req, res) => {
+    const me = currentUser(req);
+    const userId = z.string().min(1).max(64).parse(req.params.userId);
+    const { lead } = await leads.leadDetail(userId, pool);
+    if (!lead) throw notFound('no_lead', 'No such active CRM lead.');
+
+    const removed = await leads.removeLeadFromCrm({ userId, removedBy: me.id }, pool);
+    if (!removed) throw notFound('no_lead', 'No such active CRM lead.');
+
+    await admin.logAdminAction(
+      {
+        adminId: me.id,
+        action: 'lead_remove',
+        attemptId: null,
+        questionId: null,
+        before: { userId, stage: lead.stage },
+        after: { removedFromCrm: true },
+        reason: 'removed from CRM; student account and records preserved',
+      },
+      pool,
+    );
+    res.json({ ok: true });
+  });
+
   /* ---------------------------------------------------------------------- */
   /* POST /admin/leads/:userId/notes — the contact log.                      */
   /* ---------------------------------------------------------------------- */
@@ -337,6 +362,47 @@ export function adminCrmRoutes({
     );
 
     res.json({ ok: true, updated: body.userIds.length });
+  });
+
+  const BulkDeleteSchema = z.object({
+    userIds: z.array(z.string().min(1).max(64)).min(1).max(500),
+  });
+
+  router.post('/leads/bulk-delete', async (req, res) => {
+    const me = currentUser(req);
+    const body = BulkDeleteSchema.parse(req.body);
+    const userIds = [...new Set(body.userIds)];
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      for (const userId of userIds) {
+        const removed = await leads.removeLeadFromCrm(
+          { userId, removedBy: me.id },
+          client,
+        );
+        if (!removed) throw notFound('no_lead', 'A selected lead is no longer active. Refresh and try again.');
+      }
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally {
+      client.release();
+    }
+
+    await admin.logAdminAction(
+      {
+        adminId: me.id,
+        action: 'leads_bulk_remove',
+        attemptId: null,
+        questionId: null,
+        before: { count: userIds.length },
+        after: { removedFromCrm: true },
+        reason: 'bulk removal from CRM; student accounts and records preserved',
+      },
+      pool,
+    );
+    res.json({ ok: true, removed: userIds.length });
   });
 
   return router;

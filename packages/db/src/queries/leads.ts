@@ -90,6 +90,9 @@ export async function leadBoard(
   // Admins are staff, not leads. Listing them beside students would put the
   // sales team in its own pipeline.
   where.push(`NOT EXISTS (SELECT 1 FROM admins ad WHERE ad.user_id = u."id")`);
+  where.push(`NOT EXISTS (
+    SELECT 1 FROM crm_lead_dismissals d WHERE d.user_id = u."id"
+  )`);
 
   if (filters.search?.trim()) {
     params.push(`%${filters.search.trim()}%`);
@@ -217,7 +220,11 @@ export async function leadDetail(
        LEFT JOIN student_profiles p ON p.user_id = u."id"
        LEFT JOIN lead_pipeline l    ON l.user_id = u."id"
        LEFT JOIN "user" o           ON o."id" = l.owner_id
-      WHERE u."id" = $1`,
+      WHERE u."id" = $1
+        AND NOT EXISTS (SELECT 1 FROM admins ad WHERE ad.user_id = u."id")
+        AND NOT EXISTS (
+          SELECT 1 FROM crm_lead_dismissals d WHERE d.user_id = u."id"
+        )`,
     [userId],
     db,
   );
@@ -329,6 +336,27 @@ export async function updateLead(
   );
 }
 
+/** Hide a student from the CRM without deleting their account or records. */
+export async function removeLeadFromCrm(
+  params: { userId: string; removedBy: string },
+  db?: Queryable,
+): Promise<boolean> {
+  const removed = await one<{ user_id: string }>(
+    `INSERT INTO crm_lead_dismissals (user_id, removed_by)
+     SELECT u."id", $2
+       FROM "user" u
+      WHERE u."id" = $1
+        AND NOT EXISTS (SELECT 1 FROM admins ad WHERE ad.user_id = u."id")
+        AND NOT EXISTS (
+          SELECT 1 FROM crm_lead_dismissals d WHERE d.user_id = u."id"
+        )
+     RETURNING user_id`,
+    [params.userId, params.removedBy],
+    db,
+  );
+  return removed !== null;
+}
+
 /** Stage totals for the pipeline header. Includes students with no row. */
 export async function stageCounts(
   db?: Queryable,
@@ -338,6 +366,9 @@ export async function stageCounts(
        FROM "user" u
        LEFT JOIN lead_pipeline l ON l.user_id = u."id"
       WHERE NOT EXISTS (SELECT 1 FROM admins ad WHERE ad.user_id = u."id")
+        AND NOT EXISTS (
+          SELECT 1 FROM crm_lead_dismissals d WHERE d.user_id = u."id"
+        )
       GROUP BY COALESCE(l.stage, 'new')`,
     [],
     db,

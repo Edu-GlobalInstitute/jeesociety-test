@@ -14,6 +14,7 @@ import { profileRoutes } from './routes/profile.js';
 import { paymentRoutes } from './routes/payments.js';
 import { adminRoutes } from './routes/admin.js';
 import { adminCrmRoutes } from './routes/admin-crm.js';
+import { adminCouponRoutes } from './routes/admin-coupons.js';
 import { adminSecurityRoutes } from './routes/admin-security.js';
 import { adminBootstrapRoutes } from './routes/admin-bootstrap.js';
 import { adminTestRoutes } from './routes/admin-tests.js';
@@ -83,7 +84,7 @@ export function createApp({ env, pool, log, auth }: AppDeps): BuiltApp {
       res.setHeader('Access-Control-Allow-Credentials', 'true');
       res.setHeader('Vary', 'Origin');
       res.setHeader('Access-Control-Allow-Headers', 'content-type');
-      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
     }
     if (req.method === 'OPTIONS') {
       res.sendStatus(204);
@@ -149,6 +150,7 @@ export function createApp({ env, pool, log, auth }: AppDeps): BuiltApp {
   app.use('/admin', adminRoutes({ pool, auth: authInstance, log: logger }));
   app.use('/admin', adminTestRoutes({ pool, auth: authInstance, log: logger }));
   app.use('/admin', adminCrmRoutes({ pool, auth: authInstance }));
+  app.use('/admin/coupons', adminCouponRoutes({ pool, auth: authInstance }));
   app.use('/admin/uploads', adminUploadRoutes({ pool, auth: authInstance }));
 
   app.post(

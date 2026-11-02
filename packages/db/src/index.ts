@@ -9,4 +9,5 @@ export * as admin from './queries/admin.js';
 export * as profiles from './queries/profiles.js';
 export * as questions from './queries/questions.js';
 export * as leads from './queries/leads.js';
+export * as coupons from './queries/coupons.js';
 export * as metrics from './queries/metrics.js';

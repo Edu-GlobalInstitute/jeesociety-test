@@ -1,9 +1,9 @@
 import express, { Router } from 'express';
 import { z } from 'zod';
-import { payments, profiles, tests, type Pool } from '@jee/db';
+import { coupons, payments, profiles, tests, type Pool } from '@jee/db';
 import type { Auth } from '../auth.js';
 import { currentUser, requireUser } from '../middleware/session.js';
-import { badRequest, forbidden, notFound } from '../middleware/errors.js';
+import { badRequest, conflict, forbidden, notFound } from '../middleware/errors.js';
 import type { Env } from '../env.js';
 import type { Logger } from '../logger.js';
 import {
@@ -43,6 +43,33 @@ export function paymentRoutes({
     webhookSecret: env.RAZORPAY_WEBHOOK_SECRET,
   };
 
+  const CouponCode = z.string().trim().toUpperCase().regex(/^[A-Z0-9][A-Z0-9_-]{2,31}$/);
+  async function quoteFor(userId: string, code: string) {
+    const test = await tests.getScholarshipTest(pool);
+    if (!test) throw notFound('no_test', 'There is no scheduled test.');
+    if (await payments.hasPaid(userId, test.id, pool)) {
+      throw forbidden('already_paid', 'You have already paid for this test.');
+    }
+    const coupon = await coupons.findActiveCouponByCode(code, pool);
+    if (!coupon) throw notFound('coupon_invalid', 'That coupon code is invalid or inactive.');
+    const redemption = await coupons.findRedemption({ couponId: coupon.id, userId }, pool);
+    if (redemption?.redeemed_at) throw conflict('coupon_already_used', 'This coupon has already been used by this student.');
+    const basePaise = env.TEST_FEE_PAISE;
+    const discountPaise = Math.min(coupon.discount_paise, basePaise);
+    return { test, coupon, basePaise, discountPaise, amount: basePaise - discountPaise };
+  }
+
+  router.post('/coupon/quote', express.json({ limit: '4kb' }), requireUser(auth), async (req, res) => {
+    const me = currentUser(req);
+    const { code } = z.object({ code: CouponCode }).parse(req.body);
+    if (!(await profiles.isComplete(me.id, pool))) {
+      throw forbidden('profile_incomplete', 'Complete your student profile before applying a coupon.');
+    }
+    const quote = await quoteFor(me.id, code);
+    res.json({ code: quote.coupon.code, name: quote.coupon.name, basePaise: quote.basePaise,
+      discountPaise: quote.discountPaise, amount: quote.amount, currency: 'INR' });
+  });
+
   /* ---------------------------------------------------------------------- */
   /* POST /payments/order                                                    */
   /* ---------------------------------------------------------------------- */
@@ -52,6 +79,7 @@ export function paymentRoutes({
     // mock tests exist, getCurrentTest can return a free mock opening tomorrow
     // — and an order created against it would charge a student for something
     // that is not for sale.
+    const { couponCode } = z.object({ couponCode: CouponCode.optional() }).parse(req.body ?? {});
     const test = await tests.getScholarshipTest(pool);
     if (!test) throw notFound('no_test', 'There is no scheduled test.');
 
@@ -76,16 +104,48 @@ export function paymentRoutes({
       );
     }
 
+    const existing = await payments.getOpenPayment({ userId: me.id, testId: test.id }, pool);
+    if (existing) {
+      if ((existing.coupon_code ?? null) !== (couponCode ?? null)) {
+        throw conflict('payment_pending', 'A payment is already pending. Finish it or wait for it to expire before changing the coupon.');
+      }
+      res.json({ orderId: existing.razorpay_order_id, amount: existing.amount,
+        currency: 'INR', keyId: env.RAZORPAY_KEY_ID, couponCode: existing.coupon_code,
+        discountPaise: existing.discount_paise, free: existing.amount === 0 });
+      return;
+    }
+
+    const quote = couponCode ? await quoteFor(me.id, couponCode) : null;
+    const amount = quote?.amount ?? env.TEST_FEE_PAISE;
+    if (amount === 0 && quote) {
+      const free = await payments.createFreeCouponPayment({ userId: me.id, testId: test.id,
+        orderId: `free-${crypto.randomUUID()}`, coupon: { id: quote.coupon.id, code: quote.coupon.code,
+          name: quote.coupon.name, discountPaise: quote.discountPaise } }, pool);
+      res.json({ orderId: free?.razorpay_order_id, amount: 0, currency: 'INR', keyId: '',
+        couponCode: quote.coupon.code, discountPaise: quote.discountPaise, free: true });
+      return;
+    }
+
     const order = await razorpay.createOrder(config, {
-      amount: env.TEST_FEE_PAISE,
+      amount,
       receipt: `test-${test.id}-${me.id}`.slice(0, 40),
       notes: { userId: me.id, testId: String(test.id) },
     });
 
-    await payments.createPayment(
-      { userId: me.id, testId: test.id, orderId: order.id, amount: order.amount },
-      pool,
-    );
+    try {
+      const saved = await payments.createOrderPayment({ userId: me.id, testId: test.id,
+        orderId: order.id, amount: order.amount,
+        ...(quote ? { coupon: { id: quote.coupon.id, code: quote.coupon.code, name: quote.coupon.name,
+          discountPaise: quote.discountPaise } } : {}) }, pool);
+      if (!saved.created && saved.payment) {
+        throw conflict('payment_pending', 'A payment was started in another request. Please retry.');
+      }
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      if (code === 'COUPON_ALREADY_USED') throw conflict('coupon_already_used', 'This coupon has already been reserved or redeemed by this student.');
+      if (code === 'COUPON_INACTIVE') throw conflict('coupon_invalid', 'That coupon is no longer active.');
+      throw error;
+    }
 
     log.info({ orderId: order.id, testId: test.id }, 'razorpay order created');
     res.json({
@@ -93,6 +153,9 @@ export function paymentRoutes({
       amount: order.amount,
       currency: order.currency,
       keyId: env.RAZORPAY_KEY_ID,
+      couponCode: quote?.coupon.code ?? null,
+      discountPaise: quote?.discountPaise ?? 0,
+      free: false,
     });
   });
 
@@ -153,6 +216,11 @@ export function paymentRoutes({
       }
 
       if (event.event === 'payment.captured' || entity.status === 'captured') {
+        const stored = await payments.getPaymentByOrderId(entity.order_id, pool);
+        if (!stored || stored.amount !== entity.amount) {
+          log.warn({ orderId: entity.order_id, amountMismatch: Boolean(stored) }, 'captured payment does not match stored order');
+          throw conflict('payment_mismatch', 'Captured payment does not match the order amount.');
+        }
         const { applied } = await payments.markPaid(
           { orderId: entity.order_id, paymentId: entity.id, rawWebhook: event },
           pool,
