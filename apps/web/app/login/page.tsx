@@ -22,7 +22,6 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [checking, setChecking] = useState(true);
 
   function requestedDestination(): string | null {
     const next = new URLSearchParams(window.location.search).get('next');
@@ -36,10 +35,7 @@ export default function Login() {
       try {
         const profile = await getProfile();
         if (live && profile) window.location.href = requestedDestination() ?? nextStepFor(profile);
-        else if (live) setChecking(false);
-      } catch {
-        if (live) setChecking(false);
-      }
+      } catch { /* Keep the sign-in form usable while the session service recovers. */ }
     })();
     return () => {
       live = false;
@@ -50,8 +46,10 @@ export default function Login() {
     event.preventDefault();
     setBusy(true);
     setError(null);
+    let credentialsAccepted = false;
     try {
       const result = await signIn(email, password);
+      credentialsAccepted = true;
       if (result.twoFactorRedirect) {
         const next = requestedDestination();
         window.location.href = next
@@ -59,9 +57,19 @@ export default function Login() {
           : '/two-factor';
         return;
       }
-      window.location.href = requestedDestination() ?? nextStepFor(await getProfile());
+      const profile = await getProfile();
+      if (!profile) {
+        setBusy(false);
+        setError('Your password was accepted, but this browser did not keep the sign-in session. Please retry.');
+        return;
+      }
+      window.location.href = requestedDestination() ?? nextStepFor(profile);
     } catch (caught) {
       setBusy(false);
+      if (credentialsAccepted) {
+        setError('Your password was accepted, but we could not confirm your sign-in session. Please retry.');
+        return;
+      }
       if (caught instanceof ApiError && caught.status === 429) {
         setError('Too many attempts. Wait a minute and try again.');
         return;
@@ -120,7 +128,7 @@ export default function Login() {
               />
             </div>
 
-            <button className="btn btn--mark auth__submit" type="submit" disabled={busy || checking}>
+            <button className="btn btn--mark auth__submit" type="submit" disabled={busy || !email || !password}>
               {busy ? 'Signing in…' : 'Sign in'}
             </button>
           </form>

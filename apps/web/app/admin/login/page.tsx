@@ -35,13 +35,13 @@ function adminDestination(): string {
 
 export default function AdminLoginPage() {
   const [mode, setMode] = useState<'sign-in' | 'setup'>('sign-in');
+  const [email, setEmail] = useState(ADMIN_EMAIL);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [setupCode, setSetupCode] = useState('');
   const [setupAvailable, setSetupAvailable] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [checking, setChecking] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -49,32 +49,24 @@ export default function AdminLoginPage() {
     void getProfile()
       .then(async (profile) => {
         if (!live) return;
-        if (!profile) {
-          setChecking(false);
-          return;
-        }
+        if (!profile) return;
         try {
           const standing = await api<Standing>('/admin-security/standing');
           if (!live) return;
           if (!standing.isAdmin) {
             await signOut();
             setError('This account does not have admin access.');
-            setChecking(false);
           } else {
             window.location.replace(standing.allowed ? adminDestination() : '/admin/security');
           }
         } catch {
           if (live) {
-            setError('Could not check admin access. Please try again.');
-            setChecking(false);
+            setError('Could not check admin access. You can still sign in below.');
           }
         }
       })
       .catch(() => {
-        if (live) {
-          setError('Could not reach the sign-in service. Please try again.');
-          setChecking(false);
-        }
+        if (live) setError('Could not check the current session. You can still sign in below.');
       });
     return () => {
       live = false;
@@ -97,6 +89,7 @@ export default function AdminLoginPage() {
     event.preventDefault();
     setBusy(true);
     setError(null);
+    let credentialsAccepted = false;
     try {
       if (mode === 'setup') {
         if (password !== confirmPassword) {
@@ -113,7 +106,8 @@ export default function AdminLoginPage() {
         return;
       }
 
-      const result = await signIn(ADMIN_EMAIL, password);
+      const result = await signIn(email.trim(), password);
+      credentialsAccepted = true;
       if (result.twoFactorRedirect) {
         window.location.href = `/two-factor?next=${encodeURIComponent(adminDestination())}`;
         return;
@@ -129,21 +123,15 @@ export default function AdminLoginPage() {
     } catch (caught) {
       setBusy(false);
       setError(
-        caught instanceof ApiError && caught.status === 401
-          ? 'The password was not accepted. Check it and try again.'
+        caught instanceof ApiError && caught.status === 401 && credentialsAccepted
+          ? 'Your password was accepted, but the browser did not keep the sign-in session. Please retry. If it continues, contact the site owner.'
+          : caught instanceof ApiError && caught.status === 401
+            ? 'The email or password was not accepted. Check both and try again.'
           : caught instanceof Error
             ? caught.message
             : 'Could not sign in. Please try again.',
       );
     }
-  }
-
-  if (checking) {
-    return (
-      <main className="auth">
-        <div className="auth__card"><p className="auth__sub">Checking sign-in…</p></div>
-      </main>
-    );
   }
 
   return (
@@ -160,7 +148,15 @@ export default function AdminLoginPage() {
         <form onSubmit={submit}>
           <label className="field">
             <span>Admin email</span>
-            <input className="inp" type="email" value={ADMIN_EMAIL} readOnly />
+            <input
+              className="inp"
+              type="email"
+              autoComplete="username"
+              required
+              value={mode === 'setup' ? ADMIN_EMAIL : email}
+              readOnly={mode === 'setup'}
+              onChange={(event) => setEmail(event.target.value)}
+            />
           </label>
           <label className="field" style={{ display: 'block', marginTop: 12 }}>
             <span>{mode === 'setup' ? 'Create password' : 'Password'}</span>
@@ -210,7 +206,7 @@ export default function AdminLoginPage() {
               </label>
             </>
           ) : null}
-          <button className="btn btn--mark auth__submit" type="submit" disabled={busy || !password || (mode === 'setup' && (!confirmPassword || !setupCode))}>
+        <button className="btn btn--mark auth__submit" type="submit" disabled={busy || !email || !password || (mode === 'setup' && (!confirmPassword || !setupCode))}>
             {busy ? 'Working…' : mode === 'setup' ? 'Create admin account' : 'Sign in to admin'}
           </button>
         </form>
@@ -223,7 +219,6 @@ export default function AdminLoginPage() {
             Back to admin sign in
           </button>
         ) : null}
-        <p className="auth__fine">This page only signs in {ADMIN_EMAIL}; the server checks the same email and admin permission on every admin request.</p>
       </div>
     </main>
   );

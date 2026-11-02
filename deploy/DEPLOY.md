@@ -125,7 +125,7 @@ DATABASE_URL_UNPOOLED=<Neon DIRECT url>
 PG_POOL_MAX=15
 
 BETTER_AUTH_SECRET=<32+ random chars: node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))">
-BETTER_AUTH_URL=https://<your-api-domain>
+BETTER_AUTH_URL=https://api.test.jeesociety.in
 
 CORS_ORIGINS=https://<web-domain>,https://<exam-domain>
 WEB_ORIGIN=https://<web-domain>
@@ -197,19 +197,30 @@ Git**.
 Build-time variables on `jee-web`:
 
 ```
-NEXT_PUBLIC_API_URL=https://<api-domain>
+NEXT_PUBLIC_API_URL=https://api.test.jeesociety.in
 NEXT_PUBLIC_EXAM_URL=https://<exam-domain>
 ```
 
 On `jee-exam`:
 
 ```
-VITE_API_URL=https://<api-domain>
+VITE_API_URL=https://api.test.jeesociety.in
 VITE_WEB_URL=https://<web-domain>
 ```
 
 These are baked in at **build** time, not read at runtime — changing one needs a
 redeploy, not a restart.
+
+The API hostname must be under the same registrable domain as the frontends.
+For this deployment, add `api.test.jeesociety.in` as a custom domain on the
+Render `jee-api` service, then create its Cloudflare CNAME to that service's
+`onrender.com` hostname. Set the DNS record to **DNS only** while Render
+verifies it and issues TLS. Update `BETTER_AUTH_URL`, `NEXT_PUBLIC_API_URL`,
+and `VITE_API_URL` to `https://api.test.jeesociety.in`, then redeploy the API
+and both Pages projects. The current `onrender.com` API URL is cross-site from
+`test.jeesociety.in`; browsers that restrict third-party cookies can accept a
+password but refuse the session cookie, leaving every authenticated request
+with a 401. CORS settings do not override browser cookie policy.
 
 On `jee-exam` add a redirect so deep links boot the SPA. Create
 `apps/exam/public/_redirects`:
