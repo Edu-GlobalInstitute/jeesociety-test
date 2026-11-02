@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
+import Link from 'next/link';
 
 /**
  * The test designer: the list of tests, and the button that creates one.
@@ -118,9 +119,9 @@ function TestCard({ test, shape }: { test: TestRow; shape: Shape | null }) {
             )}
           </div>
         </div>
-        <a className="btn btn--sm" href={`/admin/designer/paper?testId=${test.id}`}>
+        <Link className="btn btn--sm" href={`/admin/designer/paper?testId=${test.id}`}>
           Edit paper
-        </a>
+        </Link>
       </div>
 
       <dl className="dl" style={{ marginBottom: 10 }}>

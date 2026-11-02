@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { SignupPaidChart, type DayPoint } from '../../components/SignupPaidChart';
+import Link from 'next/link';
 
 /**
  * The business dashboard: signups, paid conversions and where both are going.
@@ -100,7 +101,7 @@ export default function AdminDashboard() {
           <h1>Dashboard</h1>
           <p className="ap__sub">
             Updated {new Date(data.generatedAt).toLocaleTimeString('en-IN')} ·{' '}
-            <a href="/admin/live">live event console</a>
+            <Link href="/admin/live">live event console</Link>
           </p>
         </div>
         <div className="row">
@@ -176,7 +177,7 @@ export default function AdminDashboard() {
               <strong>{data.funnel.abandoned}</strong> student
               {data.funnel.abandoned === 1 ? '' : 's'} reached the payment page and did not
               finish. They are the warmest leads you have:{' '}
-              <a href="/admin/leads?payment=unpaid">work that list</a>.
+              <Link href="/admin/leads?payment=unpaid">work that list</Link>.
             </p>
           ) : null}
         </section>
@@ -188,9 +189,9 @@ export default function AdminDashboard() {
               {data.stages.map((stage) => (
                 <tr key={stage.stage}>
                   <td>
-                    <a href={`/admin/leads?stage=${stage.stage}`}>
+                    <Link href={`/admin/leads?stage=${stage.stage}`}>
                       {STAGE_LABELS[stage.stage] ?? stage.stage}
-                    </a>
+                    </Link>
                   </td>
                   <td className="tnum nowrap" style={{ textAlign: 'right', width: 90 }}>
                     {stage.count.toLocaleString('en-IN')}

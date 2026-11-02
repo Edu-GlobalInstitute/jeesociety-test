@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
+import Link from 'next/link';
 
 /**
  * The during-test dashboard, the live event console.
@@ -123,7 +124,7 @@ export default function AdminDashboard() {
       <h1 style={{ fontSize: '1.5rem', margin: '0 0 4px' }}>Test {data.testId}</h1>
       <p className="muted" style={{ marginTop: 0 }}>
         Updated {new Date(data.serverTime).toLocaleTimeString()} · refreshes every 10 seconds ·{' '}
-        <a href="/admin/review">review queue ({stats.flagged})</a>
+        <Link href="/admin/review">review queue ({stats.flagged})</Link>
       </p>
 
       {message ? (

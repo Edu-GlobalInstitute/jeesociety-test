@@ -1,6 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { api } from '../../../lib/api';
 
 /**
@@ -65,7 +67,7 @@ const CHANNELS = ['call', 'whatsapp', 'email', 'sms', 'note'] as const;
 
 const PAGE = 50;
 
-export default function LeadsPage() {
+function LeadsBoard() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
@@ -114,13 +116,22 @@ export default function LeadsPage() {
     [query],
   );
 
-  // On mount, read the filters out of the URL so the dashboard can link
-  // straight to a slice ("work that list").
+  // Filters arrive in the URL so the dashboard can link straight to a slice
+  // ("work that list"). Read from useSearchParams rather than
+  // window.location.search: with client-side navigation this component stays
+  // mounted across such a link, so a mount-only read would change the URL and
+  // leave the filter unapplied.
+  const searchParams = useSearchParams();
   useEffect(() => {
-    const url = new URLSearchParams(window.location.search);
-    if (url.get('stage')) setStage(url.get('stage')!);
-    if (url.get('payment')) setPayment(url.get('payment')!);
-    if (url.get('dueOnly')) setDueOnly(true);
+    const stageParam = searchParams.get('stage');
+    const paymentParam = searchParams.get('payment');
+    if (stageParam) setStage(stageParam);
+    if (paymentParam) setPayment(paymentParam);
+    if (searchParams.get('dueOnly')) setDueOnly(true);
+  }, [searchParams]);
+
+  // The owner list does not depend on the filters, so it is fetched once.
+  useEffect(() => {
     api<{ owners: typeof owners }>('/admin/leads/owners')
       .then((next) => setOwners(next.owners))
       .catch(() => {});
@@ -144,6 +155,23 @@ export default function LeadsPage() {
       load(offset);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Bulk update failed.');
+    }
+  }
+
+  async function removeSelected() {
+    if (!selected.size) return;
+    if (!window.confirm(
+      `Remove ${selected.size} selected lead${selected.size === 1 ? '' : 's'} from the CRM? Their student accounts, payments, exam records and contact history will be kept.`,
+    )) return;
+    try {
+      await api('/admin/leads/bulk-delete', {
+        method: 'POST',
+        body: JSON.stringify({ userIds: [...selected] }),
+      });
+      setSelected(new Set());
+      load(offset);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not remove the selected leads.');
     }
   }
 
@@ -259,6 +287,9 @@ export default function LeadsPage() {
                 </option>
               ))}
             </select>
+            <button type="button" className="btn btn--sm" onClick={() => void removeSelected()}>
+              Remove from CRM
+            </button>
             <button type="button" className="btn btn--sm" onClick={() => setSelected(new Set())}>
               Clear
             </button>
@@ -431,6 +462,7 @@ export default function LeadsPage() {
           owners={owners}
           onClose={() => setOpen(null)}
           onChanged={() => load(offset)}
+          onDeleted={() => { setOpen(null); load(offset); }}
         />
       ) : null}
     </main>
@@ -493,11 +525,13 @@ function LeadDrawer({
   owners,
   onClose,
   onChanged,
+  onDeleted,
 }: {
   userId: string;
   owners: { userId: string; name: string | null; email: string }[];
   onClose: () => void;
   onChanged: () => void;
+  onDeleted: () => void;
 }) {
   const [lead, setLead] = useState<Lead | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -668,6 +702,29 @@ function LeadDrawer({
               ) : null}
             </section>
 
+            <button
+              type="button"
+              className="btn btn--sm"
+              style={{ marginBottom: 12 }}
+              disabled={busy}
+              onClick={async () => {
+                if (!window.confirm(
+                  'Remove this lead from the CRM? The student account, payments, exam records and contact history will be kept.',
+                )) return;
+                setBusy(true);
+                try {
+                  await api(`/admin/leads/${encodeURIComponent(userId)}`, { method: 'DELETE' });
+                  onDeleted();
+                } catch (caught) {
+                  setError(caught instanceof Error ? caught.message : 'Could not remove this lead.');
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              Remove from CRM
+            </button>
+
             <section className="card">
               <h2>Contact log</h2>
               <div className="row" style={{ marginBottom: 8 }}>
@@ -713,5 +770,17 @@ function LeadDrawer({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * useSearchParams needs a Suspense boundary in a static export; without one the
+ * build fails rather than degrading.
+ */
+export default function LeadsPage() {
+  return (
+    <Suspense fallback={<main className="ap"><p className="empty">Loading…</p></main>}>
+      <LeadsBoard />
+    </Suspense>
   );
 }

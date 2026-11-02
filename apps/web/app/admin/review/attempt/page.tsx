@@ -4,6 +4,8 @@ import { Suspense, useEffect, useState } from 'react';
 import { PAPER } from '@jee/shared/config';
 import { api } from '../../../../lib/api';
 import { ProgressChart, type ProgressPoint } from '../../../../components/ProgressChart';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 /**
  * Everything a reviewer needs on one screen: the flags with their evidence, how
@@ -47,9 +49,13 @@ function AttemptReview() {
   const [reason, setReason] = useState('');
   const [message, setMessage] = useState<string | null>(null);
 
+  // From the router, not window.location: this component stays mounted when a
+  // link moves between attempts, so a mount-only read would keep showing the
+  // first one opened.
+  const searchParams = useSearchParams();
   useEffect(() => {
-    setAttemptId(new URLSearchParams(window.location.search).get('id'));
-  }, []);
+    setAttemptId(searchParams.get('id'));
+  }, [searchParams]);
 
   const load = (id: string) =>
     api<AttemptDetail>(`/admin/attempt/${id}`)
@@ -111,7 +117,7 @@ function AttemptReview() {
         {detail.scores.total === null
           ? 'not scored yet'
           : `${detail.scores.total} of ${PAPER.maxMarks} marks`}{' '}
-        · <a href="/admin/review">back to the queue</a>
+        · <Link href="/admin/review">back to the queue</Link>
       </p>
 
       {message ? <div className="notice">{message}</div> : null}

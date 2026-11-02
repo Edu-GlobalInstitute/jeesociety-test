@@ -5,6 +5,8 @@ import { api } from '../../../../lib/api';
 import { BulkUpload } from './BulkUpload';
 import { QuestionEditor } from './QuestionEditor';
 import type { Question, Shape, TestSummary } from './types';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 /**
  * The paper editor: the question bank for one test, and the launch button.
@@ -40,11 +42,19 @@ function PaperEditor() {
   const [subject, setSubject] = useState<string>('');
   const [launching, setLaunching] = useState(false);
 
+  // From the router, not window.location: with client-side navigation this
+  // component stays mounted across a link to a different testId, and a
+  // mount-only read would keep showing the previous paper.
+  const searchParams = useSearchParams();
   useEffect(() => {
-    const id = Number(new URLSearchParams(window.location.search).get('testId'));
-    if (Number.isFinite(id) && id > 0) setTestId(id);
-    else setError('No test was named in the link.');
-  }, []);
+    const id = Number(searchParams.get('testId'));
+    if (Number.isFinite(id) && id > 0) {
+      setTestId(id);
+      setError(null);
+    } else {
+      setError('No test was named in the link.');
+    }
+  }, [searchParams]);
 
   const load = useCallback(() => {
     if (testId === null) return;
@@ -102,9 +112,9 @@ function PaperEditor() {
     return (
       <main className="ap">
         <p className="msg msg--bad">{error}</p>
-        <a className="btn" href="/admin/designer">
+        <Link className="btn" href="/admin/designer">
           ← All tests
-        </a>
+        </Link>
       </main>
     );
   }
@@ -127,7 +137,7 @@ function PaperEditor() {
       <div className="ap__head">
         <div>
           <p className="ap__sub" style={{ marginBottom: 2 }}>
-            <a href="/admin/designer">← All tests</a>
+            <Link href="/admin/designer">← All tests</Link>
           </p>
           <h1>{data.test.name}</h1>
           <p className="ap__sub">

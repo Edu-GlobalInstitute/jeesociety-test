@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
+import Link from 'next/link';
 
 /**
  * The review queue.
@@ -50,7 +51,7 @@ export default function ReviewQueue() {
       <h1 style={{ fontSize: '1.5rem', margin: '0 0 4px' }}>Review queue</h1>
       <p className="muted" style={{ marginTop: 0 }}>
         A flag is a reason to look, never a finding. A changed address on a mobile network is
-        ordinary. <a href="/admin/live">back to the live console</a>
+        ordinary. <Link href="/admin/live">back to the live console</Link>
       </p>
 
       {rows && rows.length === 0 ? (
@@ -71,9 +72,9 @@ export default function ReviewQueue() {
                 {row.totalScore === null ? '' : ` · ${row.totalScore} marks`}
               </div>
             </div>
-            <a className="btn btn--ghost" href={`/admin/review/attempt?id=${row.attemptId}`}>
+            <Link className="btn btn--ghost" href={`/admin/review/attempt?id=${row.attemptId}`}>
               Open
-            </a>
+            </Link>
           </div>
           <ul style={{ margin: '12px 0 0', paddingLeft: 18, fontSize: '0.9rem' }}>
             {row.flags.map((flag, index) => (
