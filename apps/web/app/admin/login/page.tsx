@@ -14,7 +14,22 @@ interface Standing {
 
 function adminDestination(): string {
   const next = new URLSearchParams(window.location.search).get('next');
-  if (next === '/admin' || (next?.startsWith('/admin/') && next !== '/admin/login')) return next;
+  if (!next || next.length > 2048) return '/admin';
+
+  try {
+    const target = new URL(next, window.location.origin);
+    const path = target.pathname.replace(/\/+$/, '');
+    const isAdminPage = path === '/admin' || path.startsWith('/admin/');
+    if (
+      target.origin === window.location.origin
+      && isAdminPage
+      && path !== '/admin/login'
+    ) {
+      return `${target.pathname}${target.search}${target.hash}`;
+    }
+  } catch {
+    // Ignore malformed return paths and send the admin to the dashboard.
+  }
   return '/admin';
 }
 
