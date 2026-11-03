@@ -26,6 +26,14 @@
  * site, and an external destination becomes a 302 the browser follows — which
  * would put the cookie back on the API's origin and change nothing.
  *
+ * This file lives at the repository root, not under apps/web. Cloudflare reads
+ * Functions from `/functions` at the Pages project root and explicitly not from
+ * the build output — "make sure that the /functions directory is at the root of
+ * your Pages project (and not in the static root, such as /dist)". It was in
+ * apps/web/functions first, copied into out/ by a build step, and Pages ignored
+ * it entirely: /api/health answered Cloudflare's static 404 rather than
+ * reaching this code at all.
+ *
  * ── What this must get right ─────────────────────────────────────────────
  *
  * Cookies. Set-Cookie may appear several times (Better Auth sets a session

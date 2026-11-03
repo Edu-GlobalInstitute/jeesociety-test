@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "NEXT_DIST_DIR=.next-dev NEXT_PUBLIC_API_URL=http://localhost:3000 next dev -p 3001",
-    "build": "next build && node scripts/copy-functions.mjs",
+    "build": "next build",
     "start": "next start -p 3001",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
