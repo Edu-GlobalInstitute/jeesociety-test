@@ -255,7 +255,18 @@ of them is a string compare somewhere.
 > `test.jeesociety.in`, with the API at `/api/*`. That is better: cookies become
 > first-party and CORS disappears. It is also part of the Cloudflare port,
 > which §2.1 says to skip if the exam is under four weeks out.
-> Two origins works today; one origin is where this should land.
+> **This is now done.** `apps/web/functions/api/[[path]].js` is a Cloudflare
+> Pages Function that proxies `/api/*` to the Render service, and the site
+> calls `/api` rather than the API host. The session cookie is first-party
+> again, which is what fixes "your password was accepted, but this browser did
+> not keep the sign-in session" on Safari and in any browser that blocks or
+> partitions third-party cookies.
+>
+> Nothing needs changing in the Cloudflare dashboard: Functions are picked up
+> from `functions/` inside the build output, which the web build now copies
+> there. `NEXT_PUBLIC_API_URL` should be **unset** in Pages so the default
+> `/api` applies; setting it to the Render URL puts the cookie back on the
+> wrong origin.
 
 ---
 
