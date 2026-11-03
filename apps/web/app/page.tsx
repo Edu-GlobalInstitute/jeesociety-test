@@ -49,14 +49,22 @@ export default function Home() {
 
         <div className="wrap hero__inner">
           <div className="hero__copy">
-            {/* The morning itself, before the promise: a student scanning the
-                page decides first whether they are free that day. One span,
-                not three text nodes — loose text inside a flex container
-                becomes separate items that cannot wrap into each other. */}
+            {/* What the paper is, then the morning it falls on: a student
+                scanning the page decides first whether this is the test they
+                have been waiting for, and then whether they are free that day.
+                One span for the date, not three text nodes — loose text inside
+                a flex container becomes separate items that cannot wrap into
+                each other. */}
             <p className="hero__when">
-              <span className="hero__when-dot" aria-hidden="true" />
-              <span>
-                <b>{TEST_WEEKDAY}, {TEST_DATE_SHORT}</b> · {TEST_TIME_LABEL}
+              <span className="hero__badge">Penultimate JEE test</span>
+              {/* The light and the day it belongs to travel together: left
+                  loose, the pill's wrap would leave the dot stranded at the
+                  end of the badge's line. */}
+              <span className="hero__when-time">
+                <span className="hero__when-dot" aria-hidden="true" />
+                <span>
+                  <b>{TEST_WEEKDAY}, {TEST_DATE_SHORT}</b> · {TEST_TIME_LABEL}
+                </span>
               </span>
             </p>
 

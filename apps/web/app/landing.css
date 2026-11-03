@@ -219,11 +219,15 @@
 .hero__when {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
+  /* Wraps rather than overflows: on a narrow phone the badge takes the first
+     line and the date the second, and the pill grows into a stadium around
+     both instead of pushing the column open. */
+  flex-wrap: wrap;
+  gap: 6px 9px;
   /* Shrinks to its text, but never past the column it sits in. */
   max-width: 100%;
   margin: 0 0 18px;
-  padding: 7px 16px 7px 13px;
+  padding: 6px 16px 6px 6px;
   border: 1px solid var(--navy-line);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.5);
@@ -238,6 +242,34 @@
 .hero__when b {
   font-weight: 800;
   color: var(--orange-deep);
+}
+
+/*
+ * What the paper is, said once, in the one place a student is still deciding
+ * whether to read on. It is a solid navy chip rather than a gold one: the gold
+ * and the orange on this page are rationed to what is being offered, and this
+ * is a name, not an offer. Navy on cream is the strongest contrast the palette
+ * has, which is why a label this small can still be read first.
+ */
+.hero__badge {
+  flex: none;
+  padding: 5px 11px 4px;
+  border-radius: 999px;
+  background: var(--navy);
+  color: var(--cream);
+  font-family: var(--poster);
+  font-weight: 800;
+  font-size: 0.68rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  /* Two words on one line or none: a broken label reads as a mistake. */
+  white-space: nowrap;
+}
+
+.hero__when-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
 }
 
 /* Alive, like a light that is on: the morning is still ahead. */
