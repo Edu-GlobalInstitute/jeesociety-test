@@ -51,7 +51,7 @@ const STEPS = [
   },
   {
     step: 3,
-    title: 'The webinar',
+    title: 'The workshops',
     sub: `${DIAGNOSTIC.webinarHost}, live`,
   },
 ] as const;
@@ -117,7 +117,7 @@ export function RescueLadder() {
         role="img"
         aria-label={
           'A student climbs a three-step ladder: the paper, then their report, then the live '
-          + `webinar with an ${DIAGNOSTIC.webinarHost}. They cannot reach the second step on `
+          + `workshops with an ${DIAGNOSTIC.webinarHost}. They cannot reach the second step on `
           + 'their own, so a hand from JEEsociety lifts them from the bottom step to the '
           + `top one, where ${DIAGNOSTIC.liftMarks} more marks are waiting.`
         }

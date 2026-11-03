@@ -62,7 +62,7 @@ export function openCheckout(order: RazorpayOrder, onClosed: () => void): void {
     amount: order.amount,
     currency: order.currency,
     order_id: order.orderId,
-    name: 'All-India JEE Mock',
+    name: 'JEE Main Mock',
     description: 'Test registration',
     handler: onClosed,
     modal: { ondismiss: onClosed },

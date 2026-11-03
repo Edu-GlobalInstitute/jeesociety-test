@@ -8,7 +8,7 @@ const RUPEES = TEST_FEE_PAISE / 100;
 const WORTH = MENTORSHIP.worthRupees.toLocaleString('en-IN');
 
 export const metadata: Metadata = {
-  title: `All-India JEE Mock: top 1% wins ${MENTORSHIP.months} months of IIT Bombay mentorship`,
+  title: `JEE Main Mock: top 1% wins ${MENTORSHIP.months} months of IIT Bombay mentorship`,
   description:
     `One full JEE paper, sat on the same morning across India: ${PAPER.totalCount} questions `
     + `in three hours for ${PAPER.maxMarks} marks, ₹${RUPEES} to enter. `

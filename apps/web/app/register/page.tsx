@@ -222,7 +222,7 @@ export default function Register() {
             {/* What the fee buys, priced, before it is asked for. */}
             <div className="reg__item">
               <h2 className="reg__item-name">
-                JEE Main full paper + report + IITian workshop
+                JEE Main full paper + report + IITian workshops
               </h2>
               <span className="reg__item-price tnum">{money(TEST_FEE_PAISE)}</span>
             </div>
@@ -231,8 +231,8 @@ export default function Register() {
               <li>
                 <span className="reg__tick" aria-hidden="true">✓</span>
                 <span>
-                  A full <b>{PAPER.maxMarks}-mark</b> paper, 3 hours, on the JEE Main pattern,
-                  with an <b>all-India rank</b> against everyone who sits it.
+                  A full <b>{PAPER.maxMarks}-mark</b> paper, 3 hours, on the JEE Main
+                  pattern, with your score and your percentile among everyone who sits it.
                 </span>
               </li>
               <li>
@@ -246,7 +246,7 @@ export default function Register() {
               <li>
                 <span className="reg__tick" aria-hidden="true">✓</span>
                 <span>
-                  A live workshop where <b>an {DIAGNOSTIC.webinarHost}</b> takes you through
+                  Live workshops where <b>an {DIAGNOSTIC.webinarHost}</b> takes you through
                   your report and the way they analyse their own tests.
                 </span>
               </li>
