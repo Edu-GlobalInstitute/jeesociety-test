@@ -17,11 +17,15 @@ export const MCQ_MARKS = {
 } as const;
 
 /**
- * What a student pays, in paise. The landing page quotes this and the payment
- * route charges it, so the two cannot drift apart. TEST_FEE_PAISE in the API's
- * environment overrides it; this is the default and the number on the page.
+ * What a student pays, in paise, before any coupon. Every page that quotes a
+ * price and the payment route that charges it read this one number, so the two
+ * cannot drift apart; a coupon only ever comes off it, and the amount that
+ * comes back from /payments/coupon/quote is what the student actually pays.
+ *
+ * TEST_FEE_PAISE in the API's environment overrides it, so a deployment whose
+ * environment still carries an older figure will charge that instead of this.
  */
-export const TEST_FEE_PAISE = 30_000;
+export const TEST_FEE_PAISE = 49_900;
 
 /**
  * The one thing being given away: a seat in the mentorship programme.

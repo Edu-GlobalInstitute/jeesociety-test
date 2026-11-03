@@ -352,7 +352,7 @@ Only after step 7 passes end to end in test mode:
 2. Replace `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` on the `api` service.
 3. Add a **live-mode** webhook with the same URL and events, and a new secret;
    update `RAZORPAY_WEBHOOK_SECRET`.
-4. Make one real ₹300 payment yourself and refund it from the dashboard.
+4. Make one real ₹499 payment yourself and refund it from the dashboard.
 
 Test and live keys are separate, and so are their webhooks. A live key with a
 test webhook secret fails signature verification on every real payment.

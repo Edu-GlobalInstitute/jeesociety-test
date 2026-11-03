@@ -4,7 +4,7 @@ import type { TestStatusResponse } from '@jee/shared';
  * What a student sees while the test is sold but the inside is not open yet.
  *
  * Two things this screen must do, in order of importance. First, reassure: a
- * student who has just paid ₹300 and lands on a page that is not the test needs
+ * student who has just paid ₹499 and lands on a page that is not the test needs
  * to be told, in the first sentence, that their payment is recorded and their
  * place is held. Second, tell them when to come back, and that they will be
  * emailed rather than having to keep checking.

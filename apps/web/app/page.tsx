@@ -34,9 +34,8 @@ import { TEST_DATE_SHORT, TEST_TIME_LABEL, TEST_WEEKDAY } from '../lib/testDate'
  * lib/testDate, so moving the event does not leave a stale poster behind.
  *
  * The two buttons say "Register" and nothing else, and both go to /checkout:
- * the price and the coupon are that page's argument to make, not the poster's.
- * The fee shown in the copy is lib/pricing's list price, the same number the
- * checkout box opens on, so the poster and the box cannot disagree.
+ * the price and the coupon are the payment page's argument to make, not the
+ * poster's, and no number on this page quotes a fee at all.
  */
 
 export default function Home() {

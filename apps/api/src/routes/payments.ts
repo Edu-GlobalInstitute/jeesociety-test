@@ -94,7 +94,7 @@ export function paymentRoutes({
      * else.
      *
      * Checked server-side at the moment of sale, not just in the UI: taking
-     * ₹300 from someone we have no phone number for means no way to reach them
+     * ₹499 from someone we have no phone number for means no way to reach them
      * if the exam date moves, and a refund to arrange by hand.
      */
     if (!(await profiles.isComplete(me.id, pool))) {

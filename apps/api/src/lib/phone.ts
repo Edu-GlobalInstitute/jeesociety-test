@@ -27,7 +27,7 @@ export function normalisePhone(input: string): string {
  * the test, so it is worth one cheap pass.
  *
  * Deliberately narrow: every rejection here is a real student locked out of a
- * ₹300 purchase, so it only catches patterns no issued number uses.
+ * ₹499 purchase, so it only catches patterns no issued number uses.
  */
 const FAKE_PATTERNS: RegExp[] = [
   /^(\d)\1{9}$/, // 9999999999

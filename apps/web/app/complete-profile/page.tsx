@@ -15,7 +15,7 @@ import { getProfile } from '../../lib/auth';
  * Step two: the details Better Auth does not collect.
  *
  * Sign-up collects only what an account needs to exist: a name, an address, a
- * password. A ₹300 purchase needs more — a number to reach the student on, the
+ * password. A ₹499 purchase needs more — a number to reach the student on, the
  * cohort they are in, and a guardian's consent when they are a minor — and
  * asking for all of it on the first screen is how a sign-up gets abandoned.
  *

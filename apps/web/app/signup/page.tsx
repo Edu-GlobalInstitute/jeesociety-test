@@ -16,7 +16,7 @@ import { TEST_WHEN } from '../../lib/testDate';
  * rather than a long sign-up that repeats it.
  *
  * Splitting it this way also shortens the first screen a student meets after
- * deciding to spend ₹300, which is the screen most likely to be abandoned.
+ * deciding to spend ₹499, which is the screen most likely to be abandoned.
  */
 const RUPEES = TEST_FEE_PAISE / 100;
 

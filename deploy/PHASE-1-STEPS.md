@@ -318,7 +318,7 @@ On the real site, in this order:
 4. You land on `/complete-profile`. Fill it in. **Use a date of birth under 18**
    and check that the parent/guardian block appears and refuses to submit until
    you tick consent.
-5. You land on `/register` with a **Pay ₹300** button.
+5. You land on `/register` with a **Pay ₹499** button.
 6. Click it. Razorpay's test checkout opens. In test mode:
    - **Card**: take one from
      <https://razorpay.com/docs/payments/payments/test-cards> — e.g. Visa
