@@ -1,10 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { TEST_FEE_PAISE } from '@jee/shared/config';
+import {
+  DIAGNOSTIC, MENTORSHIP, PAPER, REWARD_BANDS, TEST_FEE_PAISE,
+} from '@jee/shared/config';
 import { ApiError, api, openCheckout, type RazorpayOrder } from '../../lib/api';
 import { getProfile } from '../../lib/auth';
 import { TEST_WHEN } from '../../lib/testDate';
+import './register.css';
 
 /**
  * Register, pay, and check in.
@@ -26,6 +29,9 @@ interface Status {
 }
 
 const RUPEES = TEST_FEE_PAISE / 100;
+
+/** Paise to the rupee string every line on this card is written in. */
+const money = (paise: number) => `₹${(paise / 100).toLocaleString('en-IN')}`;
 
 export default function Register() {
   const [status, setStatus] = useState<Status | null>(null);
@@ -137,74 +143,211 @@ export default function Register() {
   const examUrl = process.env.NEXT_PUBLIC_EXAM_URL ?? 'http://localhost:5173';
 
   return (
-    <main className="wrap" style={{ paddingTop: 48, paddingBottom: 64 }}>
-      <h1 style={{ fontSize: '1.8rem', margin: '0 0 8px' }}>Register for the test</h1>
-      <p className="prose" style={{ marginBottom: 28 }}>
-        {status
-          ? `${status.name}: starts ${new Date(status.startsAt).toLocaleString()}.`
-          : `Create an account, pay ₹${RUPEES}, and you are in.`}
-      </p>
+    <main className="reg">
+      <div className="reg__card">
+        <p className="reg__step">Last step</p>
 
-      {message ? <div className="notice">{message}</div> : null}
+        {/* The reason, before the bill. A student who has got this far has
+            already read the landing page; what they need here is the one
+            sentence that says why today and not later. */}
+        <h1 className="reg__title">
+          {status?.paid
+            ? 'Your place is held. Now keep the date.'
+            : (
+              <>
+                Your last chance to score <em>99%ile</em> in the January attempt.
+              </>
+            )}
+        </h1>
 
-      {/* Signed in and profile complete, but the status call has not landed:
-          the redirect in the effect above owns every other case. */}
-      {profileComplete === null || !status ? (
-        <section className="panel">
-          <p className="prose">Loading…</p>
-        </section>
-      ) : status.paid && !status.examOpen ? (
-        /* Paid, but the inside is not open yet. The receipt comes first: a
-           student who has just paid and is not handed a test needs to be told
-           their money registered something before they are told to wait. */
-        <section className="panel">
-          <div className="notice notice--ok">
-            Your payment is recorded and your place is held.
-          </div>
-          <p className="prose">
-            The paper opens on <strong>{TEST_WHEN}</strong>. The waiting room opens thirty
-            minutes before that, and we will email you the day before with the link and what to
-            have ready. There is nothing for you to do until then.
-          </p>
-          <p className="prose" style={{ marginTop: 14 }}>
-            Keep the email address you signed up with working. It is how we reach you if
-            anything about the day changes.
-          </p>
-        </section>
-      ) : status.paid ? (
-        <section className="panel">
-          <div className="notice notice--ok">You are registered for this test.</div>
-          <p className="prose">
-            The waiting room opens at{' '}
-            <strong>{new Date(status.lobbyOpensAt).toLocaleString()}</strong>, thirty minutes
-            before the start. Open it on the device you plan to sit the test on. It checks that
-            your browser can save and send your answers while there is still time to fix
-            anything.
-          </p>
-          <a className="btn" href={examUrl}>
-            Open the waiting room
-          </a>
-        </section>
-      ) : (
-        <section className="panel">
-          <h2 style={{ fontSize: '1rem', marginTop: 0 }}>Pay ₹{((couponQuote?.amount ?? TEST_FEE_PAISE) / 100).toLocaleString('en-IN')} and take your place</h2>
-          <p className="prose">
-            Registration closes the moment the test begins. Pay now so a payment problem on the
-            day cannot keep you out.
-          </p>
-          <label className="field" style={{ maxWidth: 420 }}>
-            <span>Coupon code</span>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input className="inp" value={couponCode} onChange={(event) => { setCouponCode(event.target.value.toUpperCase()); setCouponQuote(null); }} maxLength={32} autoComplete="off" />
-              <button className="btn" type="button" onClick={applyCoupon} disabled={!couponCode.trim() || busy}>Apply</button>
+        {/* The test's own name and start time, straight from the server, so
+            this line cannot drift from the paper that is actually being sold. */}
+        <p className="reg__when">
+          <span className="reg__when-dot" aria-hidden="true" />
+          <span>
+            {status
+              ? `${status.name}: starts ${new Date(status.startsAt).toLocaleString()}.`
+              : `Create an account, pay ₹${RUPEES}, and you are in.`}
+          </span>
+        </p>
+
+        {message ? <div className="notice">{message}</div> : null}
+
+        {/* Signed in and profile complete, but the status call has not landed:
+            the redirect in the effect above owns every other case. */}
+        {profileComplete === null || !status ? (
+          <section className="reg__panel">
+            <p className="prose">Loading…</p>
+          </section>
+        ) : status.paid && !status.examOpen ? (
+          /* Paid, but the inside is not open yet. The receipt comes first: a
+             student who has just paid and is not handed a test needs to be told
+             their money registered something before they are told to wait. */
+          <section className="reg__panel">
+            <p className="reg__done">
+              <span className="reg__tick" aria-hidden="true">✓</span>
+              Payment recorded, place held
+            </p>
+            <p className="prose">
+              The paper opens on <strong>{TEST_WHEN}</strong>. The waiting room opens thirty
+              minutes before that, and we will email you the day before with the link and what to
+              have ready. There is nothing for you to do until then.
+            </p>
+            <p className="prose" style={{ marginTop: 14 }}>
+              Keep the email address you signed up with working. It is how we reach you if
+              anything about the day changes.
+            </p>
+          </section>
+        ) : status.paid ? (
+          <section className="reg__panel">
+            <p className="reg__done">
+              <span className="reg__tick" aria-hidden="true">✓</span>
+              You are registered for this test
+            </p>
+            <p className="prose">
+              Open the waiting room on the device you plan to sit the test on. It checks that
+              your browser can save and send your answers while there is still time to fix
+              anything.
+            </p>
+            <dl className="reg__wait">
+              <dt>Waiting room opens</dt>
+              <dd>{new Date(status.lobbyOpensAt).toLocaleString()}</dd>
+            </dl>
+            <a className="btn btn--mark reg__pay reg__open" href={examUrl}>
+              Open the waiting room
+            </a>
+          </section>
+        ) : (
+          <section className="reg__panel">
+            {/* What the fee buys, priced, before it is asked for. */}
+            <div className="reg__item">
+              <h2 className="reg__item-name">
+                JEE Main full paper + report + IITian workshop
+              </h2>
+              <span className="reg__item-price tnum">{money(TEST_FEE_PAISE)}</span>
             </div>
-          </label>
-          {couponQuote ? <p className="prose" role="status">{couponQuote.name}: discount ₹{(couponQuote.discountPaise / 100).toLocaleString('en-IN')}. Pay ₹{(couponQuote.amount / 100).toLocaleString('en-IN')}.</p> : null}
-          <button className="btn" onClick={pay} disabled={busy}>
-            {busy ? 'Working…' : `Pay ₹${((couponQuote?.amount ?? TEST_FEE_PAISE) / 100).toLocaleString('en-IN')} and register`}
-          </button>
-        </section>
-      )}
+
+            <ul className="reg__includes">
+              <li>
+                <span className="reg__tick" aria-hidden="true">✓</span>
+                <span>
+                  A full <b>{PAPER.maxMarks}-mark</b> paper, 3 hours, on the JEE Main pattern,
+                  with an <b>all-India rank</b> against everyone who sits it.
+                </span>
+              </li>
+              <li>
+                <span className="reg__tick" aria-hidden="true">✓</span>
+                <span>
+                  A personalised report showing where your{' '}
+                  <b>+{DIAGNOSTIC.liftMarks} marks</b> are hiding: the chapters bleeding
+                  marks, the mistakes you repeat, the minutes you burn.
+                </span>
+              </li>
+              <li>
+                <span className="reg__tick" aria-hidden="true">✓</span>
+                <span>
+                  A live workshop where <b>an {DIAGNOSTIC.webinarHost}</b> takes you through
+                  your report and the way they analyse their own tests.
+                </span>
+              </li>
+            </ul>
+
+            <div className="reg__coupon">
+              {couponQuote ? (
+                <div className="reg__coupon-on" role="status">
+                  <span className="reg__tick" aria-hidden="true">✓</span>
+                  <span className="reg__coupon-code">{couponQuote.code}</span>
+                  <span className="reg__coupon-off tnum">
+                    &minus;{money(couponQuote.discountPaise)}
+                  </span>
+                  <button
+                    type="button"
+                    className="reg__coupon-drop"
+                    onClick={() => { setCouponQuote(null); setCouponCode(''); }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <label className="reg__coupon-label" htmlFor="coupon">
+                    Have a coupon?
+                  </label>
+                  {/* One control, not two: the field and its button share a
+                      border and a focus ring (register.css). */}
+                  <div className="reg__coupon-row">
+                    <input
+                      id="coupon"
+                      value={couponCode}
+                      onChange={(event) => {
+                        setCouponCode(event.target.value.toUpperCase());
+                        setCouponQuote(null);
+                      }}
+                      maxLength={32}
+                      autoComplete="off"
+                      placeholder="Enter code"
+                    />
+                    <button
+                      className="reg__coupon-apply"
+                      type="button"
+                      onClick={applyCoupon}
+                      disabled={!couponCode.trim() || busy}
+                    >
+                      Apply
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <dl className="reg__sums">
+              <div className="reg__sum">
+                <dt>Registration fee</dt>
+                <dd className="tnum">{money(TEST_FEE_PAISE)}</dd>
+              </div>
+              {couponQuote ? (
+                <div className="reg__sum reg__sum--off">
+                  <dt>{couponQuote.name}</dt>
+                  <dd className="tnum">&minus;{money(couponQuote.discountPaise)}</dd>
+                </div>
+              ) : null}
+              <div className="reg__sum reg__sum--total">
+                <dt>You pay</dt>
+                <dd>
+                  {/* The old price stays beside the new one: a number that
+                      simply changed would not show the discount. */}
+                  {couponQuote ? <s className="tnum">{money(TEST_FEE_PAISE)}</s> : null}
+                  <strong className="tnum">
+                    {money(couponQuote?.amount ?? TEST_FEE_PAISE)}
+                  </strong>
+                </dd>
+              </div>
+            </dl>
+
+            <button className="btn btn--mark reg__pay" onClick={pay} disabled={busy}>
+              {busy
+                ? 'Working…'
+                : `Pay ${money(couponQuote?.amount ?? TEST_FEE_PAISE)} and take your seat`}
+            </button>
+
+            <p className="reg__fine">
+              Registration closes the moment the test begins. Pay now so a payment problem on
+              the day cannot keep you out.
+            </p>
+            <p className="reg__secure">Payment is handled by Razorpay.</p>
+          </section>
+        )}
+
+        {/* What the rank is worth, last, and only while there is still
+            something to buy. */}
+        {status && !status.paid ? (
+          <p className="reg__prize">
+            Finish in the <b>{REWARD_BANDS[0].share}</b> on this paper and you get{' '}
+            <b>{REWARD_BANDS[0].label}</b> with {MENTORSHIP.mentors}. A seat on that
+            programme costs ₹{MENTORSHIP.worthRupees.toLocaleString('en-IN')}.
+          </p>
+        ) : null}
+      </div>
     </main>
   );
 }
