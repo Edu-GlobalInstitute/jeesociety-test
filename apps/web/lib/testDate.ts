@@ -37,13 +37,13 @@ const WEEKDAY = WEEKDAYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()]!;
 
 const MONTH_LONG = MONTHS_LONG[month - 1]!;
 
-/** "10 November 2026" */
+/** "29 November 2026" */
 export const TEST_DATE_LONG = `${day} ${MONTH_LONG} ${year}`;
 
-/** "10 Nov 2026" — for tickers, tags and the seal, where width is scarce. */
+/** "29 Nov 2026" — for tickers, tags and the seal, where width is scarce. */
 export const TEST_DATE_SHORT = `${day} ${MONTH_LONG.slice(0, 3)} ${year}`;
 
-/** "Tuesday" */
+/** "Sunday" */
 export const TEST_WEEKDAY = WEEKDAY;
 
 /** "9:00 AM IST" — 12-hour, because that is how the time will be read aloud. */
@@ -53,5 +53,5 @@ export const TEST_TIME_LABEL = (() => {
   return `${twelve}:${String(minute).padStart(2, '0')} ${suffix} IST`;
 })();
 
-/** "Tuesday, 10 November 2026 · 9:00 AM IST" */
+/** "Sunday, 29 November 2026 · 9:00 AM IST" */
 export const TEST_WHEN = `${TEST_WEEKDAY}, ${TEST_DATE_LONG} · ${TEST_TIME_LABEL}`;

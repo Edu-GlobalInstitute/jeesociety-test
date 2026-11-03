@@ -62,7 +62,7 @@ describe('checkPhone', () => {
 });
 
 describe('isMinorOn', () => {
-  const exam = new Date('2026-11-10T09:00:00+05:30');
+  const exam = new Date('2026-11-29T09:00:00+05:30');
 
   it('is true for a student who is 17 on the exam date', () => {
     expect(isMinorOn('2009-06-01', exam)).toBe(true);
@@ -73,13 +73,13 @@ describe('isMinorOn', () => {
   });
 
   it('is false on the eighteenth birthday itself', () => {
-    expect(isMinorOn('2008-11-10', exam)).toBe(false);
+    expect(isMinorOn('2008-11-29', exam)).toBe(false);
   });
 
   it('is true one day short of eighteen', () => {
     // The boundary that decides whether guardian consent is collected, so it
     // is pinned rather than left to a library.
-    expect(isMinorOn('2008-11-11', exam)).toBe(true);
+    expect(isMinorOn('2008-11-30', exam)).toBe(true);
   });
 
   it('treats an unparseable date as not-a-minor rather than throwing', () => {
