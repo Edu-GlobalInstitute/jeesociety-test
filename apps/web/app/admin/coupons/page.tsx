@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { api, ApiError } from '../../../lib/api';
+import { api, ApiError, adminErrorMessage } from '../../../lib/api';
 
 interface Coupon {
   id: number; name: string; code: string; discountRupees: number; active: boolean;
@@ -16,7 +16,7 @@ export default function CouponsPage() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const load = useCallback(() => api<{ coupons: Coupon[] }>('/admin/coupons').then((data) => setList(data.coupons))
-    .catch(() => setError('Could not load coupons.')), []);
+    .catch((caught) => setError(adminErrorMessage(caught, 'coupons'))), []);
   useEffect(() => { void load(); }, [load]);
 
   async function create(event: React.FormEvent) {

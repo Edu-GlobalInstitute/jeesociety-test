@@ -68,3 +68,38 @@ export function openCheckout(order: RazorpayOrder, onClosed: () => void): void {
     modal: { ondismiss: onClosed },
   }).open();
 }
+
+/**
+ * Turns a thrown API error into a sentence worth showing an admin.
+ *
+ * Several admin screens used to answer "Admin access is required." for every
+ * failure, including a 500 — so a missing database migration looked like a
+ * permissions problem and sent people to the wrong fix entirely. The whole
+ * reason the dashboard outage took so long to place was that the one screen
+ * that knew the answer threw it away.
+ *
+ * The rules are the ones that actually distinguish the causes:
+ *   401  the session went, not a permissions problem
+ *   403  genuinely not an admin
+ *   5xx  the server broke, and on this deployment that is nearly always a
+ *        migration that has not been run against this environment
+ */
+export function adminErrorMessage(error: unknown, what = 'that'): string {
+  const status = error instanceof ApiError ? error.status : 0;
+  const detail = error instanceof Error ? error.message : String(error);
+
+  if (status === 401) return 'Your session has expired. Sign in again.';
+  if (status === 403) {
+    return 'Admin access is required. Ask for your account to be added to the admins table.';
+  }
+  if (status >= 500) {
+    return (
+      `The server could not load ${what} (${status}). This usually means a database `
+      + `migration has not been run against this environment. Server said: ${detail}`
+    );
+  }
+  if (status === 0) {
+    return `Could not reach the server. Check your connection. (${detail})`;
+  }
+  return `Could not load ${what}. ${detail}`;
+}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { api } from '../../../lib/api';
+import { api, adminErrorMessage } from '../../../lib/api';
 import Link from 'next/link';
 
 /**
@@ -51,7 +51,7 @@ export default function DesignerPage() {
         setShape(next.paperShape);
         setError(null);
       })
-      .catch(() => setError('Could not load tests. Admin access is required.'));
+      .catch((caught) => setError(adminErrorMessage(caught, 'the test list')));
   }, []);
 
   useEffect(load, [load]);

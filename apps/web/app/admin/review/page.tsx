@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api } from '../../../lib/api';
+import { api, adminErrorMessage } from '../../../lib/api';
 import Link from 'next/link';
 
 /**
@@ -35,7 +35,7 @@ export default function ReviewQueue() {
   useEffect(() => {
     api<{ attempts: QueueRow[] }>('/admin/review-queue')
       .then((data) => setRows(data.attempts))
-      .catch(() => setError('Admin access is required.'));
+      .catch((caught) => setError(adminErrorMessage(caught, 'the review queue')));
   }, []);
 
   if (error) {

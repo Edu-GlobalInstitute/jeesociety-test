@@ -183,7 +183,12 @@ function LeadsBoard() {
         <div>
           <h1>Sales CRM</h1>
           <p className="ap__sub">
-            {total.toLocaleString('en-IN')} student{total === 1 ? '' : 's'}
+            {/* `total` counts every match; `leads` is one page of them. Saying
+                only the total made the header read "3 students" above two rows,
+                which looks like a bug in the list rather than paging. */}
+            {leads.length < total
+              ? `Showing ${leads.length} of ${total.toLocaleString('en-IN')}`
+              : `${total.toLocaleString('en-IN')} student${total === 1 ? '' : 's'}`}
             {query.toString() ? ' matching these filters' : ''} · due follow-ups first
           </p>
         </div>

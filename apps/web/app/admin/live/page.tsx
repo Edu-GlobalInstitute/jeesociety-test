@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api } from '../../../lib/api';
+import { api, adminErrorMessage } from '../../../lib/api';
 import Link from 'next/link';
 
 /**
@@ -47,7 +47,7 @@ export default function AdminDashboard() {
         setData(next);
         setError(null);
       })
-      .catch(() => setError('Admin access is required.'));
+      .catch((caught) => setError(adminErrorMessage(caught, 'the live console')));
 
   useEffect(() => {
     void load();
