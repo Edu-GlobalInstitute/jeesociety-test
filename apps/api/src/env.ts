@@ -108,6 +108,27 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     if (!env.CORS_ORIGINS.includes(env.WEB_ORIGIN)) {
       throw new Error('WEB_ORIGIN must be one of CORS_ORIGINS');
     }
+    /*
+     * The price the server charges must be the price the site quotes.
+     *
+     * Every page derives its figure from TEST_FEE_PAISE in @jee/shared at build
+     * time, while the API reads it from the environment at boot. An override
+     * left in the dashboard from an earlier price therefore charges one amount
+     * while every page advertises another, and nothing on the site reveals it —
+     * the student sees the discrepancy only on Razorpay's own screen, after
+     * deciding to pay.
+     *
+     * Overriding is still allowed, because a genuine price change has to be
+     * possible without a deploy. It just cannot happen silently.
+     */
+    if (env.TEST_FEE_PAISE !== TEST_FEE_PAISE) {
+      throw new Error(
+        `TEST_FEE_PAISE is ₹${env.TEST_FEE_PAISE / 100} in the environment but the site is `
+          + `built to quote ₹${TEST_FEE_PAISE / 100}. Students would be charged a price no page `
+          + 'shows. Remove the environment variable, or change the constant in '
+          + 'packages/shared/src/config.ts and redeploy the site with it.',
+      );
+    }
   }
 
   return env;
