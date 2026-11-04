@@ -21,18 +21,36 @@ const nextConfig = {
   images: { unoptimized: true },
   env: {
     /*
-     * Same origin by default, proxied to the API by functions/api/[[path]].js.
+     * Same origin, proxied to the API by functions/api/[[path]].js.
      *
-     * It used to point straight at the Render host, which made the Better Auth
-     * session cookie third-party: issued correctly, and then never sent back by
-     * any browser that blocks or partitions such cookies. A student saw "your
-     * password was accepted, but this browser did not keep the sign-in
-     * session", which was exactly true and impossible for them to act on.
+     * Pointing this at the API's own host makes the Better Auth session cookie
+     * third-party: issued correctly, and then never sent back by any browser
+     * that blocks or partitions such cookies. Safari blocks them by default, so
+     * on a Mac sign-in simply does not work — the password is accepted and the
+     * next request arrives with no session.
      *
-     * Set NEXT_PUBLIC_API_URL explicitly to bypass the proxy (local dev points
-     * it at localhost:3000).
+     * A deployed build therefore refuses a cross-origin value rather than
+     * honouring it. The variable was set to the Render URL in Cloudflare, which
+     * silently reinstated the bug after it had been fixed in the code: the fix
+     * was in the repository and absent from the running site, which is the
+     * worst place for a difference to live. Only a relative path survives a
+     * production build.
+     *
+     * Development is exempt — `pnpm dev` points it at localhost:3000, where
+     * there is no proxy and both origins are the developer's own machine.
      */
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL ?? '/api',
+    NEXT_PUBLIC_API_URL: (() => {
+      const configured = process.env.NEXT_PUBLIC_API_URL;
+      if (!configured) return '/api';
+      if (configured.startsWith('/')) return configured;
+      if (process.env.NODE_ENV !== 'production') return configured;
+      console.warn(
+        `\n  NEXT_PUBLIC_API_URL="${configured}" ignored: a production build must call the API\n`
+          + '  on its own origin, or the session cookie is third-party and Safari drops it.\n'
+          + '  Using "/api" (see functions/api/[[path]].js). Unset the variable to silence this.\n',
+      );
+      return '/api';
+    })(),
     NEXT_PUBLIC_EXAM_URL: process.env.NEXT_PUBLIC_EXAM_URL ?? 'http://localhost:5173',
   },
 };
