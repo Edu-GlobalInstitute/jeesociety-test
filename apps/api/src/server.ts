@@ -8,7 +8,37 @@ import { createLogger } from './logger.js';
  * the pool, start listening, and shut down cleanly.
  */
 
-const env = loadEnv();
+/**
+ * Configuration is read before anything else, and a bad value stops the boot.
+ *
+ * That is deliberate — half-configured is worse than not running — but the
+ * failure was unreadable. loadEnv throws, nothing catches it, and the process
+ * dies before `app.listen`. The host then reports what it sees: "no open ports
+ * detected. Bind your service to at least one port." Which sends you looking at
+ * PORT, networking and the start command, none of which are wrong.
+ *
+ * So the refusal says what it is, in a shape that survives a log viewer, and
+ * exits 1 rather than dying on an uncaught exception.
+ */
+let env: ReturnType<typeof loadEnv>;
+try {
+  env = loadEnv();
+} catch (error) {
+  const detail = error instanceof Error ? error.message : String(error);
+  process.stderr.write(
+    '\n'
+    + '  ────────────────────────────────────────────────────────────────\n'
+    + '  The API did not start: its configuration was refused.\n'
+    + '\n'
+    + `  ${detail.split('\n').join('\n  ')}\n`
+    + '\n'
+    + '  Nothing is wrong with the port or the start command. Fix the\n'
+    + '  environment variable named above and redeploy.\n'
+    + '  ────────────────────────────────────────────────────────────────\n\n',
+  );
+  process.exit(1);
+}
+
 const log = createLogger(env.LOG_LEVEL, 'api');
 
 const pool = createPool({

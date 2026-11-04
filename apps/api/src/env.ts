@@ -118,16 +118,33 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
      * the student sees the discrepancy only on Razorpay's own screen, after
      * deciding to pay.
      *
-     * Overriding is still allowed, because a genuine price change has to be
-     * possible without a deploy. It just cannot happen silently.
+     * This ignores the override rather than refusing to boot.
+     *
+     * It used to throw, which was the wrong severity: a stale variable in a
+     * dashboard took the entire site down -- no sign-in, no admin, no exam --
+     * over a mismatch whose correct resolution is obviously "charge what the
+     * pages say". Refusing to start also hid itself, because the process died
+     * before binding a port and the host reported a port problem.
+     *
+     * Falling back to the built-in price keeps the one invariant that matters:
+     * nobody is ever charged an amount no page shows. The warning is loud
+     * enough to find, and a genuine price change is a one-line edit to
+     * packages/shared/src/config.ts that the pages and the API then share.
      */
     if (env.TEST_FEE_PAISE !== TEST_FEE_PAISE) {
-      throw new Error(
-        `TEST_FEE_PAISE is ₹${env.TEST_FEE_PAISE / 100} in the environment but the site is `
-          + `built to quote ₹${TEST_FEE_PAISE / 100}. Students would be charged a price no page `
-          + 'shows. Remove the environment variable, or change the constant in '
-          + 'packages/shared/src/config.ts and redeploy the site with it.',
+      process.stderr.write(
+        [
+          '',
+          `  WARNING: TEST_FEE_PAISE is ${env.TEST_FEE_PAISE / 100} rupees in this environment,`,
+          `  but every page is built to quote ${TEST_FEE_PAISE / 100} rupees.`,
+          `  Ignoring the variable and charging ${TEST_FEE_PAISE / 100} rupees, so no student`,
+          '  is charged a price the site does not show.',
+          '  Delete the variable, or change TEST_FEE_PAISE in',
+          '  packages/shared/src/config.ts and redeploy.',
+          '',
+        ].join('\n') + '\n',
       );
+      env.TEST_FEE_PAISE = TEST_FEE_PAISE;
     }
   }
 
