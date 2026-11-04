@@ -14,6 +14,8 @@ import { profileRoutes } from './routes/profile.js';
 import { paymentRoutes } from './routes/payments.js';
 import { adminRoutes } from './routes/admin.js';
 import { adminCrmRoutes } from './routes/admin-crm.js';
+import { adminResultRoutes } from './routes/admin-results.js';
+import { resultRoutes } from './routes/results.js';
 import { adminCouponRoutes } from './routes/admin-coupons.js';
 import { adminSecurityRoutes } from './routes/admin-security.js';
 import { adminBootstrapRoutes } from './routes/admin-bootstrap.js';
@@ -216,7 +218,13 @@ export function createApp({ env, pool, log, auth }: AppDeps): BuiltApp {
   // Order matters. adminTestRoutes owns /admin/tests/* and adminCrmRoutes owns
   // /admin/leads/*, so neither can shadow the other; the uploads router is
   // mounted deeper still.
+  // A student's own result. Checks tests.results_released_at before it returns
+  // a single mark, so scoring can run the moment the paper closes without
+  // anything being visible until the announcement.
+  app.use('/results', resultRoutes({ pool, auth: authInstance }));
+
   app.use('/admin', adminRoutes({ pool, auth: authInstance, log: logger }));
+  app.use('/admin', adminResultRoutes({ pool, auth: authInstance, log: logger }));
   app.use('/admin', adminTestRoutes({ pool, auth: authInstance, log: logger }));
   app.use('/admin', adminCrmRoutes({ pool, auth: authInstance }));
   app.use('/admin/coupons', adminCouponRoutes({ pool, auth: authInstance }));

@@ -89,3 +89,57 @@ export function scoreMcq(answerKey: AnswerKey, answers: AnswerMap): McqResult {
 
   return { score, correct, wrong, unattempted, breakdown };
 }
+
+/** What a scorecard shows for one subject. */
+export interface SubjectScore {
+  correct: number;
+  wrong: number;
+  unattempted: number;
+  marks: number;
+}
+
+export type SubjectScores = Record<string, SubjectScore>;
+
+/**
+ * Rolls a per-question breakdown up by subject.
+ *
+ * Separate from scoreMcq because the two know different things: scoring needs
+ * only the answer key, while this needs to know which subject each question
+ * belongs to — which lives in the paper, not the key.
+ *
+ * Computed once at scoring time and stored on the attempt. Doing it per request
+ * would mean decrypting the paper every time a student opened their scorecard,
+ * which is both slow and a reason to hold the paper key somewhere it is not
+ * needed.
+ *
+ * A question whose subject is not in `subjectByQuestion` is counted under
+ * 'unknown' rather than dropped: a scorecard whose subject marks do not add up
+ * to the total is worse than one with an odd row, because the student cannot
+ * tell which number to trust.
+ */
+export function scoreBySubject(
+  breakdown: McqResult['breakdown'],
+  subjectByQuestion: Record<string, string>,
+): SubjectScores {
+  const out: SubjectScores = {};
+
+  for (const [questionId, outcome] of Object.entries(breakdown)) {
+    const subject = subjectByQuestion[questionId] ?? 'unknown';
+    const row = out[subject] ?? { correct: 0, wrong: 0, unattempted: 0, marks: 0 };
+
+    if (outcome === 'correct') {
+      row.correct += 1;
+      row.marks += MCQ_MARKS.correct;
+    } else if (outcome === 'wrong') {
+      row.wrong += 1;
+      row.marks += MCQ_MARKS.wrong;
+    } else {
+      row.unattempted += 1;
+      row.marks += MCQ_MARKS.unattempted;
+    }
+
+    out[subject] = row;
+  }
+
+  return out;
+}

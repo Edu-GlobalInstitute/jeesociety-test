@@ -11,3 +11,4 @@ export * as questions from './queries/questions.js';
 export * as leads from './queries/leads.js';
 export * as coupons from './queries/coupons.js';
 export * as metrics from './queries/metrics.js';
+export * as results from './queries/results.js';

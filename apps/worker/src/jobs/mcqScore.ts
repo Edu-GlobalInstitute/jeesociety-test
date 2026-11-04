@@ -1,5 +1,5 @@
-import { MCQ_MARKS, scoreMcq, type AnswerMap } from '@jee/shared';
-import { tests, withTransaction, type Pool } from '@jee/db';
+import { MCQ_MARKS, scoreBySubject, scoreMcq, type AnswerMap } from '@jee/shared';
+import { questions, tests, withTransaction, type Pool } from '@jee/db';
 import type { Logger } from 'pino';
 
 /**
@@ -25,6 +25,23 @@ export async function runMcqScoring(
   const answerKey = await tests.readAnswerKeyForScoring(testId, pool);
   if (!answerKey || Object.keys(answerKey).length === 0) {
     throw new Error(`test ${testId} has no answer key; refusing to score`);
+  }
+
+  /*
+   * Which subject each question belongs to, read once for the whole pass.
+   *
+   * The scorecard breaks a total down by subject, and recomputing that when a
+   * student opens their result would mean decrypting the paper on every read.
+   * Computed here instead, while the answer key is already in hand.
+   *
+   * An empty map is not fatal: scoreBySubject files everything under 'unknown'
+   * rather than dropping it, so the subject rows still add up to the total.
+   * That is the right failure for a paper built by the older CLI, which wrote
+   * no `questions` rows.
+   */
+  const subjects = await questions.subjectByQuestionRef(testId, pool);
+  if (Object.keys(subjects).length === 0) {
+    log.warn({ testId }, 'no question rows for this test; subject breakdown will be unknown');
   }
 
   let scored = 0;
@@ -54,8 +71,10 @@ export async function runMcqScoring(
         totalWrong += result.wrong;
         totalUnattempted += result.unattempted;
         await client.query(
-          `UPDATE attempts SET mcq_score = $2, total_score = $2 WHERE id = $1`,
-          [row.id, result.score],
+          `UPDATE attempts
+              SET mcq_score = $2, total_score = $2, subject_scores = $3::jsonb
+            WHERE id = $1`,
+          [row.id, result.score, JSON.stringify(scoreBySubject(result.breakdown, subjects))],
         );
         scored += 1;
       }

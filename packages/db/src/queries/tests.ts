@@ -15,7 +15,8 @@ import { one, rows, type Queryable } from '../query.js';
 /** Safe columns: no key material. Anything a handler may see. */
 const PUBLIC_COLUMNS = `
   id, name, kind, requires_payment, duration_minutes,
-  starts_at, ends_at, lobby_opens_at, paper_url, status, created_at
+  starts_at, ends_at, lobby_opens_at, paper_url, status, created_at,
+  results_released_at
 `;
 
 export interface TestRow {
@@ -35,6 +36,14 @@ export interface TestRow {
   paper_url: string | null;
   status: TestStatus;
   created_at: Date;
+  /**
+   * When results became visible to students, or null.
+   *
+   * Safe to carry on the public row: it is a date, not a score, and every
+   * result route checks it. Students are told when results are out, never what
+   * is in them before that.
+   */
+  results_released_at: Date | null;
 }
 
 export function getTest(testId: number, db?: Queryable): Promise<TestRow | null> {

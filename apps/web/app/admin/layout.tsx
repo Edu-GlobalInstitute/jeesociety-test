@@ -48,6 +48,7 @@ const TABS = [
   { href: '/admin/leads', label: 'Sales CRM' },
   { href: '/admin/coupons', label: 'Coupons' },
   { href: '/admin/designer', label: 'Test designer' },
+  { href: '/admin/results', label: 'Results' },
   { href: '/admin/review', label: 'Review queue' },
   { href: '/admin/security', label: 'Security' },
 ];

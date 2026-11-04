@@ -515,3 +515,28 @@ export function listImages(
     db,
   );
 }
+
+/**
+ * Which subject each question belongs to, for rolling a score up by subject.
+ *
+ * Deliberately narrow: no bodies, no options, and above all no
+ * `correct_answer`. The scoring job needs the mapping and nothing else, and a
+ * query that returns the key where it is not needed is a key one refactor away
+ * from a response.
+ *
+ * Reads the `questions` table rather than the published paper, so no decryption
+ * and no paper key is involved.
+ */
+export async function subjectByQuestionRef(
+  testId: number,
+  db?: Queryable,
+): Promise<Record<string, string>> {
+  const list = await rows<{ question_ref: string; subject: string }>(
+    `SELECT question_ref, subject FROM questions WHERE test_id = $1`,
+    [testId],
+    db,
+  );
+  const out: Record<string, string> = {};
+  for (const row of list) out[row.question_ref] = row.subject;
+  return out;
+}

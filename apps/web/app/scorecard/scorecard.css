@@ -1,0 +1,204 @@
+/*
+ * The scorecard.
+ *
+ * Built to be printed and shown to a parent, so it reads as a document rather
+ * than a dashboard: a white sheet, a rule under the header, tabular figures,
+ * and nothing that only makes sense on a screen. The two numbers a student
+ * looks for first — rank and percentile — are given the weight; everything else
+ * supports them.
+ *
+ * Uses the Sunrise variables from globals.css. No new palette.
+ */
+
+.sc {
+  min-height: 100vh;
+  background: var(--paper, #faf4e8);
+  padding: 32px 16px 72px;
+  display: flex;
+  justify-content: center;
+}
+
+.sc__sheet {
+  width: min(760px, 100%);
+  background: #fff;
+  border: 1px solid var(--rule, #e4d9c4);
+  border-radius: 12px;
+  padding: 34px 36px 30px;
+  box-shadow: 0 1px 3px rgba(27, 42, 73, 0.06);
+}
+
+/* ── Header ───────────────────────────────────────────────────────────── */
+
+.sc__head {
+  border-bottom: 2px solid var(--navy, #1b2a49);
+  padding-bottom: 16px;
+  margin-bottom: 22px;
+}
+
+.sc__eyebrow {
+  margin: 0 0 4px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft, #5a6478);
+}
+
+.sc__title {
+  margin: 0;
+  font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+  font-size: 1.9rem;
+  letter-spacing: -0.02em;
+  color: var(--navy, #1b2a49);
+}
+
+.sc__receipt-line {
+  margin: 6px 0 0;
+  font-size: 0.86rem;
+  color: var(--ink-soft, #5a6478);
+}
+
+/* ── Rank and percentile ──────────────────────────────────────────────── */
+
+.sc__headline {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 26px;
+}
+
+.sc__big {
+  border: 1px solid var(--rule, #e4d9c4);
+  border-radius: 10px;
+  padding: 16px 18px;
+  background: var(--paper, #faf4e8);
+}
+
+.sc__big-label {
+  display: block;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-soft, #5a6478);
+  margin-bottom: 6px;
+}
+
+.sc__big-value {
+  display: block;
+  font-family: 'Archivo', system-ui, sans-serif;
+  font-size: 2.1rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--navy, #1b2a49);
+}
+
+.sc__big-of {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--ink-faint, #8a91a0);
+}
+
+/* ── The table ────────────────────────────────────────────────────────── */
+
+.sc__table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 22px;
+  font-size: 0.92rem;
+}
+
+.sc__table th {
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft, #5a6478);
+  padding: 0 10px 8px;
+  border-bottom: 1px solid var(--rule, #e4d9c4);
+}
+
+.sc__table td {
+  padding: 11px 10px;
+  border-bottom: 1px solid #f0ead9;
+}
+
+.sc__num { text-align: right; }
+
+.sc__subject {
+  text-transform: capitalize;
+  font-weight: 600;
+}
+
+.sc__marks { font-weight: 700; }
+
+.sc__table tfoot td {
+  border-top: 2px solid var(--navy, #1b2a49);
+  border-bottom: none;
+  padding-top: 13px;
+  font-weight: 700;
+}
+
+.sc__total {
+  font-family: 'Archivo', system-ui, sans-serif;
+  font-size: 1.25rem;
+  color: var(--navy, #1b2a49);
+}
+
+/* ── Reward band ──────────────────────────────────────────────────────── */
+
+.sc__band {
+  border: 1px solid var(--gold, #ffc93c);
+  border-left: 4px solid var(--gold, #ffc93c);
+  border-radius: 9px;
+  background: #fffaec;
+  padding: 13px 16px;
+  margin-bottom: 18px;
+  font-size: 0.94rem;
+}
+
+.sc__fine {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--ink-faint, #8a91a0);
+}
+
+/* ── The receipt state, before results are launched ───────────────────── */
+
+.sc__receipt {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 18px;
+  margin: 18px 0 0;
+  font-size: 0.92rem;
+}
+
+.sc__receipt dt {
+  font-weight: 600;
+  color: var(--ink-soft, #5a6478);
+}
+
+.sc__receipt dd { margin: 0; }
+
+@media (max-width: 620px) {
+  .sc { padding: 16px 10px 48px; }
+  .sc__sheet { padding: 22px 18px 20px; }
+  .sc__headline { grid-template-columns: 1fr; gap: 10px; }
+  .sc__title { font-size: 1.5rem; }
+  .sc__table { font-size: 0.84rem; }
+  .sc__table td, .sc__table th { padding-left: 4px; padding-right: 4px; }
+}
+
+/*
+ * Printing. A scorecard gets printed and put in a file, so the sheet becomes
+ * the page: no background tint, no shadow, no rounded border pretending to be
+ * a card on a desk.
+ */
+@media print {
+  .sc { background: #fff; padding: 0; }
+  .sc__sheet { border: none; box-shadow: none; width: 100%; padding: 0; }
+  .sc__big { background: #fff; }
+}
