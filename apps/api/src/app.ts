@@ -60,6 +60,12 @@ export function createApp({ env, pool, log, auth }: AppDeps): BuiltApp {
       // The sync endpoint runs 1.2M times. Logging each at info would bury
       // everything that matters, so successful syncs log at debug.
       customLogLevel: (_req: { url?: string }, res: { statusCode: number }, err?: unknown) => {
+        // The host polls /health and /ready every few seconds for the life of
+        // the service. Logging those buries everything else -- a failing
+        // readiness check wrote a stack trace every ten seconds and made the
+        // log unreadable at exactly the moment someone needed to read it.
+        // Whatever the check is reporting is logged by the check itself.
+        if (_req.url === '/health' || _req.url === '/ready') return 'silent';
         if (err || res.statusCode >= 500) return 'error';
         if (res.statusCode >= 400) return 'warn';
         if (_req.url?.includes('/attempt/sync')) return 'debug';
@@ -125,21 +131,40 @@ export function createApp({ env, pool, log, auth }: AppDeps): BuiltApp {
           .catch(() => [] as string[]),
       ]);
 
+      /*
+       * A pending migration is reported, not failed.
+       *
+       * This used to answer 503, which was too strong by a long way: Render
+       * reads /ready as its health check, so an unapplied migration took the
+       * whole service out of rotation — no sign-in, no admin, no exam — while
+       * the process was running happily and able to serve every route that did
+       * not touch the new columns. It also logged at error once every ten
+       * seconds, which buries anything genuinely wrong.
+       *
+       * Ready means "this process can serve requests". It can. The pending
+       * list is a fact worth carrying in the response, and the one place that
+       * must act on it is a deploy check, not a load balancer.
+       *
+       * The thing this was written to catch — code deployed ahead of its
+       * migration — is still caught: the names are right here in the body, and
+       * the pages that need those columns say so themselves.
+       */
       const pending = shipped.filter((name) => !applied.includes(name));
       if (pending.length > 0) {
-        logger.error({ pending }, 'database is missing migrations this build needs');
-        res.status(503).json({
-          ok: false,
-          reason: 'pending_migrations',
-          pending,
-          message:
-            `This database is missing ${pending.length} migration`
-            + `${pending.length === 1 ? '' : 's'} that this build needs: ${pending.join(', ')}.`,
-        });
-        return;
+        // warn, not error: it is a state to fix, not an incident. Logged once
+        // per check is still noisy, so it says what to do rather than repeating
+        // a bare complaint.
+        logger.warn(
+          { pending },
+          'database is behind this build; run the migrations (packages/db: pnpm migrate)',
+        );
       }
 
-      res.json({ ok: true, migrations: applied.length });
+      res.json({
+        ok: true,
+        migrations: applied.length,
+        ...(pending.length > 0 ? { pendingMigrations: pending } : {}),
+      });
     } catch (error) {
       logger.error(
         { err: error instanceof Error ? error.message : String(error) },
