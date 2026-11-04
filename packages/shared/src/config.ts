@@ -199,8 +199,21 @@ export const LIMITS = {
   maxAnswerChars: 16,
   /** Per-user sync rate. The client syncs at 1 per 90s; this allows retries. */
   syncPerMinute: 2,
-  /** Per-IP auth attempts per minute. */
-  authPerMinute: 10,
+  /**
+   * Auth requests per minute, per client address.
+   *
+   * Ten was too tight even for one person. A single sign-in is several
+   * requests -- the POST itself, then the session read, then the profile and
+   * standing checks the page makes on landing -- so a student who mistypes a
+   * password twice can reach the limit legitimately and be told to wait.
+   *
+   * It also has to hold a whole school: students sitting this paper share a
+   * NAT at a coaching centre or a hostel, so one address can be fifty people
+   * signing in at once on the morning of the event. Thirty is loose enough for
+   * that and still stops a credential-stuffing loop, which makes thousands of
+   * attempts rather than dozens.
+   */
+  authPerMinute: 30,
 } as const;
 
 /**

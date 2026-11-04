@@ -29,11 +29,37 @@ export interface RateLimiterOptions {
   message?: string;
 }
 
+/**
+ * The address to count against, which is not always `req.ip`.
+ *
+ * Express derives req.ip by walking X-Forwarded-For back by the configured
+ * number of trusted hops. Get that count wrong and it returns a *proxy's*
+ * address — and because every request then shares one address, every user in
+ * the country shares one bucket. Ten sign-ins a minute across the whole site,
+ * and people who had tried once were told "Too Many Requests".
+ *
+ * That is exactly what happened when the same-origin proxy was added: the chain
+ * became browser → Cloudflare → Render → here, while TRUST_PROXY_HOPS still
+ * said one.
+ *
+ * `cf-connecting-ip` avoids the arithmetic. Cloudflare sets it to the real
+ * client and overwrites whatever a client sent, so it cannot be forged through
+ * the proxy — and this API is only reachable through it. It is preferred when
+ * present, with req.ip as the fallback for any path that does not come that
+ * way. A limit keyed on the wrong address is not a safety feature; it is an
+ * outage that looks like one.
+ */
+export function clientKey(req: Request): string {
+  const viaCloudflare = req.headers['cf-connecting-ip'];
+  if (typeof viaCloudflare === 'string' && viaCloudflare.length > 0) return viaCloudflare;
+  return req.ip ?? 'unknown';
+}
+
 export function createRateLimiter(options: RateLimiterOptions): RequestHandler & {
   reset: () => void;
 } {
   const buckets = new Map<string, Bucket>();
-  const keyOf = options.key ?? ((req: Request) => req.user?.id ?? req.ip ?? 'unknown');
+  const keyOf = options.key ?? ((req: Request) => req.user?.id ?? clientKey(req));
 
   // Fixed windows expire on read; this sweep only stops the map growing without
   // bound across a 3-hour event.

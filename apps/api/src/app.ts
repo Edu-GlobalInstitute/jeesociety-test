@@ -7,7 +7,7 @@ import { createAuth, type Auth } from './auth.js';
 import type { Env } from './env.js';
 import { createLogger, type Logger } from './logger.js';
 import { errorHandler, notFoundHandler } from './middleware/errors.js';
-import { createRateLimiter } from './middleware/rateLimit.js';
+import { clientKey, createRateLimiter } from './middleware/rateLimit.js';
 import { attemptRoutes } from './routes/attempt.js';
 import { statusRoutes } from './routes/status.js';
 import { profileRoutes } from './routes/profile.js';
@@ -165,8 +165,10 @@ export function createApp({ env, pool, log, auth }: AppDeps): BuiltApp {
     createRateLimiter({
       windowMs: 60_000,
       max: LIMITS.authPerMinute,
-      key: (req) => req.ip ?? 'unknown',
-      message: 'Too many attempts. Try again in a minute.',
+      // Not req.ip: with a proxy in front, a wrong hop count makes that the
+      // proxy's address and puts every user in one bucket. See clientKey.
+      key: clientKey,
+      message: 'Too many sign-in attempts from this network. Wait a minute and try again.',
     }),
   );
 

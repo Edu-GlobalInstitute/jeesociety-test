@@ -63,9 +63,20 @@ services:
         # multiplexes anyway, so a large pool here buys nothing and costs RAM.
         value: "5"
       - key: TRUST_PROXY_HOPS
-        # Render's edge is one hop. Never `true`: trusting every hop lets a
-        # client forge X-Forwarded-For and defeat the rate limiter.
-        value: "1"
+        # TWO hops now, not one: the browser reaches Cloudflare, the Pages
+        # Function forwards to Render, and Render's edge forwards to this
+        # process. Each appends to X-Forwarded-For.
+        #
+        # This was 1, which was right while browsers called Render directly.
+        # After the same-origin proxy went in it meant Express read the proxy's
+        # address instead of the student's -- so every user in the country
+        # shared one rate-limit bucket of ten requests a minute, and signing in
+        # answered "Too Many Requests" to people who had tried once.
+        #
+        # Still never `true`. Trusting every hop lets a client forge
+        # X-Forwarded-For and pick whichever bucket it likes, which is the
+        # rate limiter switched off.
+        value: "2"
       - key: SERVE_LOCAL_PAPERS
         value: "false"
       - key: CORS_ORIGINS

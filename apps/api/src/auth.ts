@@ -65,10 +65,24 @@ export function createAuth(env: Env, pool: Pool) {
         secure: env.NODE_ENV === 'production',
       },
     },
+    /*
+     * Better Auth's own limiter, on top of the one in app.ts.
+     *
+     * Raised from 20 for the same reason as LIMITS.authPerMinute: one address
+     * is often a whole coaching centre or hostel behind a single NAT, and the
+     * lower of two stacked limits is the one that bites. Twenty meant the
+     * outer limit could be generous and students still be refused.
+     *
+     * This one keys on the address Better Auth derives from the request, so it
+     * depends on `trust proxy` being right -- which is exactly what went wrong
+     * when the same-origin proxy was added. Keeping it well above the outer
+     * limit means the outer one, which uses cf-connecting-ip directly and
+     * cannot be thrown off by a hop count, is the one that decides.
+     */
     rateLimit: {
       enabled: true,
       window: 60,
-      max: 20,
+      max: 60,
     },
     /**
      * Two-factor authentication, for admins.

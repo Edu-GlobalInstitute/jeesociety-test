@@ -118,23 +118,32 @@ export async function onRequest(context) {
    * application. Turned into the shape every caller already handles.
    */
   const upstreamType = upstream.headers.get('content-type') ?? '';
-  if (upstreamType.includes('text/html')) {
+  if (!upstreamType.includes('application/json') && !upstreamType.includes('text/plain')
+      && upstream.status >= 400) {
+    // Non-JSON error bodies are never from the application: it answers JSON for
+    // every refusal it makes. Say which of the two it was, because the remedy
+    // differs and guessing sends people the wrong way -- the first version of
+    // this called a 429 a "security check", which is a diagnosis nobody can act
+    // on.
+    const throttled = upstream.status === 429;
     return new Response(
       JSON.stringify({
-        error: 'upstream_unavailable',
-        message:
-          'The API is behind a security check or is restarting, so this request did not '
-          + 'reach it. Wait a minute and try again.',
+        error: throttled ? 'rate_limited' : 'upstream_unavailable',
+        message: throttled
+          ? 'Too many requests reached the server in a short time, so it is turning some '
+            + 'away. Wait about a minute and try again.'
+          : 'The server did not answer this request. It may be restarting. Wait a moment '
+            + 'and try again.',
         upstreamStatus: upstream.status,
       }),
       {
-        status: 503,
+        status: throttled ? 429 : 503,
         headers: {
           'content-type': 'application/json',
           'cache-control': 'no-store',
-          // A challenge clears on its own; let the caller retry rather than
-          // caching the failure at the edge.
-          'retry-after': '30',
+          // Both clear on their own; let the caller retry rather than caching
+          // the failure at the edge.
+          'retry-after': throttled ? '60' : '30',
         },
       },
     );
