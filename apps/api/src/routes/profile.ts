@@ -171,7 +171,15 @@ function toDateString(value: Date): string {
 function firstMessage(issues: { path: (string | number)[]; message: string }[]): string {
   const first = issues[0];
   if (!first) return 'Check the form and try again.';
-  return first.message;
+  // Zod's message for a missing field is the bare word "Required", which names
+  // nothing and leaves whoever hit it guessing -- including anyone calling this
+  // outside the form, where there is no per-field display to fall back on. The
+  // field is in the issue; say it.
+  const field = first.path.filter((part) => typeof part === 'string').join('.');
+  if (!field) return first.message;
+  return first.message === 'Required'
+    ? `${field} is required.`
+    : `${field}: ${first.message}`;
 }
 
 function isUniqueViolation(error: unknown, constraint: string): boolean {
