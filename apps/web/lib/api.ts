@@ -26,12 +26,52 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     },
   });
   const text = await response.text();
-  const body = text ? JSON.parse(text) : {};
+
+  /*
+   * Not every response is JSON, and the ones that are not matter most.
+   *
+   * JSON.parse used to run on whatever came back, so anything that answered
+   * with HTML surfaced as `Unexpected token '<', "<!DOCTYPE "...` in front of
+   * whoever was signing in. That is the parser's complaint, not a description
+   * of the problem, and it names neither the cause nor anything to do about it.
+   *
+   * It happens for real reasons: a Cloudflare bot challenge or block page in
+   * front of the API, a proxy returning its own error, a 502 from the host
+   * while the service restarts, or a tunnel/captive portal intercepting the
+   * request. In every one of those the body is a web page, and the useful
+   * thing to say is that the API did not answer — with the status, which is
+   * what distinguishes them.
+   */
+  let body: Record<string, unknown> = {};
+  if (text) {
+    try {
+      body = JSON.parse(text) as Record<string, unknown>;
+    } catch {
+      const looksLikeHtml = /^\s*<(?:!doctype|html)/i.test(text);
+      if (looksLikeHtml) {
+        throw new ApiError(
+          response.status || 502,
+          'not_json',
+          response.status === 403 || response.status === 503
+            ? 'The server is being protected by a security check right now, so the site could '
+              + 'not reach it. Wait a minute and try again, or reload the page.'
+            : `The server returned a web page instead of data (${response.status}). `
+              + 'It may be restarting. Wait a moment and try again.',
+        );
+      }
+      throw new ApiError(
+        response.status || 502,
+        'bad_response',
+        `The server sent a reply the site could not read (${response.status}).`,
+      );
+    }
+  }
+
   if (!response.ok) {
     throw new ApiError(
       response.status,
-      body.error ?? 'unknown',
-      body.message ?? `Something went wrong (${response.status}).`,
+      (body.error as string) ?? 'unknown',
+      (body.message as string) ?? `Something went wrong (${response.status}).`,
     );
   }
   return body as T;

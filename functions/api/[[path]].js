@@ -103,6 +103,43 @@ export async function onRequest(context) {
     redirect: 'manual',
   });
 
+  /*
+   * An interception, not an answer.
+   *
+   * The API answers JSON. If something in front of it — a Cloudflare bot
+   * challenge, a block page, a host's own 502 while the service restarts —
+   * returns HTML instead, passing that through means the browser tries to
+   * JSON.parse a web page and the student reads
+   * `Unexpected token '<', "<!DOCTYPE "...` on the sign-in form. That names the
+   * parser's complaint and nothing about the cause.
+   *
+   * Recognising it here is better than recognising it in the client, because
+   * only this side knows it came from upstream rather than from the
+   * application. Turned into the shape every caller already handles.
+   */
+  const upstreamType = upstream.headers.get('content-type') ?? '';
+  if (upstreamType.includes('text/html')) {
+    return new Response(
+      JSON.stringify({
+        error: 'upstream_unavailable',
+        message:
+          'The API is behind a security check or is restarting, so this request did not '
+          + 'reach it. Wait a minute and try again.',
+        upstreamStatus: upstream.status,
+      }),
+      {
+        status: 503,
+        headers: {
+          'content-type': 'application/json',
+          'cache-control': 'no-store',
+          // A challenge clears on its own; let the caller retry rather than
+          // caching the failure at the edge.
+          'retry-after': '30',
+        },
+      },
+    );
+  }
+
   const responseHeaders = new Headers();
   for (const [name, value] of upstream.headers) {
     const lower = name.toLowerCase();
