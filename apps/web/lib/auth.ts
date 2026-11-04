@@ -34,6 +34,9 @@ export function signOut() {
 }
 
 export interface ProfileState {
+  /** From the session. Used to prefill the payment screen. */
+  name: string | null;
+  email: string | null;
   complete: boolean;
   profile: {
     phone: string;

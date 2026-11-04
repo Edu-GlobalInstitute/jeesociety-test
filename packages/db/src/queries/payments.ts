@@ -35,19 +35,95 @@ export function createPayment(
   );
 }
 
-/** Returns the latest unpaid order so retries reuse the same provider order. */
+/**
+ * How long an unfinished order keeps its place.
+ *
+ * Razorpay orders stay payable far longer than this, but a student who closed
+ * the window twenty minutes ago has moved on; handing them that order back is
+ * worse than minting a new one, because it also pins the coupon they used and
+ * refuses any change to it.
+ */
+export const OPEN_PAYMENT_TTL_MINUTES = 15;
+
+/**
+ * The order a retry should reuse, if there is one worth reusing.
+ *
+ * Two rules here, and both were bugs:
+ *
+ * `failed` is not reusable. A declined card ends with the provider's order
+ * dead, so returning it sent the student back to a checkout that could never
+ * succeed -- and because the row still existed, every retry found it again.
+ * Only `created` is offered back.
+ *
+ * An order expires. The row had no age limit at all, so a student who closed
+ * the Razorpay window once was blocked from paying for good: /payments/order
+ * found the stale row, refused to change the coupon, and told them to "wait for
+ * it to expire" when nothing in the system ever would. The worker's reconciler
+ * might have cleared it, but the worker is not deployed (see render.yaml), so
+ * in practice it was permanent.
+ */
 export function getOpenPayment(
   params: { userId: string; testId: number },
   db?: Queryable,
 ): Promise<PaymentRow | null> {
   return one<PaymentRow>(
     `SELECT ${PAYMENT_COLUMNS} FROM payments
-      WHERE user_id = $1 AND test_id = $2 AND status IN ('created', 'failed')
+      WHERE user_id = $1 AND test_id = $2
+        AND status = 'created'
+        AND created_at > now() - ($3 || ' minutes')::interval
       ORDER BY created_at DESC NULLS LAST, id DESC
       LIMIT 1`,
-    [params.userId, params.testId],
+    [params.userId, params.testId, String(OPEN_PAYMENT_TTL_MINUTES)],
     db,
   );
+}
+
+/**
+ * Retires an unfinished order so the student can start a fresh one.
+ *
+ * Called when a new order is about to be created and a stale `created` row
+ * would otherwise collide with the unique index on (user_id, test_id). Marking
+ * it `failed` rather than deleting it keeps the attempt in the record -- an
+ * abandoned checkout is a fact worth having when a student says they tried to
+ * pay -- and releases the coupon hold with it.
+ *
+ * Deliberately narrow: it never touches a `paid` row, and never one younger
+ * than the TTL, so a live checkout in another tab cannot be cancelled out from
+ * under the student.
+ */
+export async function expireStaleOpenPayments(
+  params: { userId: string; testId: number },
+  db?: Queryable,
+): Promise<number> {
+  const expired = await rows<{ id: number }>(
+    `UPDATE payments
+        SET status = 'failed', updated_at = now()
+      WHERE user_id = $1 AND test_id = $2
+        AND status = 'created'
+        AND created_at <= now() - ($3 || ' minutes')::interval
+      RETURNING id`,
+    [params.userId, params.testId, String(OPEN_PAYMENT_TTL_MINUTES)],
+    db,
+  );
+
+  if (expired.length > 0) {
+    // Release the coupon with the order it was held against.
+    //
+    // coupon_redemptions is UNIQUE on (coupon_id, user_id), so a hold left
+    // behind by an abandoned checkout burns that student's coupon for good --
+    // they would be told it is "already reserved or redeemed" on every later
+    // attempt, having never actually paid with it. Only unredeemed holds are
+    // dropped, so a coupon that really was spent stays spent.
+    await rows(
+      `DELETE FROM coupon_redemptions
+        WHERE payment_id = ANY($1::bigint[])
+          AND redeemed_at IS NULL`,
+      [expired.map((row) => row.id)],
+      db,
+    );
+  }
+
+  return expired.length;
 }
 
 /**

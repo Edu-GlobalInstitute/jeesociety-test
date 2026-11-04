@@ -39,6 +39,8 @@ export default function Register() {
   const [busy, setBusy] = useState(false);
   /** Null while unknown; false sends the student to step two. */
   const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
+  /** Kept so Razorpay's screen can be prefilled with what we already asked for. */
+  const [prefill, setPrefill] = useState<{ name?: string | null; email?: string | null; contact?: string | null }>({});
   const [couponCode, setCouponCode] = useState('');
   const [couponQuote, setCouponQuote] = useState<{ code: string; name: string; discountPaise: number; amount: number } | null>(null);
 
@@ -70,6 +72,11 @@ export default function Register() {
         return;
       }
       setProfileComplete(true);
+      setPrefill({
+        name: profile.name ?? null,
+        email: profile.email ?? null,
+        contact: profile.profile?.phone ?? null,
+      });
       await refresh();
     })();
   }, []);
@@ -97,26 +104,64 @@ export default function Register() {
         setMessage('Your coupon covers the full price. Your registration is confirmed.');
         return;
       }
-      openCheckout(order, () => {
-        // Poll: the webhook grants access, and it arrives independently of
-        // whatever the checkout window told us.
-        let tries = 0;
-        const timer = setInterval(async () => {
-          tries += 1;
-          await refresh();
-          const current = await api<Status>('/test/status').catch(() => null);
-          if (current?.paid || tries > 20) {
-            clearInterval(timer);
+      openCheckout(
+        order,
+        (outcome) => {
+          if (outcome === 'unavailable') {
             setBusy(false);
-            if (!current?.paid) {
+            setMessage(
+              'The payment window could not open. Check that nothing is blocking scripts from '
+              + 'razorpay.com, then try again. Nothing has been charged.',
+            );
+            return;
+          }
+          if (outcome === 'dismissed') {
+            // They closed the window. Nothing is coming, so do not leave them
+            // watching a spinner that resolves into a message about money.
+            setBusy(false);
+            setMessage('Payment cancelled. Nothing has been charged — you can try again whenever you are ready.');
+            return;
+          }
+
+          /*
+           * A payment was submitted. Access is granted by the webhook, which
+           * arrives independently of this browser, so poll until it lands.
+           *
+           * Two minutes, not one. Razorpay usually calls within seconds, but a
+           * retry or a slow bank pushes it past a minute, and the old window
+           * gave up at sixty seconds -- telling a student who had genuinely
+           * paid that confirmation had not arrived. Easing the interval keeps
+           * the common case fast without hammering the API for the whole wait.
+           */
+          setMessage('Confirming your payment…');
+          let waited = 0;
+          const deadlineMs = 120_000;
+
+          const poll = async () => {
+            await refresh();
+            const current = await api<Status>('/test/status').catch(() => null);
+            if (current?.paid) {
+              setBusy(false);
+              setMessage('Payment confirmed. Your seat is booked.');
+              return;
+            }
+            if (waited >= deadlineMs) {
+              setBusy(false);
               setMessage(
                 'We have not had confirmation from the payment provider yet. If money has left '
-                + 'your account, it will appear here within a few minutes. You do not need to pay again.',
+                + 'your account it will appear here shortly, and you do not need to pay again. '
+                + 'This page updates on its own if you leave it open.',
               );
+              return;
             }
-          }
-        }, 3_000);
-      });
+            const next = waited < 30_000 ? 3_000 : 8_000;
+            waited += next;
+            window.setTimeout(() => void poll(), next);
+          };
+          void poll();
+        },
+        prefill,
+      );
     } catch (error) {
       setBusy(false);
       setMessage(

@@ -40,6 +40,11 @@ export function profileRoutes({
     ]);
 
     res.json({
+      // From the session, not a second query. The payment page prefills
+      // Razorpay's screen with these: a student who has already given us a name
+      // and a number should not be asked for them again at checkout.
+      name: me.name,
+      email: me.email,
       complete: profile?.profile_complete ?? false,
       profile: profile
         ? {

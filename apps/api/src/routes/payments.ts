@@ -104,10 +104,26 @@ export function paymentRoutes({
       );
     }
 
+    /*
+     * Clear anything stale before looking for a live order.
+     *
+     * Without this a student who closed the Razorpay window once was blocked
+     * from ever paying: the abandoned row stayed `created` for good, this route
+     * found it, refused any change of coupon, and told them to wait for an
+     * expiry that nothing in the system performed. The worker's reconciler
+     * would have swept it up, but the worker is not deployed -- so doing it
+     * here, on the one path that cares, is what makes the retry work.
+     */
+    await payments.expireStaleOpenPayments({ userId: me.id, testId: test.id }, pool);
+
     const existing = await payments.getOpenPayment({ userId: me.id, testId: test.id }, pool);
     if (existing) {
       if ((existing.coupon_code ?? null) !== (couponCode ?? null)) {
-        throw conflict('payment_pending', 'A payment is already pending. Finish it or wait for it to expire before changing the coupon.');
+        throw conflict(
+          'payment_pending',
+          'A payment you started is still open. Finish it, or wait a few minutes and try '
+            + 'again to change the coupon.',
+        );
       }
       res.json({ orderId: existing.razorpay_order_id, amount: existing.amount,
         currency: 'INR', keyId: env.RAZORPAY_KEY_ID, couponCode: existing.coupon_code,

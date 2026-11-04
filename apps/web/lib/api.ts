@@ -50,22 +50,74 @@ export interface RazorpayOrder {
  * is forgeable and it also fails silently whenever a student closes the tab on
  * the success screen.
  */
-export function openCheckout(order: RazorpayOrder, onClosed: () => void): void {
+export interface CheckoutPrefill {
+  /** Shown on Razorpay's screen so the student knows whose payment this is. */
+  name?: string | null;
+  email?: string | null;
+  /** Ten digits; Razorpay prefixes the country code itself. */
+  contact?: string | null;
+}
+
+export type CheckoutOutcome = 'submitted' | 'dismissed' | 'unavailable';
+
+/**
+ * Opens Razorpay's checkout.
+ *
+ * Note what happens on success: nothing. Access is granted by the
+ * server-to-server webhook, never by this callback — that path is forgeable,
+ * and it also never fires when a student closes the tab on the success screen.
+ *
+ * What the callback does carry is *which* way the window closed, which the page
+ * needs in order to say something true. `handler` means the student submitted a
+ * payment and the webhook is now expected; `ondismiss` means they closed the
+ * window and nothing is coming. Reporting both as "we are confirming your
+ * payment" left someone who had simply changed their mind watching a spinner
+ * for a minute and then reading that their money may arrive shortly.
+ *
+ * Prefilling matters more than it looks: Razorpay asks for a phone number, and
+ * a student who has already given us one should not have to find it again on a
+ * payment screen.
+ */
+export function openCheckout(
+  order: RazorpayOrder,
+  onClosed: (outcome: CheckoutOutcome) => void,
+  prefill: CheckoutPrefill = {},
+): void {
   const razorpay = (window as unknown as { Razorpay?: new (options: unknown) => { open: () => void } })
     .Razorpay;
   if (!razorpay) {
-    onClosed();
+    // The script is blocked or has not loaded. Saying so beats a dead button.
+    onClosed('unavailable');
     return;
   }
+
+  // Razorpay fires ondismiss after handler in some flows; only the first
+  // outcome is the real one.
+  let settled = false;
+  const settle = (outcome: CheckoutOutcome) => {
+    if (settled) return;
+    settled = true;
+    onClosed(outcome);
+  };
+
   new razorpay({
     key: order.keyId,
     amount: order.amount,
     currency: order.currency,
     order_id: order.orderId,
-    name: 'JEE Main Mock',
-    description: 'Test registration',
-    handler: onClosed,
-    modal: { ondismiss: onClosed },
+    name: 'JEEsociety',
+    description: 'Scholarship test registration',
+    prefill: {
+      ...(prefill.name ? { name: prefill.name } : {}),
+      ...(prefill.email ? { email: prefill.email } : {}),
+      ...(prefill.contact ? { contact: prefill.contact } : {}),
+    },
+    // The site's own accent, so the payment screen does not look like a
+    // different company's.
+    theme: { color: '#ff8c42' },
+    retry: { enabled: false },
+    handler: () => settle('submitted'),
+    modal: { ondismiss: () => settle('dismissed') },
   }).open();
 }
 
