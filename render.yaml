@@ -107,3 +107,74 @@ services:
         sync: false
       - key: RAZORPAY_WEBHOOK_SECRET
         sync: false
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # The worker.
+  #
+  # Absent until now, which meant three things nobody had noticed were not
+  # happening:
+  #
+  #   auto-submit. A student who closes their laptop at 11:58 is never
+  #   submitted at all, because nothing finalises an attempt when the window
+  #   shuts. Their paper simply stays in progress and scores nothing.
+  #
+  #   scoring. mcq_score is what turns answers into marks. Without it there is
+  #   no result to release, and running it inside an HTTP request would time out
+  #   behind Render's proxy long before 25,000 attempts were scored.
+  #
+  #   payment reconciliation. A captured payment whose webhook never arrived
+  #   stays `created` for ever, so a student who paid is told they have not.
+  #   This is one cause of "I paid and it is not showing".
+  #
+  # It is a background worker, not a web service: no port, no health check, no
+  # inbound traffic. It claims jobs from `job_runs` with FOR UPDATE SKIP LOCKED,
+  # so running more than one replica is safe — but one is enough, and a second
+  # only adds ways to be surprised.
+  - type: worker
+    name: jee-worker
+    runtime: node
+    # Starter, not free: Render's free tier has no worker type, and this process
+    # must be awake at 12:00 on exam day whether or not anyone has made a
+    # request. A sleeping scorer is the same as no scorer.
+    plan: starter
+    region: singapore
+    branch: main
+
+    buildCommand: >-
+      NODE_ENV=development npx --yes pnpm@9.15.4 install --frozen-lockfile &&
+      npx --yes pnpm@9.15.4 -r --filter @jee/shared --filter @jee/db --filter @jee/worker build
+    startCommand: node apps/worker/dist/worker.js
+
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NODE_ENV
+        value: production
+      - key: PG_POOL_MAX
+        # Smaller than the API's: this process runs a handful of queries at a
+        # time, and the exam hour needs the pooler's connections for students.
+        value: "4"
+      - key: WORKER_JOBS
+        # The three continuous loops. Scoring is not listed because it is not a
+        # loop: mcq_score is claimed from job_runs when the admin schedules it
+        # or when a test closes, which is what makes it re-runnable after an
+        # answer-key correction.
+        value: autosubmit,flags,payments
+      - key: POLL_INTERVAL_MS
+        value: "5000"
+
+      # Note what WORKER_JOBS above does NOT contain: `backup`. That loop shells
+      # out to pg_dump, which is not on Render's Node image, and Neon takes its
+      # own backups anyway. Adding it without a pg_dump binary logs
+      # "BACKUPS DISABLED" and takes none, which is worse than deciding not to.
+
+      # Set by hand, the same values as jee-api. The reconciler calls Razorpay
+      # to ask what really happened to a stuck payment, so it needs the keys.
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_URL_UNPOOLED
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
