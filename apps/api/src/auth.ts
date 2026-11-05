@@ -64,6 +64,26 @@ export function createAuth(env: Env, pool: Pool) {
         sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
         secure: env.NODE_ENV === 'production',
       },
+      ipAddress: {
+        /*
+         * Which header carries the client, rather than letting it guess.
+         *
+         * Better Auth's default order checks x-forwarded-for before
+         * cf-connecting-ip and takes the first value in the list. The proxy
+         * sets x-forwarded-for to the real client, but Render's edge appends
+         * its own address -- so what Better Auth read was not reliably the
+         * student, and its rate limiter put everyone in one bucket of sixty a
+         * minute. Signing in then answered "Too many requests" to someone who
+         * had tried once.
+         *
+         * cf-connecting-ip is set by Cloudflare to the real client and
+         * overwrites whatever a client sent, so it cannot be forged through
+         * the proxy -- and this API is only reachable through it. Naming it
+         * first makes this limiter agree with the one in app.ts, which keys on
+         * the same header.
+         */
+        ipAddressHeaders: ['cf-connecting-ip', 'x-forwarded-for'],
+      },
     },
     /*
      * Better Auth's own limiter, on top of the one in app.ts.
