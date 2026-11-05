@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { api } from '../../../lib/api';
+import { adminErrorMessage, api } from '../../../lib/api';
 
 /**
  * The sales CRM.
@@ -70,6 +70,8 @@ const PAGE = 50;
 function LeadsBoard() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [total, setTotal] = useState(0);
+  /** Paid and unpaid counts, from the server so the tabs cannot disagree with the rows. */
+  const [split, setSplit] = useState<{ paid: number; unpaid: number; revenuePaise: number } | null>(null);
   const [offset, setOffset] = useState(0);
   const [owners, setOwners] = useState<{ userId: string; name: string | null; email: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -103,14 +105,19 @@ function LeadsBoard() {
       const params = new URLSearchParams(query);
       params.set('limit', String(PAGE));
       params.set('offset', String(nextOffset));
-      api<{ leads: Lead[]; total: number }>(`/admin/leads?${params}`)
+      api<{
+        leads: Lead[];
+        total: number;
+        split: { paid: number; unpaid: number; revenuePaise: number };
+      }>(`/admin/leads?${params}`)
         .then((next) => {
           setLeads(next.leads);
           setTotal(next.total);
+          setSplit(next.split);
           setOffset(nextOffset);
           setError(null);
         })
-        .catch(() => setError('Could not load leads. Admin access is required.'))
+        .catch((caught) => setError(adminErrorMessage(caught, 'the lead list')))
         .finally(() => setBusy(false));
     },
     [query],
@@ -204,6 +211,47 @@ function LeadsBoard() {
       {error ? <p className="msg msg--bad">{error}</p> : null}
 
       {/* Filters in one row above the table. */}
+      {/*
+        Two sections, not a filter.
+        
+        Unpaid is a call list and paid is a record -- different jobs, read at
+        different times, so they get their own headings rather than hiding
+        behind a dropdown nobody remembers to set. The counts come from the
+        server with every page, so a heading can never disagree with the rows
+        under it.
+      */}
+      <div className="row seg" style={{ marginBottom: 14 }}>
+        <button
+          type="button"
+          className={payment === '' ? 'seg__tab seg__tab--on' : 'seg__tab'}
+          onClick={() => setPayment('')}
+        >
+          Everyone
+          <span className="seg__count tnum">{split ? split.paid + split.unpaid : '—'}</span>
+        </button>
+        <button
+          type="button"
+          className={payment === 'unpaid' ? 'seg__tab seg__tab--on' : 'seg__tab'}
+          onClick={() => setPayment('unpaid')}
+        >
+          Not paid
+          <span className="seg__count tnum">{split ? split.unpaid : '—'}</span>
+        </button>
+        <button
+          type="button"
+          className={payment === 'paid' ? 'seg__tab seg__tab--on' : 'seg__tab'}
+          onClick={() => setPayment('paid')}
+        >
+          Paid
+          <span className="seg__count tnum">{split ? split.paid : '—'}</span>
+        </button>
+        {split && split.revenuePaise > 0 ? (
+          <span className="seg__revenue">
+            ₹{(split.revenuePaise / 100).toLocaleString('en-IN')} collected
+          </span>
+        ) : null}
+      </div>
+
       <div className="card" style={{ marginBottom: 14 }}>
         <div className="row">
           <input
@@ -220,11 +268,6 @@ function LeadsBoard() {
                 {STAGE_LABELS[value]}
               </option>
             ))}
-          </select>
-          <select className="sel sel--sm" style={{ width: 'auto' }} value={payment} onChange={(e) => setPayment(e.target.value)}>
-            <option value="">Paid or not</option>
-            <option value="paid">Paid</option>
-            <option value="unpaid">Not paid</option>
           </select>
           <select
             className="sel sel--sm"

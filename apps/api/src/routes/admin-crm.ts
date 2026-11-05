@@ -122,10 +122,16 @@ export function adminCrmRoutes({
       pool,
     );
 
+    // The split is returned with every page so the two section headings always
+    // agree with the rows beneath them. Counting separately in the browser is
+    // how "3 students" ended up above two rows.
+    const split = await leads.paymentSplit(pool);
+
     res.json({
       total,
       limit: query.limit,
       offset: query.offset,
+      split,
       leads: list.map(serialiseLead),
     });
   });

@@ -389,3 +389,53 @@ export function listAdmins(
     db,
   );
 }
+
+export interface PaymentSplit {
+  paid: number;
+  unpaid: number;
+  revenuePaise: number;
+}
+
+/**
+ * How many leads have paid and how many have not.
+ *
+ * The CRM shows these as two sections rather than a filter, because they are
+ * two different jobs: unpaid is a call list, paid is a record. The counts have
+ * to come from the same exclusions the list uses -- admins and removed leads
+ * are out of both -- or the tab headings disagree with the rows beneath them,
+ * which is exactly the "3 students, 2 rows" confusion this had before.
+ *
+ * Paid is read from `payments`, never from a pipeline stage. There is no
+ * 'paid' stage for this reason: two places that both claim to know whether a
+ * student paid will eventually disagree, and the one holding the money is
+ * right.
+ */
+export async function paymentSplit(db?: Queryable): Promise<PaymentSplit> {
+  const row = await one<Record<string, string>>(
+    `WITH visible AS (
+       SELECT u."id",
+              EXISTS (SELECT 1 FROM payments p
+                       WHERE p.user_id = u."id" AND p.status = 'paid') AS has_paid
+         FROM "user" u
+        WHERE NOT EXISTS (SELECT 1 FROM admins a WHERE a.user_id = u."id")
+          AND NOT EXISTS (SELECT 1 FROM crm_lead_dismissals d WHERE d.user_id = u."id")
+     )
+     SELECT
+       count(*) FILTER (WHERE has_paid)     AS paid,
+       count(*) FILTER (WHERE NOT has_paid) AS unpaid,
+       COALESCE((
+         SELECT sum(p.amount) FROM payments p
+          WHERE p.status = 'paid'
+            AND p.user_id IN (SELECT "id" FROM visible)
+       ), 0) AS revenue
+     FROM visible`,
+    [],
+    db,
+  );
+
+  return {
+    paid: Number(row?.paid ?? 0),
+    unpaid: Number(row?.unpaid ?? 0),
+    revenuePaise: Number(row?.revenue ?? 0),
+  };
+}

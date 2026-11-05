@@ -24,6 +24,22 @@ import { one, rows, type Queryable } from '../query.js';
 /** A calendar day in IST. */
 const IST = `'Asia/Kolkata'`;
 
+/**
+ * Who counts as a student, for every figure on the dashboard.
+ *
+ * Staff are not leads, and a lead removed from the CRM should stay removed --
+ * the dashboard kept counting them, so deleting someone from the CRM left the
+ * signup totals unchanged and the two screens disagreed about how many students
+ * there were.
+ *
+ * Written once and interpolated, rather than repeated at each call site, so a
+ * later exclusion cannot be added to two of three queries.
+ */
+const COUNTS_AS_STUDENT = `
+  NOT EXISTS (SELECT 1 FROM admins a WHERE a.user_id = u."id")
+  AND NOT EXISTS (SELECT 1 FROM crm_lead_dismissals d WHERE d.user_id = u."id")
+`;
+
 export interface KpiWindow {
   days: number;
   signups: number;
@@ -55,9 +71,11 @@ export async function kpiWindow(days: number, db?: Queryable): Promise<KpiWindow
      )
      SELECT
        (SELECT count(*) FROM "user" u, bounds b
-         WHERE u."createdAt" >= b.this_start) AS signups,
+         WHERE u."createdAt" >= b.this_start
+           AND ${COUNTS_AS_STUDENT}) AS signups,
        (SELECT count(*) FROM "user" u, bounds b
-         WHERE u."createdAt" >= b.prev_start AND u."createdAt" < b.this_start)
+         WHERE u."createdAt" >= b.prev_start AND u."createdAt" < b.this_start
+           AND ${COUNTS_AS_STUDENT})
          AS prev_signups,
        (SELECT count(DISTINCT p.user_id) FROM payments p, bounds b
          WHERE p.status = 'paid' AND p.updated_at >= b.this_start) AS paid,
@@ -119,7 +137,7 @@ export async function dailySeries(days: number, db?: Queryable): Promise<DailyPo
      FROM days d
      LEFT JOIN (
        SELECT (u."createdAt" AT TIME ZONE ${IST})::date AS day, count(*) AS n
-         FROM "user" u GROUP BY 1
+         FROM "user" u WHERE ${COUNTS_AS_STUDENT} GROUP BY 1
      ) s ON s.day = d.day
      LEFT JOIN (
        SELECT (pay.updated_at AT TIME ZONE ${IST})::date AS day,
@@ -153,8 +171,7 @@ export interface FunnelTotals {
 export async function funnelTotals(db?: Queryable): Promise<FunnelTotals> {
   const row = await one<Record<string, string>>(
     `SELECT
-       (SELECT count(*) FROM "user" u
-         WHERE NOT EXISTS (SELECT 1 FROM admins a WHERE a.user_id = u."id")) AS signups,
+       (SELECT count(*) FROM "user" u WHERE ${COUNTS_AS_STUDENT}) AS signups,
        (SELECT count(*) FROM student_profiles WHERE profile_complete) AS profiles,
        (SELECT count(DISTINCT user_id) FROM payments) AS orders,
        (SELECT count(DISTINCT user_id) FROM payments WHERE status = 'paid') AS paid,
