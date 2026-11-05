@@ -28,6 +28,30 @@ export const MCQ_MARKS = {
 export const TEST_FEE_PAISE = 49_900;
 
 /**
+ * The standard marketing discount, in paise.
+ *
+ * Every code handed to a partner or an influencer takes the same amount off,
+ * so a student comparing two codes is never told one is worth more than
+ * another, and support never has to explain why. The admin screen defaults to
+ * this; a different figure is still possible, deliberately, for a one-off.
+ *
+ * Kept beside TEST_FEE_PAISE because the pair is what decides what a student
+ * actually pays: 49_900 − 20_000 = 29_900, the ₹299 the codes promise.
+ */
+export const STANDARD_COUPON_DISCOUNT_PAISE = 20_000;
+
+/**
+ * The most any coupon may take off.
+ *
+ * Capped at the fee, so a coupon cannot be worth more than the thing it
+ * discounts. The payment route clamps too — a quote never goes negative — but
+ * a cap at the point of creation means the mistake is caught while someone is
+ * looking at it, rather than discovered when a student is handed a free seat
+ * by a mistyped figure.
+ */
+export const MAX_COUPON_DISCOUNT_PAISE = TEST_FEE_PAISE;
+
+/**
  * The one thing being given away: a seat in the mentorship programme.
  *
  * Every mention of it on the landing page — the headline, the ticker, the

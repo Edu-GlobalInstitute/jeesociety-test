@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { MENTORSHIP, TEST_FEE_PAISE } from '../config.js';
+import {
+  MAX_COUPON_DISCOUNT_PAISE,
+  MENTORSHIP,
+  STANDARD_COUPON_DISCOUNT_PAISE,
+  TEST_FEE_PAISE,
+} from '../config.js';
 
 /**
  * The price, pinned.
@@ -51,5 +56,42 @@ describe('the entry fee', () => {
    */
   it('is far below the mentorship seat it can win', () => {
     expect(MENTORSHIP.worthRupees * 100).toBeGreaterThan(TEST_FEE_PAISE);
+  });
+});
+
+/**
+ * Coupons.
+ *
+ * Every marketing code takes the same amount off, so a student comparing two
+ * codes is never told one is worth more than another. The figures are pinned
+ * the same way the fee is: stated independently here, so changing one is two
+ * deliberate edits rather than a typo.
+ */
+describe('the standard coupon', () => {
+  /** What the codes promise students: ₹499 − ₹200 = ₹299. */
+  const AGREED_DISCOUNT_RUPEES = 200;
+
+  it(`takes ₹${AGREED_DISCOUNT_RUPEES} off`, () => {
+    expect(STANDARD_COUPON_DISCOUNT_PAISE).toBe(AGREED_DISCOUNT_RUPEES * 100);
+  });
+
+  it('leaves a payable amount, not a free seat', () => {
+    const payable = TEST_FEE_PAISE - STANDARD_COUPON_DISCOUNT_PAISE;
+    expect(payable).toBeGreaterThan(0);
+    expect(payable).toBe(29_900);
+  });
+
+  /**
+   * A coupon worth more than the ticket is not a discount, it is a free seat
+   * with extra steps. The payment route clamps as well, so a quote can never
+   * go negative — this stops the figure being wrong in the first place.
+   */
+  it('cannot be created for more than the fee', () => {
+    expect(MAX_COUPON_DISCOUNT_PAISE).toBe(TEST_FEE_PAISE);
+    expect(STANDARD_COUPON_DISCOUNT_PAISE).toBeLessThanOrEqual(MAX_COUPON_DISCOUNT_PAISE);
+  });
+
+  it('is a whole number of paise, since Razorpay takes integers', () => {
+    expect(Number.isInteger(STANDARD_COUPON_DISCOUNT_PAISE)).toBe(true);
   });
 });

@@ -4,11 +4,28 @@ import { admin, coupons, type Pool } from '@jee/db';
 import type { Auth } from '../auth.js';
 import { currentUser, requireAdmin } from '../middleware/session.js';
 import { conflict, notFound } from '../middleware/errors.js';
+import { MAX_COUPON_DISCOUNT_PAISE, STANDARD_COUPON_DISCOUNT_PAISE } from '@jee/shared';
 
+/**
+ * A coupon, as the admin screen submits it.
+ *
+ * The discount is capped at the fee. It was capped at ten lakh, which let a
+ * mistyped figure create a coupon worth two thousand times the ticket --
+ * harmless at the till, because quoteFor clamps the discount to the fee and a
+ * payment can never go negative, but the coupon would still read "₹1,000,000
+ * off" wherever it was shown, and nobody would find out until a student asked.
+ * Catching it here means it is caught while someone is looking at it.
+ */
 const CouponInput = z.object({
   name: z.string().trim().min(1).max(120),
   code: z.string().trim().toUpperCase().regex(/^[A-Z0-9][A-Z0-9_-]{2,31}$/),
-  discountRupees: z.number().finite().min(0.01).max(1_000_000)
+  discountRupees: z
+    .number()
+    .finite()
+    .min(0.01)
+    .max(MAX_COUPON_DISCOUNT_PAISE / 100, {
+      message: `A coupon cannot take off more than the ₹${MAX_COUPON_DISCOUNT_PAISE / 100} fee.`,
+    })
     .refine((amount) => Math.abs(amount * 100 - Math.round(amount * 100)) < 0.000001),
   active: z.boolean().optional(),
 });
@@ -41,7 +58,13 @@ export function adminCouponRoutes({ pool, auth }: { pool: Pool; auth: Auth }): R
 
   router.get('/', async (_req, res) => {
     const list = await coupons.listCouponsForAdmin(pool);
-    res.json({ coupons: list.map(view) });
+    res.json({
+      coupons: list.map(view),
+      // The form defaults to this, so every marketing code takes the same
+      // amount off without anyone having to remember the figure.
+      standardDiscountRupees: STANDARD_COUPON_DISCOUNT_PAISE / 100,
+      maxDiscountRupees: MAX_COUPON_DISCOUNT_PAISE / 100,
+    });
   });
 
   router.post('/', async (req, res) => {
