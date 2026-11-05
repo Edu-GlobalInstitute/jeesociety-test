@@ -100,7 +100,17 @@ export function createAuth(env: Env, pool: Pool) {
      * cannot be thrown off by a hop count, is the one that decides.
      */
     rateLimit: {
-      enabled: true,
+      /*
+       * OFF, 5 November 2026, with the limiter in middleware/rateLimit.ts.
+       *
+       * This one is Better Auth's own and is enforced inside the library, so
+       * disabling the outer limiter alone would leave it firing -- it was the
+       * second of the two "Too many requests" screens. It keys on the address
+       * Better Auth derives from the request, which depends on `trust proxy`
+       * being right, so it was also the one that could be wrong without
+       * anything looking wrong.
+       */
+      enabled: false,
       window: 60,
       max: 60,
     },

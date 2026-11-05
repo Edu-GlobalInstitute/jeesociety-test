@@ -146,19 +146,32 @@ describe('POST /attempt/sync', () => {
     expect(JSON.stringify(rows)).not.toContain('secret answer');
   });
 
-  it('rate-limits a looping client without losing its work', async () => {
+  /**
+   * Rate limiting is off site-wide (RATE_LIMITING_DISABLED in
+   * middleware/rateLimit.ts), so a client syncing faster than once per 90 s is
+   * now served rather than refused.
+   *
+   * This test used to assert the opposite: that a third sync inside a minute
+   * came back 429 with the work preserved at revision 2. It is kept, inverted,
+   * rather than deleted, because the thing that actually matters either way is
+   * the second half -- that rapid syncs do not corrupt the attempt. Revision
+   * must still advance monotonically to the last one accepted, which is what
+   * guarantees a student's answers are never rolled back by a retry storm.
+   *
+   * If the limiter is switched back on before 29 November, this expectation
+   * flips back to 429 / revision 2.
+   */
+  it('serves a looping client and keeps its revisions in order', async () => {
     await sync({ attemptId, revision: 1, answers: { q1: 'A' } });
     await sync({ attemptId, revision: 2, answers: { q1: 'B' } });
     const third = await sync({ attemptId, revision: 3, answers: { q1: 'C' } });
 
-    expect(third.status).toBe(429);
-    // The message must never suggest the student's work is at risk.
-    expect(third.body.message).toMatch(/saved/i);
+    expect(third.status).toBe(200);
 
     const { rows } = await api.db.pool.query(`SELECT revision FROM attempts WHERE id = $1`, [
       attemptId,
     ]);
-    expect(rows[0]!.revision).toBe(2);
+    expect(rows[0]!.revision).toBe(3);
   });
 });
 

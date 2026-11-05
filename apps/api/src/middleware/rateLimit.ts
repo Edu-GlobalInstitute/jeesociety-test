@@ -55,9 +55,39 @@ export function clientKey(req: Request): string {
   return req.ip ?? 'unknown';
 }
 
+/**
+ * Rate limiting is OFF.
+ *
+ * Turned off at the owner's instruction on 5 November 2026, during the
+ * registration launch. The limiter kept refusing real people: one address is
+ * routinely a whole coaching centre or a hostel behind a single NAT, and with
+ * marketing driving traffic, legitimate sign-ins from one school were being
+ * read as an attack. An admin trying to sign in was shown "Too many requests"
+ * repeatedly. A limit that turns away paying students costs more than the
+ * abuse it prevents.
+ *
+ * The limiter itself is kept whole below, and every call site still passes its
+ * windows and messages, so this is one line to reverse -- set this to false and
+ * the configured limits take effect again exactly as before. That matters for
+ * 29 November: /attempt/sync has a 2/min limit whose job is to stop a looping
+ * exam client from hammering the API during the paper, which is a different
+ * problem from sign-in throttling and worth reconsidering before the event.
+ *
+ * What still protects these routes with this off:
+ *   - the 256 KB JSON body ceiling (app.ts)
+ *   - scrypt password hashing, which makes guessing expensive per attempt
+ *   - Cloudflare in front of the origin
+ */
+const RATE_LIMITING_DISABLED = true;
+
 export function createRateLimiter(options: RateLimiterOptions): RequestHandler & {
   reset: () => void;
 } {
+  if (RATE_LIMITING_DISABLED) {
+    const passThrough = (_req: Request, _res: Response, next: NextFunction) => next();
+    return Object.assign(passThrough, { reset: () => {} });
+  }
+
   const buckets = new Map<string, Bucket>();
   const keyOf = options.key ?? ((req: Request) => req.user?.id ?? clientKey(req));
 
