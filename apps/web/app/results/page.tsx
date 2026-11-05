@@ -40,6 +40,32 @@ export default function Results() {
         <ResultWall />
       </div>
 
+      {/* ── The sheet the four conversations came off ─────────────────── */}
+      <section className="rboard">
+        <div className="wrap rboard__inner">
+          <p className="rboard__eyebrow">The sheet it all came off</p>
+          <h2 className="rboard__title">Eighteen names, one session</h2>
+          <figure className="rboard__figure">
+            <img
+              className="rboard__img"
+              src="/result.jpeg"
+              width={1024}
+              height={1470}
+              loading="lazy"
+              decoding="async"
+              alt={
+                'JEEsociety results, JEE Main 2026 Session 2. Rank 1 Prahlad Nambirajan '
+                + 'at 99.61 percentile, rank 2 Shubh at 99.56, rank 3 Sanskar at 99.50. '
+                + 'Then the top fifteen: Chirag 99.30, Kushagra 99.16, Pranay Pratyush '
+                + 'Chaubey 99.15, A Thashmika 99.10, Suyash 99.00, Sarthak 98.99, Vivek '
+                + '98.85, Swayam 98.72, Mrinal 98.42, Tanay 98.10, Rahul 97.90, Nikhil '
+                + '97.88, Dhruv Kaushal 97.80, Mudit 97.53 and Updesh 97.14.'
+              }
+            />
+          </figure>
+        </div>
+      </section>
+
       {/* ── The one thing to do after watching ────────────────────────── */}
       <section className="rfinale">
         <span className="rfinale__seal" aria-hidden="true"><Seal /></span>

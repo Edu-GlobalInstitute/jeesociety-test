@@ -470,6 +470,87 @@
 }
 
 
+/* ── The scoreboard ───────────────────────────────────────────────────── */
+
+/*
+ * The poster is a black sheet with gold on it, so it cannot simply be dropped
+ * onto the white stock the slips are printed on — it would read as a hole in
+ * the page. It gets a night band of its own instead, which also gives the
+ * sheet the rhythm it was missing: cream hero, white wall, night, sunrise.
+ */
+.rboard {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  margin: clamp(44px, 7vw, 84px) 0 0;
+  padding: clamp(40px, 6vw, 74px) 0 clamp(44px, 6vw, 78px);
+  text-align: center;
+  background: var(--navy-deep);
+}
+
+/* The same low sun as the hero, swung round to the other shoulder and burnt
+   down to an ember, because on night stock the gold is doing the lighting. */
+.rboard::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: -30%;
+  left: -18%;
+  width: min(80vw, 820px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle, rgba(255, 201, 60, 0.16) 0%, rgba(255, 201, 60, 0) 64%),
+    radial-gradient(circle, rgba(255, 140, 66, 0.12) 0%, rgba(255, 140, 66, 0) 46%);
+}
+
+.rboard__inner { max-width: 760px; }
+
+.rboard__eyebrow {
+  margin: 0 0 12px;
+  font-family: var(--poster);
+  font-weight: 800;
+  font-stretch: 88%;
+  font-size: 0.78rem;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.rboard__title {
+  margin: 0;
+  font-family: var(--poster);
+  font-weight: 900;
+  font-stretch: 84%;
+  font-size: clamp(1.8rem, 5.6vw, 2.9rem);
+  line-height: 0.99;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+/* A hairline of gold around the sheet and a shadow under it, so the poster
+   sits on the band as a printed thing rather than bleeding into it — its own
+   background is near enough to this one to vanish at the edges otherwise. */
+.rboard__figure {
+  margin: clamp(26px, 4vw, 44px) auto 0;
+  max-width: 560px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 201, 60, 0.22);
+  overflow: hidden;
+  box-shadow:
+    0 30px 60px -28px rgba(0, 0, 0, 0.9),
+    0 0 0 6px rgba(255, 255, 255, 0.015);
+}
+
+.rboard__img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+
 /* ── The closing band ─────────────────────────────────────────────────── */
 
 .rfinale {
