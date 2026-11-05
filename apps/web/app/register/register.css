@@ -427,6 +427,90 @@
 
 .reg__open { margin-top: 18px; }
 
+/* ── The WhatsApp community invite ────────────────────────────────────── */
+
+/*
+ * Separated from what is above it by a rule, not just space: everything higher
+ * in this panel is the transaction -- the receipt, the date, the waiting room
+ * -- and this is an invitation. The line says "that part is finished".
+ */
+.reg__community {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--rule);
+}
+
+.reg__community-why {
+  margin: 0 0 12px;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+/*
+ * WhatsApp's own green, as a bordered button rather than a filled one.
+ *
+ * Filled green would compete with the gold primary action directly above it,
+ * and on the pre-exam screen it would be the loudest thing on a page whose
+ * actual message is "there is nothing for you to do until then". The brand
+ * colour is still carried by the icon and the border, so the button is
+ * recognisable at a glance without claiming to be the main action.
+ *
+ * #17733d rather than WhatsApp's own #25D366. Measured against this button's
+ * composited background (#ecf3e1, the 7% green tint over the page's cream),
+ * the brand green manages 1.74:1 -- nowhere near the 4.5:1 WCAG AA asks for
+ * body text, and genuinely hard to read. #17733d is the same hue darkened to
+ * 5.20:1 against that background and 5.44:1 against bare cream, so it passes
+ * in both places this button can sit while still reading as WhatsApp green.
+ *
+ * The 7% fill stays WhatsApp's actual brand green: as a wash behind dark text
+ * it carries the colour without having to be legible itself.
+ */
+.reg__wa {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 46px;
+  padding: 11px 18px;
+  border: 1px solid #17733d;
+  border-radius: var(--radius);
+  background: rgba(37, 211, 102, 0.07);
+  color: #17733d;
+  font-family: var(--display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+}
+
+.reg__wa:hover {
+  background: rgba(37, 211, 102, 0.14);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(23, 115, 61, 0.16);
+}
+
+.reg__wa:active { transform: translateY(0); box-shadow: none; }
+
+/*
+ * A visible focus ring. The button is reached by keyboard immediately after
+ * the waiting-room link, and the default outline is nearly invisible against
+ * the tinted background.
+ */
+.reg__wa:focus-visible {
+  outline: 2px solid #17733d;
+  outline-offset: 2px;
+}
+
+.reg__wa-icon {
+  width: 19px;
+  height: 19px;
+  flex: none;
+}
+
 @media (max-width: 420px) {
   .reg__item { flex-wrap: wrap; }
   .reg__coupon-apply { padding: 0 14px; }

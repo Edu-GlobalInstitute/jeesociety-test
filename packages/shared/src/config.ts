@@ -107,6 +107,24 @@ export const REWARD_BANDS = [
 export const TEST_STARTS_AT = '2026-11-29T09:00:00+05:30';
 
 /**
+ * The WhatsApp community every registered student is invited to.
+ *
+ * Here rather than inline in the page because an invite link is the kind of
+ * thing that gets rotated -- a group can be reset, or its link revoked after a
+ * leak -- and when that happens there must be exactly one place to change it.
+ *
+ * Only shown to students who have paid. It is not on the landing page or in
+ * the signup flow: an open community link in front of unpaid traffic collects
+ * people who never register, and the point of this group is the cohort sitting
+ * the paper on 29 November.
+ *
+ * `chat.whatsapp.com/<code>` is the community/group invite form. If this is
+ * ever set to an empty string the button does not render at all, which is the
+ * correct behaviour while a link is being rotated.
+ */
+export const WHATSAPP_COMMUNITY_URL = 'https://chat.whatsapp.com/Im3iIyxnPbPCzNcwcxPD4j';
+
+/**
  * The paper's shape, in one place.
  *
  * Three subjects, each with 20 single-correct questions and 5 integer-answer
