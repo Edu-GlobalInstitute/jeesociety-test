@@ -20,7 +20,15 @@ services:
   - type: web
     name: jee-api
     runtime: node
-    plan: free
+    # Starter, not free. The free instance sleeps after fifteen minutes idle and
+    # the next request pays thirty to sixty seconds to wake it -- which is the
+    # "the whole website is lagging" report, several times a day, and it lands
+    # on whoever happens to arrive first. On launch night and on exam morning
+    # that is a student deciding whether this looks like a real company.
+    #
+    # Free also has no persistent instance, so the in-memory rate limiter and
+    # every warm connection are discarded on each wake.
+    plan: starter
     # Singapore. Neon's branch is in ap-southeast-1 and the API makes several
     # queries per request, so a region on another continent taxes all of them.
     region: singapore
