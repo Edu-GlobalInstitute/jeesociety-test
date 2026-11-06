@@ -4,6 +4,7 @@ import { twoFactor } from 'better-auth/plugins';
 import type { IncomingHttpHeaders } from 'node:http';
 import type { Pool } from '@jee/db';
 import type { Env } from './env.js';
+import { createMailer, resetPasswordEmail } from './lib/mail.js';
 
 /**
  * Better Auth owns the user, session, account and verification tables. It is
@@ -17,7 +18,18 @@ import type { Env } from './env.js';
 
 export type Auth = ReturnType<typeof createAuth>;
 
-export function createAuth(env: Env, pool: Pool) {
+/** One hour. Long enough for a student who checks mail on a phone later. */
+const RESET_TOKEN_SECONDS = 60 * 60;
+
+export function createAuth(env: Env, pool: Pool, log?: import('pino').Logger) {
+  const mailer = createMailer({
+    apiKey: env.RESEND_API_KEY,
+    from: env.MAIL_FROM,
+    // A child logger would be tidier, but this runs before the app's logger
+    // exists in some call paths (scripts, tests), so accept one or make one.
+    log: log ?? (console as unknown as import('pino').Logger),
+  });
+
   return betterAuth({
     database: pool,
     secret: env.BETTER_AUTH_SECRET,
@@ -31,6 +43,39 @@ export function createAuth(env: Env, pool: Pool) {
       // Verification is sent but not required to sit the test.
       requireEmailVerification: false,
       minPasswordLength: 8,
+      resetPasswordTokenExpiresIn: RESET_TOKEN_SECONDS,
+
+      /**
+       * The reset link, sent to the student's inbox.
+       *
+       * `url` is built by Better Auth from baseURL and already carries the
+       * one-time token plus the callbackURL we ask for, so the token never
+       * passes through our own string building.
+       *
+       * This resolves even when sending fails. Throwing here would make
+       * /auth/forget-password answer 500 for an address that exists and 200
+       * for one that does not, which turns the form into a way to discover
+       * who has registered. The route always answers the same way; a failure
+       * is a log line for us, not a signal to a stranger.
+       */
+      sendResetPassword: async ({ user, url }) => {
+        const message = resetPasswordEmail({
+          url,
+          expiresMinutes: RESET_TOKEN_SECONDS / 60,
+        });
+        const result = await mailer.send({
+          to: user.email,
+          subject: message.subject,
+          html: message.html,
+          text: message.text,
+        });
+        if (!result.sent) {
+          (log ?? console).error?.(
+            { reason: result.reason },
+            'password reset email was not sent',
+          );
+        }
+      },
     },
     /**
      * No social providers.

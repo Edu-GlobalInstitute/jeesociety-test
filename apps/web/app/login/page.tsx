@@ -134,17 +134,21 @@ export default function Login() {
           </form>
 
           <p className="auth__alt">
+            <a href="/forgot-password/">Forgot your password?</a>
+          </p>
+
+          <p className="auth__alt">
             New here? <a href="/signup">Create an account</a>
           </p>
         </div>
 
-        {/* Google sign-in was removed, and there is no password reset flow yet
-            (no email sending is configured), so a student who cannot get in has
-            no self-service route. Saying who to contact is the honest thing
-            here; a "forgot password" link would lead nowhere. */}
+        {/* The reset link above is self-service, but it depends on an email
+            actually arriving. A student whose address has a typo in it, or
+            whose provider bounces us, cannot be helped by it at all — so the
+            human route stays, under the automatic one. */}
         <p className="auth__fine">
-          Cannot get in? Write to us from the address you registered with and we
-          will sort it out.
+          Still cannot get in? Write to us from the address you registered with and
+          we will sort it out.
         </p>
       </div>
     </main>

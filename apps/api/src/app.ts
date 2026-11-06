@@ -48,7 +48,9 @@ export interface BuiltApp {
  */
 export function createApp({ env, pool, log, auth }: AppDeps): BuiltApp {
   const logger = log ?? createLogger(env.LOG_LEVEL);
-  const authInstance = auth ?? createAuth(env, pool);
+  // The logger goes in so password-reset mail failures land in the same
+  // stream as everything else rather than on bare stdout.
+  const authInstance = auth ?? createAuth(env, pool, logger);
   const app = express();
 
   app.disable('x-powered-by');

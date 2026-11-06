@@ -60,6 +60,22 @@ const EnvSchema = z.object({
   /** Entry fee in paise. Defaults to the price the landing page quotes. */
   TEST_FEE_PAISE: z.coerce.number().int().positive().default(TEST_FEE_PAISE),
 
+  /**
+   * Resend, for the one email the site sends: a password reset link.
+   *
+   * Both default to empty and the API boots without them, deliberately. A
+   * missing key must not take the site down three weeks before the paper --
+   * sign-in, registration and payment all work without email. What it costs
+   * is self-service password reset, which degrades to "write to us" on the
+   * login page rather than to an error.
+   *
+   * MAIL_FROM must be an address at a domain verified in the Resend
+   * dashboard. Resend rejects anything else, so a wrong value here fails at
+   * send time with a clear message rather than silently dropping mail.
+   */
+  RESEND_API_KEY: z.string().default(''),
+  MAIL_FROM: z.string().default('JEE Society <noreply@jeesociety.in>'),
+
   /** Serves tools/build-paper/out at /papers. Development only; see app.ts. */
   SERVE_LOCAL_PAPERS: z
     .string()
