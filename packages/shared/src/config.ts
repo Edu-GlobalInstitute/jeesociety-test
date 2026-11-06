@@ -118,11 +118,16 @@ export const TEST_STARTS_AT = '2026-11-29T09:00:00+05:30';
  * people who never register, and the point of this group is the cohort sitting
  * the paper on 29 November.
  *
- * `chat.whatsapp.com/<code>` is the community/group invite form. If this is
- * ever set to an empty string the button does not render at all, which is the
- * correct behaviour while a link is being rotated.
+ * This is a WhatsApp CHANNEL (`whatsapp.com/channel/<id>`), not a group
+ * invite. The difference matters for what we promise students: a channel is
+ * broadcast-only -- they receive updates and cannot post or see each other --
+ * so the copy says updates are sent here, not that they can ask questions.
+ * Changed from a chat.whatsapp.com group link on 6 November 2026.
+ *
+ * If this is ever set to an empty string the button does not render at all,
+ * which is the correct behaviour while a link is being rotated.
  */
-export const WHATSAPP_COMMUNITY_URL = 'https://chat.whatsapp.com/Im3iIyxnPbPCzNcwcxPD4j';
+export const WHATSAPP_COMMUNITY_URL = 'https://whatsapp.com/channel/0029VbDxS2uFcovxVIefvw3D';
 
 /**
  * The paper's shape, in one place.

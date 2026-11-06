@@ -16,7 +16,7 @@ import { youtubeId } from '../lib/youtube';
  *  missing, so an unfinished page is obvious rather than silently broken.
  * ────────────────────────────────────────────────────────────────────────────
  */
-const VIDEO_LINK = '';
+const VIDEO_LINK = 'https://youtu.be/XezZhXruZcE';
 
 /** What the embed is called for anyone using a screen reader. */
 const VIDEO_TITLE = 'A note from your IITian mentor';
