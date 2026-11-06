@@ -72,12 +72,11 @@ export default function Home() {
             </h1>
 
             <p className="hero__sub">
-              If you are scoring under{' '}
-              <b>{DIAGNOSTIC.entryCeilingMarks}</b>, or have not finished more than{' '}
-              <b>{DIAGNOSTIC.syllabusCeilingPercent}%</b> of the syllabus, you get a
-              detailed report on where you are actually losing marks, and workshops
-              where <b>an {DIAGNOSTIC.webinarHost}</b> turns it into{' '}
-              <b>+{DIAGNOSTIC.liftMarks} marks</b> in your January attempt.
+              Scoring under <b>{DIAGNOSTIC.entryCeilingMarks}</b>, or less than{' '}
+              <b>{DIAGNOSTIC.syllabusCeilingPercent}%</b> of the syllabus done? The
+              right test where you get a report on exactly where you lose marks, and
+              workshops where <b>an {DIAGNOSTIC.webinarHost}</b> turns that into{' '}
+              <b>+{DIAGNOSTIC.liftMarks} marks</b> in January.
             </p>
 
             <div className="hero__actions">
