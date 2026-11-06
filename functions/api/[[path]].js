@@ -50,7 +50,21 @@
  * not have to fit in the Function's memory.
  */
 
-const API_ORIGIN = 'https://jee-api.onrender.com';
+/*
+ * The API's own domain, not jee-api.onrender.com.
+ *
+ * Render serves every *.onrender.com host behind a shared Cloudflare zone with
+ * bot protection on it. That zone sees this proxy, not students: all of our
+ * traffic arrives from a handful of Cloudflare datacentre addresses, which is
+ * indistinguishable from automated abuse. When it decided we were a bot it
+ * answered 429 with a "Just a moment..." challenge page -- to a student's
+ * sign-in request -- and the login form showed "Too many attempts". It fired
+ * on /health too, so it was never about the auth routes.
+ *
+ * A custom domain on the Render service is served without that shared zone's
+ * challenge in front of it. Certificate verified before this was switched.
+ */
+const API_ORIGIN = 'https://api.jeesociety.in';
 
 /** Hop-by-hop headers, which must not be forwarded. */
 const HOP_BY_HOP = new Set([
@@ -68,7 +82,7 @@ export async function onRequest(context) {
   const { request } = context;
   const url = new URL(request.url);
 
-  // /api/profile -> https://jee-api.onrender.com/profile
+  // /api/profile -> https://api.jeesociety.in/profile
   const target = new URL(url.pathname.replace(/^\/api/, '') || '/', API_ORIGIN);
   target.search = url.search;
 

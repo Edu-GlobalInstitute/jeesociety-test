@@ -1,0 +1,46 @@
+# Security headers for every page Cloudflare Pages serves.
+#
+# Cloudflare reads this file from the build output root and applies it at the
+# edge, so these cost nothing at runtime and cannot be forgotten by a route.
+# Before it existed the site sent only x-content-type-options and a referrer
+# policy -- everything below was missing.
+#
+# Deliberately NOT here: a Content-Security-Policy. Next.js inlines hydration
+# scripts and Razorpay's checkout injects its own, so a CSP written without
+# measuring what the live pages actually load would break payment -- the one
+# flow that must never break. It is worth adding after the event, with the
+# browser console open on a real checkout.
+
+/*
+  # Force HTTPS for two years, including subdomains. A student on a public
+  # wifi who types the address without https:// is otherwise one redirect away
+  # from a session cookie travelling in clear text.
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+
+  # No framing. Without this the site can be loaded invisibly inside an
+  # attacker's page and a student's clicks aimed at whatever sits beneath --
+  # on this site that means the pay button and the admin actions.
+  X-Frame-Options: DENY
+
+  # Do not let a browser guess a response is HTML when we said it was not.
+  X-Content-Type-Options: nosniff
+
+  # Send the origin cross-site, never the full path. A student's URL can carry
+  # their attempt id; a referrer header hands it to every third party they
+  # reach from here.
+  Referrer-Policy: strict-origin-when-cross-origin
+
+  # Nothing on this site needs the camera, microphone or location, so no
+  # embedded frame should be able to ask for them in our name.
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(self)
+
+  # Keep this document's browsing context to itself, so a window we open --
+  # the WhatsApp channel, Razorpay -- cannot reach back through window.opener.
+  Cross-Origin-Opener-Policy: same-origin
+
+# The API proxy. Its responses are JSON read by our own scripts and must never
+# be cached by a shared cache: /profile/me and /payments/status differ per
+# student, and one cached copy served to the next student is a data leak.
+/api/*
+  Cache-Control: no-store
+  X-Content-Type-Options: nosniff
