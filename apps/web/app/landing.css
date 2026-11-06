@@ -209,39 +209,20 @@
 /* ── Hero content ─────────────────────────────────────────────────────── */
 
 /*
- * The date, in a pill above the headline.
+ * The line above the headline, which now carries the name of the paper and
+ * nothing else.
  *
- * A quiet navy outline rather than a warm badge: the gold and the orange on
- * this page are rationed to the things a student is being offered — the
- * price, the button, the marks on the ladder — and the date is not one of
- * them. Only the day itself is warm, because that is the part being read.
+ * It used to be an outlined pill holding the badge and the date together.
+ * With the date gone there is one chip left, and a chip inside a pill reads
+ * as a mistake — so this is only the slot the chip arrives in: the margin
+ * under it, and the entrance it shares with the rest of the column.
  */
 .hero__when {
   display: inline-flex;
   align-items: center;
-  /* Wraps rather than overflows: on a narrow phone the badge takes the first
-     line and the date the second, and the pill grows into a stadium around
-     both instead of pushing the column open. */
-  flex-wrap: wrap;
-  gap: 6px 9px;
-  /* Shrinks to its text, but never past the column it sits in. */
   max-width: 100%;
   margin: 0 0 18px;
-  padding: 6px 16px 6px 6px;
-  border: 1px solid var(--navy-line);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.5);
-  font-family: var(--display);
-  font-weight: 600;
-  font-size: 0.9rem;
-  letter-spacing: -0.005em;
-  color: var(--ink-soft);
   animation: fade-up 700ms cubic-bezier(0.2, 0.8, 0.3, 1) 60ms both;
-}
-
-.hero__when b {
-  font-weight: 800;
-  color: var(--orange-deep);
 }
 
 /*
@@ -264,28 +245,6 @@
   text-transform: uppercase;
   /* Two words on one line or none: a broken label reads as a mistake. */
   white-space: nowrap;
-}
-
-.hero__when-time {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-}
-
-/* Alive, like a light that is on: the morning is still ahead. */
-.hero__when-dot {
-  flex: none;
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: var(--teal);
-  box-shadow: 0 0 0 3px rgba(46, 196, 182, 0.2);
-  animation: when-pulse 2.8s ease-in-out infinite;
-}
-
-@keyframes when-pulse {
-  0%, 100% { box-shadow: 0 0 0 3px rgba(46, 196, 182, 0.2); }
-  50% { box-shadow: 0 0 0 6px rgba(46, 196, 182, 0.08); }
 }
 
 /*
@@ -1326,7 +1285,6 @@
   .finale__seal,
   .hero__sparkle,
   .hero__when,
-  .hero__when-dot,
   .hero__sub,
   .hero__actions,
   .hero__line > span,

@@ -48,23 +48,13 @@ export default function Home() {
 
         <div className="wrap hero__inner">
           <div className="hero__copy">
-            {/* What the paper is, then the morning it falls on: a student
-                scanning the page decides first whether this is the test they
-                have been waiting for, and then whether they are free that day.
-                One span for the date, not three text nodes — loose text inside
-                a flex container becomes separate items that cannot wrap into
-                each other. */}
+            {/* What the paper is, said before anything is promised: a
+                student scanning the page decides first whether this is the
+                test they have been waiting for. The morning it falls on is
+                not fixed yet, so it is carried by the closing band alone
+                rather than quoted twice. */}
             <p className="hero__when">
               <span className="hero__badge">Penultimate JEE test</span>
-              {/* The light and the day it belongs to travel together: left
-                  loose, the pill's wrap would leave the dot stranded at the
-                  end of the badge's line. */}
-              <span className="hero__when-time">
-                <span className="hero__when-dot" aria-hidden="true" />
-                <span>
-                  <b>{TEST_WEEKDAY}, {TEST_DATE_SHORT}</b> · {TEST_TIME_LABEL}
-                </span>
-              </span>
             </p>
 
             {/* One sentence, broken over three beats, with the number lit in
@@ -82,9 +72,9 @@ export default function Home() {
             </h1>
 
             <p className="hero__sub">
-              The right test if you are scoring under{' '}
+              If you are scoring under{' '}
               <b>{DIAGNOSTIC.entryCeilingMarks}</b>, or have not finished more than{' '}
-              <b>{DIAGNOSTIC.syllabusCeilingPercent}%</b> of the syllabus. You get a
+              <b>{DIAGNOSTIC.syllabusCeilingPercent}%</b> of the syllabus, you get a
               detailed report on where you are actually losing marks, and workshops
               where <b>an {DIAGNOSTIC.webinarHost}</b> turns it into{' '}
               <b>+{DIAGNOSTIC.liftMarks} marks</b> in your January attempt.
