@@ -77,17 +77,30 @@ export async function kpiWindow(days: number, db?: Queryable): Promise<KpiWindow
          WHERE u."createdAt" >= b.prev_start AND u."createdAt" < b.this_start
            AND ${COUNTS_AS_STUDENT})
          AS prev_signups,
-       (SELECT count(DISTINCT p.user_id) FROM payments p, bounds b
-         WHERE p.status = 'paid' AND p.updated_at >= b.this_start) AS paid,
-       (SELECT count(DISTINCT p.user_id) FROM payments p, bounds b
+       -- Each payment figure joins "user" so COUNTS_AS_STUDENT can be applied
+       -- to it. Without that join these four read every paid row in the
+       -- table, including rows belonging to someone removed from the CRM --
+       -- which is what made this tile disagree with the CRM's own "collected"
+       -- figure by the value of the removed payments.
+       (SELECT count(DISTINCT p.user_id)
+          FROM payments p JOIN "user" u ON u."id" = p.user_id, bounds b
+         WHERE p.status = 'paid' AND p.updated_at >= b.this_start
+           AND ${COUNTS_AS_STUDENT}) AS paid,
+       (SELECT count(DISTINCT p.user_id)
+          FROM payments p JOIN "user" u ON u."id" = p.user_id, bounds b
          WHERE p.status = 'paid'
-           AND p.updated_at >= b.prev_start AND p.updated_at < b.this_start)
+           AND p.updated_at >= b.prev_start AND p.updated_at < b.this_start
+           AND ${COUNTS_AS_STUDENT})
          AS prev_paid,
-       (SELECT COALESCE(sum(p.amount), 0) FROM payments p, bounds b
-         WHERE p.status = 'paid' AND p.updated_at >= b.this_start) AS revenue,
-       (SELECT COALESCE(sum(p.amount), 0) FROM payments p, bounds b
+       (SELECT COALESCE(sum(p.amount), 0)
+          FROM payments p JOIN "user" u ON u."id" = p.user_id, bounds b
+         WHERE p.status = 'paid' AND p.updated_at >= b.this_start
+           AND ${COUNTS_AS_STUDENT}) AS revenue,
+       (SELECT COALESCE(sum(p.amount), 0)
+          FROM payments p JOIN "user" u ON u."id" = p.user_id, bounds b
          WHERE p.status = 'paid'
-           AND p.updated_at >= b.prev_start AND p.updated_at < b.this_start)
+           AND p.updated_at >= b.prev_start AND p.updated_at < b.this_start
+           AND ${COUNTS_AS_STUDENT})
          AS prev_revenue`,
     [days],
     db,
@@ -140,10 +153,15 @@ export async function dailySeries(days: number, db?: Queryable): Promise<DailyPo
          FROM "user" u WHERE ${COUNTS_AS_STUDENT} GROUP BY 1
      ) s ON s.day = d.day
      LEFT JOIN (
+       -- Joined to "user" for the same reason as kpiWindow: without it the
+       -- graph's paid line and the KPI tile above it count different people,
+       -- and a lead removed from the CRM keeps appearing in one of them.
        SELECT (pay.updated_at AT TIME ZONE ${IST})::date AS day,
               count(DISTINCT pay.user_id) AS n,
               sum(pay.amount) AS amount
-         FROM payments pay WHERE pay.status = 'paid' GROUP BY 1
+         FROM payments pay JOIN "user" u ON u."id" = pay.user_id
+        WHERE pay.status = 'paid' AND ${COUNTS_AS_STUDENT}
+        GROUP BY 1
      ) p ON p.day = d.day
      ORDER BY d.day`,
     [days],
@@ -171,15 +189,27 @@ export interface FunnelTotals {
 export async function funnelTotals(db?: Queryable): Promise<FunnelTotals> {
   const row = await one<Record<string, string>>(
     `SELECT
+       -- Every row joins "user" and applies COUNTS_AS_STUDENT. A funnel whose
+       -- steps count different populations narrows for a reason that is not
+       -- the funnel: one removed lead used to drop out of the signups count
+       -- and stay in orders, making conversion look worse than it was.
        (SELECT count(*) FROM "user" u WHERE ${COUNTS_AS_STUDENT}) AS signups,
-       (SELECT count(*) FROM student_profiles WHERE profile_complete) AS profiles,
-       (SELECT count(DISTINCT user_id) FROM payments) AS orders,
-       (SELECT count(DISTINCT user_id) FROM payments WHERE status = 'paid') AS paid,
+       (SELECT count(*) FROM student_profiles sp
+          JOIN "user" u ON u."id" = sp.user_id
+         WHERE sp.profile_complete AND ${COUNTS_AS_STUDENT}) AS profiles,
        (SELECT count(DISTINCT p.user_id) FROM payments p
-         WHERE NOT EXISTS (
-           SELECT 1 FROM payments q
-            WHERE q.user_id = p.user_id AND q.status = 'paid'
-         )) AS abandoned`,
+          JOIN "user" u ON u."id" = p.user_id
+         WHERE ${COUNTS_AS_STUDENT}) AS orders,
+       (SELECT count(DISTINCT p.user_id) FROM payments p
+          JOIN "user" u ON u."id" = p.user_id
+         WHERE p.status = 'paid' AND ${COUNTS_AS_STUDENT}) AS paid,
+       (SELECT count(DISTINCT p.user_id) FROM payments p
+          JOIN "user" u ON u."id" = p.user_id
+         WHERE ${COUNTS_AS_STUDENT}
+           AND NOT EXISTS (
+             SELECT 1 FROM payments q
+              WHERE q.user_id = p.user_id AND q.status = 'paid'
+           )) AS abandoned`,
     [],
     db,
   );
@@ -204,6 +234,8 @@ export function referralBreakdown(
                              WHERE pay.user_id = p.user_id AND pay.status = 'paid')
             )::int AS paid
        FROM student_profiles p
+       JOIN "user" u ON u."id" = p.user_id
+      WHERE ${COUNTS_AS_STUDENT}
       GROUP BY 1
       ORDER BY signups DESC`,
     [],
@@ -223,6 +255,8 @@ export function cohortBreakdown(
                              WHERE pay.user_id = p.user_id AND pay.status = 'paid')
             )::int AS paid
        FROM student_profiles p
+       JOIN "user" u ON u."id" = p.user_id
+      WHERE ${COUNTS_AS_STUDENT}
       GROUP BY p.class, p.target_year
       ORDER BY p.target_year, p.class`,
     [],
